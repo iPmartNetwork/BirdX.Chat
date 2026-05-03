@@ -1,0 +1,59 @@
+{
+  "name": "birdx-server",
+  "private": true,
+  "license": "MIT",
+  "description": "BirdX Backend - API server for chat and file sharing",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iPmartNetwork/BirdX.git"
+  },
+  "bugs": {
+    "url": "https://github.com/iPmartNetwork/BirdX/issues"
+  },
+  "homepage": "https://github.com/iPmartNetwork/BirdX#readme",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js",
+    "test": "node -e \"console.log('No server tests configured.');\"",
+
+    "db:delete": "node scripts/delete-db.js",
+    "db:reset": "node scripts/reset-db.js",
+    "db:backup": "node scripts/backup-db.js",
+    "db:restore": "node scripts/restore-db.js",
+    "db:vacuum": "node scripts/vacuum-db.js",
+    "db:help": "node scripts/db-help.js",
+    "db:migrate": "node scripts/migrate.js",
+    "db:backfill": "node scripts/backfill-message-file-metadata.js",
+
+    "db:chat:create": "node scripts/create-chat.js",
+    "db:chat:add": "node scripts/add-chat-member.js",
+    "db:chat:edit": "node scripts/edit-chat.js",
+    "db:chat:delete": "node scripts/delete-chat.js",
+
+    "db:file:delete": "node scripts/delete-file.js",
+
+    "db:user:edit": "node scripts/edit-user.js",
+    "db:user:ban": "node scripts/ban-user.js",
+    "db:user:delete": "node scripts/delete-user.js",
+    "db:user:create": "node scripts/create-user.js",
+    "db:user:generate": "node scripts/generate-user.js",
+
+    "db:message:generate": "node scripts/generate-chat-message.js",
+
+    "db:inspect": "node scripts/inspect-db.js all",
+    "db:chat:inspect": "node scripts/inspect-db.js chat",
+    "db:user:inspect": "node scripts/inspect-db.js user",
+    "db:file:inspect": "node scripts/inspect-db.js file"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.2.1",
+    "multer": "^1.4.5-lts.1",
+    "sql.js": "^1.13.0",
+    "web-push": "^3.6.7"
+  }
+}

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!-- Icons -->
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />
+
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- SEO / Meta -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#020617" />
+    <meta name="description" content="BirdX - Secure self-hosted chat and file sharing platform" />
+
+    <!-- OpenGraph -->
+    <meta property="og:title" content="BirdX" />
+    <meta property="og:description" content="Modern chat + file sharing platform" />
+    <meta property="og:type" content="website" />
+
+    <!-- Preload Theme -->
+    <style>
+      html,
+      body {
+        background: #ffffff;
+      }
+      html.bx-preload-dark,
+      html.bx-preload-dark body {
+        background: #020617;
+      }
+    </style>
+
+    <!-- Theme Loader -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("birdx-theme");
+          var isDark = stored === "dark";
+          if (isDark) {
+            var root = document.documentElement;
+            root.classList.add("dark", "bx-preload-dark");
+            root.style.colorScheme = "dark";
+            root.style.backgroundColor = "#020617";
+
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute("content", "#020617");
+          }
+        } catch (_) {}
+      })();
+    </script>
+
+    <!-- Title -->
+    <title>BirdX</title>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
