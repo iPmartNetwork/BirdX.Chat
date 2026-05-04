@@ -26,7 +26,7 @@ trap 'handle_exit' EXIT
 APP_NAME="birdx"
 INSTALL_DIR="/opt/birdx"
 LOG_FILE="/opt/birdx/logs/install.log"
-REPO_URL="${REPO_URL:-https://github.com/bllackbull/BirdX.git}"
+REPO_URL="${REPO_URL:-https://github.com/iPmartNetwork/BirdX.git}"
 SERVICE_USER="birdx"
 SERVICE_GROUP="birdx"
 SERVICE_FILE="/etc/systemd/system/birdx.service"
