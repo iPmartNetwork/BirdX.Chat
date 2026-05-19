@@ -1,3 +1,5 @@
+import { createInviteToken } from "../lib/inviteTokens.js";
+
 function registerChatRoutes(app, deps) {
   const {
     USERNAME_REGEX,
@@ -7,7 +9,6 @@ function registerChatRoutes(app, deps) {
     avatarUploadRootDir,
     cleanupMissingMessageFiles,
     clearChatMemberLeft,
-    crypto,
     createChat,
     createMessage,
     deleteChatById,
@@ -24,7 +25,9 @@ function registerChatRoutes(app, deps) {
     hydrateMissingVideoMetadata,
     isGroupMemberRemoved,
     isMember,
+    isRequiredChannel,
     isVideoFileProcessing,
+    listCallLogsForChat,
     listChatMembers,
     listChatsForUser,
     listMessageFilesByMessageIds,
@@ -97,6 +100,46 @@ function registerChatRoutes(app, deps) {
       }
     });
   };
+
+  const normalizeChatMemberRole = (value) => {
+    const role = String(value || "").trim().toLowerCase();
+    return ["owner", "admin", "moderator", "member"].includes(role) ? role : "member";
+  };
+
+  const normalizeCallLog = (call) => ({
+    id: Number(call?.id || 0),
+    chatId: Number(call?.chat_id || 0),
+    roomId: String(call?.room_id || ""),
+    type: String(call?.call_type || "voice"),
+    status: String(call?.status || "ended"),
+    startedAt: call?.started_at || null,
+    acceptedAt: call?.accepted_at || null,
+    endedAt: call?.ended_at || null,
+    durationSeconds: Number(call?.duration_seconds || 0),
+    endReason: call?.end_reason || "",
+    caller: call?.caller_user_id
+      ? {
+          id: Number(call.caller_user_id),
+          username: call.caller_username || "",
+          nickname: call.caller_nickname || call.caller_username || "",
+          avatar_url: ensureAvatarExists(call.caller_user_id, call.caller_avatar_url),
+          color: call.caller_color || "#10b981",
+        }
+      : null,
+    participants: (Array.isArray(call?.participants) ? call.participants : []).map(
+      (participant) => ({
+        id: Number(participant.user_id || 0),
+        username: participant.username || "",
+        nickname: participant.nickname || participant.username || "",
+        avatar_url: ensureAvatarExists(participant.user_id, participant.avatar_url),
+        color: participant.color || "#10b981",
+        role: participant.role || "participant",
+        status: participant.status || "invited",
+        joinedAt: participant.joined_at || null,
+        leftAt: participant.left_at || null,
+      }),
+    ),
+  });
 
   app.get("/api/chats", async (req, res) => {
     const session = requireSession(req, res);
@@ -349,7 +392,7 @@ function registerChatRoutes(app, deps) {
       String(visibility || "").toLowerCase() === "private"
         ? "private"
         : "public";
-    const inviteToken = crypto.randomBytes(24).toString("hex");
+    const inviteToken = createInviteToken();
     const chatId = createChat(groupNickname, normalizedType, {
       groupUsername,
       groupVisibility: normalizedVisibility,
@@ -526,6 +569,30 @@ function registerChatRoutes(app, deps) {
     });
   });
 
+  app.get("/api/chats/:chatId/calls", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const chatId = Number(req.params.chatId || 0);
+    const username = req.query.username?.toString();
+    const limit = Number(req.query.limit || 30);
+    if (!chatId || !username) {
+      return res.status(400).json({ error: "Chat id and username are required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(username.toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    if (!isMember(chatId, user.id)) {
+      return res.status(403).json({ error: "You are not a member of this chat." });
+    }
+
+    const calls = listCallLogsForChat(chatId, limit).map(normalizeCallLog);
+    return res.json({ calls });
+  });
+
   app.get("/api/chats/group/:chatId/invite-link", (req, res) => {
     const session = requireSession(req, res);
     if (!session) return;
@@ -604,7 +671,7 @@ function registerChatRoutes(app, deps) {
         .json({ error: `Only ${label} owner can regenerate invite link.` });
     }
 
-    const inviteToken = crypto.randomBytes(24).toString("hex");
+    const inviteToken = createInviteToken();
     regenerateGroupInviteToken(chatId, inviteToken);
     const baseOrigin = resolveClientBaseOrigin(req);
     return res.json({
@@ -763,6 +830,11 @@ function registerChatRoutes(app, deps) {
     if (!isMember(chatId, user.id)) {
       return res.status(400).json({ error: "You are not a member of this group." });
     }
+    if (chat.type === "channel" && isRequiredChannel?.(chatId)) {
+      return res.status(403).json({
+        error: "This channel is required by the workspace and cannot be left.",
+      });
+    }
 
     const members = listChatMembers(chatId);
     const isOwner = members.some(
@@ -896,6 +968,11 @@ function registerChatRoutes(app, deps) {
     if (String(targetMember.role || "").toLowerCase() === "owner") {
       return res.status(400).json({ error: "Owner cannot be removed." });
     }
+    if (chat.type === "channel" && isRequiredChannel?.(chatId)) {
+      return res.status(403).json({
+        error: "Members cannot be removed from a required channel.",
+      });
+    }
 
     removeChatMember(chatId, target.id);
     markGroupMemberRemoved(chatId, target.id, actor.id);
@@ -914,6 +991,68 @@ function registerChatRoutes(app, deps) {
     }
     emitChatListChangedToChatParticipants(chatId, [target.username]);
     return res.json({ ok: true });
+  });
+
+  app.patch("/api/chats/group/:chatId/member-role", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const chatId = Number(req.params?.chatId || 0);
+    const username = req.body?.username?.toString();
+    const targetUsername = req.body?.targetUsername?.toString();
+    const nextRole = normalizeChatMemberRole(req.body?.role);
+    if (!chatId || !username || !targetUsername) {
+      return res.status(400).json({
+        error: "Chat id, username, and targetUsername are required.",
+      });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const actor = findUserByUsername(String(username || "").toLowerCase());
+    const target = findUserByUsername(String(targetUsername || "").toLowerCase());
+    if (!actor || !target) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const chat = findChatById(chatId);
+    if (!chat || (chat.type !== "group" && chat.type !== "channel")) {
+      return res.status(404).json({ error: "Chat not found." });
+    }
+
+    const members = listChatMembers(chatId);
+    const label = chat.type === "channel" ? "channel" : "group";
+    const actorMember = members.find((member) => Number(member.id) === Number(actor.id));
+    if (!actorMember || String(actorMember.role || "").toLowerCase() !== "owner") {
+      return res
+        .status(403)
+        .json({ error: `Only ${label} owner can change member roles.` });
+    }
+
+    const targetMember = members.find((member) => Number(member.id) === Number(target.id));
+    if (!targetMember) {
+      return res.status(400).json({ error: "Target user is not a group member." });
+    }
+
+    const previousRole = normalizeChatMemberRole(targetMember.role);
+    if (previousRole === "owner" && nextRole !== "owner") {
+      const ownerCount = members.filter(
+        (member) => String(member.role || "").toLowerCase() === "owner",
+      ).length;
+      if (ownerCount <= 1) {
+        return res.status(400).json({ error: `At least one ${label} owner is required.` });
+      }
+    }
+
+    setChatMemberRole(chatId, target.id, nextRole);
+    emitChatListChangedToChatParticipants(chatId);
+    return res.json({
+      ok: true,
+      member: {
+        id: Number(target.id),
+        username: target.username,
+        role: nextRole,
+      },
+    });
   });
 
   app.post(
@@ -1097,7 +1236,14 @@ function registerChatRoutes(app, deps) {
       return res.status(404).json({ error: "User not found." });
     }
 
-    hideChatsForUser(user.id, chatIds.map((id) => Number(id)).filter(Boolean));
+    const normalizedChatIds = chatIds.map((id) => Number(id)).filter(Boolean);
+    if (normalizedChatIds.some((chatId) => isRequiredChannel?.(chatId))) {
+      return res.status(403).json({
+        error: "Required channels cannot be hidden.",
+      });
+    }
+
+    hideChatsForUser(user.id, normalizedChatIds);
 
     res.json({ ok: true });
   });

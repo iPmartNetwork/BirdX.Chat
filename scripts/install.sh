@@ -34,6 +34,8 @@ LEGO_RENEW_SERVICE_FILE="/etc/systemd/system/birdx-lego-renew.service"
 LEGO_RENEW_TIMER_FILE="/etc/systemd/system/birdx-lego-renew.timer"
 NGINX_SITE_FILE="/etc/nginx/sites-available/birdx"
 NGINX_ENABLED_FILE="/etc/nginx/sites-enabled/birdx"
+TURN_CONFIG_FILE="/etc/turnserver.conf"
+TURN_DEFAULT_FILE="/etc/default/coturn"
 DEFAULT_SERVER_PORT="5174"
 DEFAULT_CLIENT_PORT="80"
 DEFAULT_FILE_UPLOAD="true"
@@ -41,6 +43,8 @@ DEFAULT_MAX_UPLOAD="78643200"
 DEFAULT_RETENTION_DAYS="7"
 DEFAULT_TEXT_RETENTION_DAYS="0"
 DEFAULT_ACCOUNT_CREATION="true"
+DEFAULT_TURN_MIN_PORT="49160"
+DEFAULT_TURN_MAX_PORT="49200"
 DEFAULT_CHAT_VOICE_WAVEFORM_MAX_DECODE_BYTES="5242880"
 DEFAULT_CHAT_VOICE_WAVEFORM_MAX_DECODE_SECONDS="480"
 NODE_MAJOR="24"
@@ -61,6 +65,7 @@ OS_ID=""
 OS_ID_LIKE=""
 DEPLOY_MODE="ip"
 DOMAIN_NAMES=()
+INVALID_DOMAIN_NAMES=()
 CERTBOT_EMAIL=""
 SERVER_PORT="$DEFAULT_SERVER_PORT"
 CLIENT_PORT="$DEFAULT_CLIENT_PORT"
@@ -70,6 +75,15 @@ RETENTION_DAYS="$DEFAULT_RETENTION_DAYS"
 TEXT_RETENTION_DAYS="$DEFAULT_TEXT_RETENTION_DAYS"
 ACCOUNT_CREATION="$DEFAULT_ACCOUNT_CREATION"
 NGINX_SERVER_NAME="_"
+TURN_ENABLED="false"
+TURN_HOST=""
+TURN_PUBLIC_IP=""
+TURN_REALM=""
+TURN_USERNAME="birdx"
+TURN_CREDENTIAL=""
+TURN_URLS=""
+TURN_MIN_PORT="$DEFAULT_TURN_MIN_PORT"
+TURN_MAX_PORT="$DEFAULT_TURN_MAX_PORT"
 CURRENT_ENV_FILE=""
 PROMPT_FD=0
 PROMPT_FD_OUT=1
@@ -386,6 +400,236 @@ prompt_text_retention_days() {
     fi
     printf "Please enter a non-negative integer.\n"
   done
+}
+
+is_ipv4_address() {
+  local value="$1"
+  [[ "$value" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
+}
+
+normalize_domain_name() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  value="$(printf "%s" "$value" | tr '[:upper:]' '[:lower:]')"
+  value="${value#http://}"
+  value="${value#https://}"
+  value="${value%%/*}"
+  value="${value%%:*}"
+  value="${value%.}"
+  printf "%s" "$value"
+}
+
+is_valid_domain_name() {
+  local value="$1"
+  [[ "$value" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$ ]]
+}
+
+read_nginx_server_name_from_existing_config() {
+  if [[ ! -f "$NGINX_SITE_FILE" ]]; then
+    return 1
+  fi
+
+  local existing=""
+  existing="$(run_as_root_output awk '
+    /^[[:space:]]*server_name[[:space:]]+/ {
+      sub(/^[[:space:]]*server_name[[:space:]]+/, "")
+      sub(/;[[:space:]]*$/, "")
+      print
+      exit
+    }
+  ' "$NGINX_SITE_FILE" 2>/dev/null | tr -d '\r')" || existing=""
+
+  if [[ -n "$existing" ]]; then
+    NGINX_SERVER_NAME="$existing"
+    return 0
+  fi
+
+  return 1
+}
+
+detect_public_ip() {
+  if ! have_cmd curl; then
+    return 1
+  fi
+
+  local endpoint=""
+  local ip=""
+  for endpoint in "https://api.ipify.org" "https://ifconfig.me/ip"; do
+    ip="$(curl -fsS --max-time 4 "$endpoint" 2>/dev/null | tr -d '[:space:]')" || ip=""
+    if is_ipv4_address "$ip"; then
+      printf "%s" "$ip"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+normalize_turn_host_input() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  value="${value#turn:}"
+  value="${value#turns:}"
+  value="${value#http://}"
+  value="${value#https://}"
+  value="${value%%/*}"
+  value="${value%%\?*}"
+  if [[ "$value" == *":3478" ]]; then
+    value="${value%:3478}"
+  fi
+  printf "%s" "$value"
+}
+
+prompt_turn_host() {
+  local default_host="${1:-}"
+  local value=""
+  while true; do
+    if [[ -n "$default_host" ]]; then
+      prompt_read "Enter TURN hostname or public IPv4 (default: $default_host): " value
+      if [[ -z "$value" ]]; then
+        value="$default_host"
+      fi
+    else
+      prompt_read "Enter TURN hostname or public IPv4: " value
+    fi
+
+    value="$(normalize_turn_host_input "$value")"
+    if [[ "$value" =~ ^[A-Za-z0-9._-]+$ ]]; then
+      printf "%s" "$value"
+      return 0
+    fi
+    printf "Use a hostname or public IPv4 address without protocol, path, or port.\n"
+  done
+}
+
+generate_turn_credential() {
+  local secret=""
+  secret="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32 || true)"
+  if (( ${#secret} < 32 )) && have_cmd openssl; then
+    secret="$(openssl rand -base64 32 2>/dev/null | tr '+/' '-_' | tr -d '=[:space:]' | head -c 32 || true)"
+  fi
+  if (( ${#secret} < 32 )); then
+    secret="$(date +%s%N | sha256sum | awk '{print $1}' | head -c 32)"
+  fi
+  printf "%s" "$secret"
+}
+
+build_turn_urls() {
+  local host="$1"
+  printf "turn:%s:3478?transport=udp turn:%s:3478?transport=tcp" "$host" "$host"
+}
+
+prompt_turn_options() {
+  TURN_ENABLED="false"
+  TURN_HOST=""
+  TURN_PUBLIC_IP=""
+  TURN_REALM=""
+  TURN_USERNAME="birdx"
+  TURN_CREDENTIAL=""
+  TURN_URLS=""
+
+  if [[ "$(prompt_yes_no "Install and configure coturn TURN server for reliable voice calls?" "yes")" != "yes" ]]; then
+    return 0
+  fi
+
+  local default_host=""
+  if (( ${#DOMAIN_NAMES[@]} > 0 )); then
+    default_host="${DOMAIN_NAMES[0]}"
+  elif [[ -n "$CERTBOT_IP_ADDRESS" ]]; then
+    default_host="$CERTBOT_IP_ADDRESS"
+  else
+    default_host="$(detect_public_ip || true)"
+  fi
+
+  TURN_ENABLED="true"
+  TURN_HOST="$(prompt_turn_host "$default_host")"
+  TURN_REALM="$TURN_HOST"
+  TURN_CREDENTIAL="$(generate_turn_credential)"
+  TURN_URLS="$(build_turn_urls "$TURN_HOST")"
+
+  if is_ipv4_address "$TURN_HOST"; then
+    TURN_PUBLIC_IP="$TURN_HOST"
+  else
+    TURN_PUBLIC_IP="$(detect_public_ip || true)"
+  fi
+
+  log "TURN will be configured for ${TURN_HOST} with username ${TURN_USERNAME}."
+}
+
+apply_turn_env_settings() {
+  local env_file="${1:-$INSTALL_DIR/.env}"
+  if [[ "$TURN_ENABLED" != "true" ]]; then
+    return 0
+  fi
+  if [[ -z "$TURN_URLS" || -z "$TURN_USERNAME" || -z "$TURN_CREDENTIAL" ]]; then
+    fail "TURN is enabled, but TURN environment values are incomplete."
+  fi
+
+  replace_env_value "$env_file" "APP_TURN_URLS" "$TURN_URLS"
+  replace_env_value "$env_file" "APP_TURN_USERNAME" "$TURN_USERNAME"
+  replace_env_value "$env_file" "APP_TURN_CREDENTIAL" "$TURN_CREDENTIAL"
+}
+
+log_turn_firewall_hint() {
+  log "TURN firewall ports to allow: 3478 TCP, 3478 UDP, and ${TURN_MIN_PORT}-${TURN_MAX_PORT} UDP."
+}
+
+configure_turn_server() {
+  if [[ "$TURN_ENABLED" != "true" ]]; then
+    return 0
+  fi
+
+  if ! dpkg -s coturn >/dev/null 2>&1; then
+    fail "coturn is not installed. Re-run installation so required packages can be installed."
+  fi
+
+  local external_ip_line=""
+  if [[ -z "$TURN_PUBLIC_IP" ]] && ! is_ipv4_address "$TURN_HOST"; then
+    TURN_PUBLIC_IP="$(detect_public_ip || true)"
+  fi
+  if [[ -n "$TURN_PUBLIC_IP" ]]; then
+    external_ip_line="external-ip=${TURN_PUBLIC_IP}"
+  fi
+
+  log "Writing coturn config to ${TURN_CONFIG_FILE}..."
+  run_silent run_as_root tee "$TURN_CONFIG_FILE" >/dev/null <<EOF
+# Managed by BirdX installer.
+listening-port=3478
+fingerprint
+lt-cred-mech
+realm=${TURN_REALM}
+server-name=${TURN_REALM}
+user=${TURN_USERNAME}:${TURN_CREDENTIAL}
+total-quota=100
+stale-nonce=600
+no-loopback-peers
+no-multicast-peers
+no-cli
+min-port=${TURN_MIN_PORT}
+max-port=${TURN_MAX_PORT}
+${external_ip_line}
+syslog
+EOF
+
+  log "Enabling coturn startup in ${TURN_DEFAULT_FILE}..."
+  run_silent run_as_root tee "$TURN_DEFAULT_FILE" >/dev/null <<'EOF'
+TURNSERVER_ENABLED=1
+EOF
+
+  local turn_service="coturn.service"
+  if run_as_root systemctl list-unit-files | grep -q '^coturn\.service'; then
+    turn_service="coturn.service"
+  elif run_as_root systemctl list-unit-files | grep -q '^turnserver\.service'; then
+    turn_service="turnserver.service"
+  fi
+
+  run_silent run_as_root systemctl daemon-reload
+  run_silent run_as_root systemctl enable "$turn_service" || fail "Failed to enable ${turn_service}."
+  run_silent run_as_root systemctl restart "$turn_service" || fail "Failed to start ${turn_service}."
+  log "coturn is running as ${turn_service}."
+  log_turn_firewall_hint
 }
 
 normalize_path_input() {
@@ -757,8 +1001,11 @@ install_required_packages() {
     zip
     unzip
   )
+  if [[ "$TURN_ENABLED" == "true" ]]; then
+    required_pkgs+=(coturn)
+  fi
   if [[ "$CERT_MODE" == "certbot" && "$DEPLOY_MODE" == "domain" ]]; then
-    required_pkgs+=(python3-certbot-nginx)
+    required_pkgs+=(certbot)
   fi
   local missing_pkgs=()
   local pkg=""
@@ -779,14 +1026,15 @@ install_required_packages() {
       -o Dir::Etc::sourceparts=- <<EOF
 deb ${MIRROR_APT_EXTRA} ${codename} main restricted universe multiverse
 EOF
+    [[ "$?" -eq 0 ]] || fail "Failed to refresh apt package index from mirror."
   else
     log "Refreshing apt package index..."
-    run_silent run_as_root apt-get update
+    run_silent run_as_root apt-get update || fail "Failed to refresh apt package index."
   fi
 
   if (( ${#missing_pkgs[@]} > 0 )); then
     log "Installing missing packages: ${missing_pkgs[*]}"
-    run_silent run_as_root apt-get install -y --allow-downgrades "${missing_pkgs[@]}"
+    run_silent run_as_root apt-get install -y --allow-downgrades "${missing_pkgs[@]}" || fail "Failed to install required packages."
   else
     log "All required base packages are already installed."
   fi
@@ -1127,22 +1375,19 @@ update_source_from_zip() {
 }
 
 install_birdx_dependencies() {
-  log "Installing server dependencies..."
+  local npm_registry_arg=""
   if [[ -n "$MIRROR_NPM" ]]; then
-    run_in_install_dir "npm --prefix server --registry "$MIRROR_NPM" install"
-  else
-    run_in_install_dir "npm --prefix server install"
+    npm_registry_arg="--registry $(printf "%q" "$MIRROR_NPM")"
   fi
+
+  log "Installing server dependencies..."
+  run_in_install_dir "npm --prefix server ${npm_registry_arg} install" || fail "Failed to install server dependencies."
 
   log "Installing client dependencies..."
-  if [[ -n "$MIRROR_NPM" ]]; then
-    run_in_install_dir "npm --prefix client --registry "$MIRROR_NPM" install"
-  else
-    run_in_install_dir "npm --prefix client install"
-  fi
+  run_in_install_dir "npm --prefix client ${npm_registry_arg} install" || fail "Failed to install client dependencies."
 
   log "Building client..."
-  run_in_install_dir "npm --prefix client run build"
+  run_in_install_dir "npm --prefix client run build" || fail "Failed to build client assets."
 }
 
 get_existing_env_value() {
@@ -1217,6 +1462,15 @@ write_env_from_example() {
   local existing_voice_waveform_max_decode_bytes
   local existing_voice_waveform_max_decode_seconds
   local existing_storage_encryption_key
+  local existing_file_upload_hard_max_size
+  local existing_remote_channel
+  local existing_remote_channel_api_id
+  local existing_remote_channel_api_hash
+  local existing_remote_channel_session_string
+  local existing_remote_channel_proxy_url
+  local existing_turn_urls
+  local existing_turn_username
+  local existing_turn_credential
   existing_public_key="$(get_existing_env_value "VAPID_PUBLIC_KEY" "")"
   existing_private_key="$(get_existing_env_value "VAPID_PRIVATE_KEY" "")"
   existing_subject="$(get_existing_env_value "VAPID_SUBJECT" "mailto:admin@example.com")"
@@ -1225,6 +1479,15 @@ write_env_from_example() {
   existing_voice_waveform_max_decode_bytes="$(get_existing_env_value "CHAT_VOICE_WAVEFORM_MAX_DECODE_BYTES" "$DEFAULT_CHAT_VOICE_WAVEFORM_MAX_DECODE_BYTES")"
   existing_voice_waveform_max_decode_seconds="$(get_existing_env_value "CHAT_VOICE_WAVEFORM_MAX_DECODE_SECONDS" "$DEFAULT_CHAT_VOICE_WAVEFORM_MAX_DECODE_SECONDS")"
   existing_storage_encryption_key="$(get_existing_env_value "STORAGE_ENCRYPTION_KEY" "")"
+  existing_file_upload_hard_max_size="$(get_existing_env_value "FILE_UPLOAD_HARD_MAX_SIZE" "1073741824")"
+  existing_remote_channel="$(get_existing_env_value "REMOTE_CHANNEL" "false")"
+  existing_remote_channel_api_id="$(get_existing_env_value "REMOTE_CHANNEL_TELEGRAM_API_ID" "0")"
+  existing_remote_channel_api_hash="$(get_existing_env_value "REMOTE_CHANNEL_TELEGRAM_API_HASH" "")"
+  existing_remote_channel_session_string="$(get_existing_env_value "REMOTE_CHANNEL_TELEGRAM_SESSION_STRING" "")"
+  existing_remote_channel_proxy_url="$(get_existing_env_value "REMOTE_CHANNEL_PROXY_URL" "")"
+  existing_turn_urls="$(get_existing_env_value_with_fallback "APP_TURN_URLS" "CHAT_TURN_URLS" "")"
+  existing_turn_username="$(get_existing_env_value_with_fallback "APP_TURN_USERNAME" "CHAT_TURN_USERNAME" "")"
+  existing_turn_credential="$(get_existing_env_value_with_fallback "APP_TURN_CREDENTIAL" "CHAT_TURN_CREDENTIAL" "")"
 
   run_silent run_as_root cp "$example_file" "$env_file"
   replace_env_value "$env_file" "SERVER_PORT" "$existing_server_port"
@@ -1233,14 +1496,29 @@ write_env_from_example() {
   replace_env_value "$env_file" "CLIENT_PORT" "$CLIENT_PORT"
   replace_env_value "$env_file" "ACCOUNT_CREATION" "$ACCOUNT_CREATION"
   replace_env_value "$env_file" "FILE_UPLOAD" "$FILE_UPLOAD"
+  replace_env_value "$env_file" "FILE_UPLOAD_HARD_MAX_SIZE" "$existing_file_upload_hard_max_size"
   replace_env_value "$env_file" "FILE_UPLOAD_MAX_TOTAL_SIZE" "$MAX_UPLOAD"
   replace_env_value "$env_file" "MESSAGE_FILE_RETENTION" "$RETENTION_DAYS"
   replace_env_value "$env_file" "MESSAGE_TEXT_RETENTION" "$TEXT_RETENTION_DAYS"
+  replace_env_value "$env_file" "REMOTE_CHANNEL" "$existing_remote_channel"
+  replace_env_value "$env_file" "REMOTE_CHANNEL_TELEGRAM_API_ID" "$existing_remote_channel_api_id"
+  replace_env_value "$env_file" "REMOTE_CHANNEL_TELEGRAM_API_HASH" "$existing_remote_channel_api_hash"
+  replace_env_value "$env_file" "REMOTE_CHANNEL_TELEGRAM_SESSION_STRING" "$existing_remote_channel_session_string"
+  replace_env_value "$env_file" "REMOTE_CHANNEL_PROXY_URL" "$existing_remote_channel_proxy_url"
+  replace_env_value "$env_file" "REMOTE_CHANNEL_POLL_INTERVAL_MS" "$(get_existing_env_value "REMOTE_CHANNEL_POLL_INTERVAL_MS" "5000")"
+  replace_env_value "$env_file" "REMOTE_CHANNEL_TELEGRAM_POLL_LIMIT" "$(get_existing_env_value "REMOTE_CHANNEL_TELEGRAM_POLL_LIMIT" "50")"
+  replace_env_value "$env_file" "REMOTE_CHANNEL_QUEUE_INTERVAL_MS" "$(get_existing_env_value "REMOTE_CHANNEL_QUEUE_INTERVAL_MS" "1000")"
+  replace_env_value "$env_file" "REMOTE_CHANNEL_QUEUE_MAX_ATTEMPTS" "$(get_existing_env_value "REMOTE_CHANNEL_QUEUE_MAX_ATTEMPTS" "10")"
+  replace_env_value "$env_file" "REMOTE_CHANNEL_QUEUE_STALE_LOCK_MS" "$(get_existing_env_value "REMOTE_CHANNEL_QUEUE_STALE_LOCK_MS" "300000")"
   replace_env_value "$env_file" "CHAT_VOICE_WAVEFORM_MAX_DECODE_BYTES" "$existing_voice_waveform_max_decode_bytes"
   replace_env_value "$env_file" "CHAT_VOICE_WAVEFORM_MAX_DECODE_SECONDS" "$existing_voice_waveform_max_decode_seconds"
   replace_env_value "$env_file" "STORAGE_ENCRYPTION_KEY" "$existing_storage_encryption_key"
   replace_env_value "$env_file" "VAPID_PUBLIC_KEY" "$existing_public_key"
   replace_env_value "$env_file" "VAPID_PRIVATE_KEY" "$existing_private_key"
+  replace_env_value "$env_file" "APP_TURN_URLS" "$existing_turn_urls"
+  replace_env_value "$env_file" "APP_TURN_USERNAME" "$existing_turn_username"
+  replace_env_value "$env_file" "APP_TURN_CREDENTIAL" "$existing_turn_credential"
+  apply_turn_env_settings "$env_file"
   if [[ -n "$CERTBOT_EMAIL" ]]; then
     replace_env_value "$env_file" "VAPID_SUBJECT" "mailto:${CERTBOT_EMAIL}"
   else
@@ -1256,10 +1534,28 @@ write_env_fallback() {
   local existing_public_key
   local existing_private_key
   local existing_subject
+  local existing_file_upload_hard_max_size
+  local existing_remote_channel
+  local existing_remote_channel_api_id
+  local existing_remote_channel_api_hash
+  local existing_remote_channel_session_string
+  local existing_remote_channel_proxy_url
+  local existing_turn_urls
+  local existing_turn_username
+  local existing_turn_credential
   existing_storage_encryption_key="$(get_existing_env_value "STORAGE_ENCRYPTION_KEY" "")"
   existing_public_key="$(get_existing_env_value "VAPID_PUBLIC_KEY" "")"
   existing_private_key="$(get_existing_env_value "VAPID_PRIVATE_KEY" "")"
   existing_subject="$(get_existing_env_value "VAPID_SUBJECT" "mailto:admin@example.com")"
+  existing_file_upload_hard_max_size="$(get_existing_env_value "FILE_UPLOAD_HARD_MAX_SIZE" "1073741824")"
+  existing_remote_channel="$(get_existing_env_value "REMOTE_CHANNEL" "false")"
+  existing_remote_channel_api_id="$(get_existing_env_value "REMOTE_CHANNEL_TELEGRAM_API_ID" "0")"
+  existing_remote_channel_api_hash="$(get_existing_env_value "REMOTE_CHANNEL_TELEGRAM_API_HASH" "")"
+  existing_remote_channel_session_string="$(get_existing_env_value "REMOTE_CHANNEL_TELEGRAM_SESSION_STRING" "")"
+  existing_remote_channel_proxy_url="$(get_existing_env_value "REMOTE_CHANNEL_PROXY_URL" "")"
+  existing_turn_urls="$(get_existing_env_value_with_fallback "APP_TURN_URLS" "CHAT_TURN_URLS" "")"
+  existing_turn_username="$(get_existing_env_value_with_fallback "APP_TURN_USERNAME" "CHAT_TURN_USERNAME" "")"
+  existing_turn_credential="$(get_existing_env_value_with_fallback "APP_TURN_CREDENTIAL" "CHAT_TURN_CREDENTIAL" "")"
   run_silent run_as_root bash -lc "cat > '$env_file' <<'EOF'
 SERVER_PORT=${SERVER_PORT}
 CLIENT_PORT=${CLIENT_PORT}
@@ -1268,12 +1564,23 @@ APP_DEBUG=false
 ACCOUNT_CREATION=${ACCOUNT_CREATION}
 FILE_UPLOAD=${FILE_UPLOAD}
 FILE_UPLOAD_MAX_SIZE=26214400
+FILE_UPLOAD_HARD_MAX_SIZE=${existing_file_upload_hard_max_size}
 FILE_UPLOAD_MAX_TOTAL_SIZE=${MAX_UPLOAD}
 FILE_UPLOAD_MAX_FILES=10
 FILE_UPLOAD_TRANSCODE_VIDEOS=true
 MESSAGE_FILE_RETENTION=${RETENTION_DAYS}
 MESSAGE_TEXT_RETENTION=${TEXT_RETENTION_DAYS}
 MESSAGE_MAX_CHARS=4000
+REMOTE_CHANNEL=${existing_remote_channel}
+REMOTE_CHANNEL_TELEGRAM_API_ID=${existing_remote_channel_api_id}
+REMOTE_CHANNEL_TELEGRAM_API_HASH=${existing_remote_channel_api_hash}
+REMOTE_CHANNEL_TELEGRAM_SESSION_STRING=${existing_remote_channel_session_string}
+REMOTE_CHANNEL_PROXY_URL=${existing_remote_channel_proxy_url}
+REMOTE_CHANNEL_POLL_INTERVAL_MS=5000
+REMOTE_CHANNEL_TELEGRAM_POLL_LIMIT=50
+REMOTE_CHANNEL_QUEUE_INTERVAL_MS=1000
+REMOTE_CHANNEL_QUEUE_MAX_ATTEMPTS=10
+REMOTE_CHANNEL_QUEUE_STALE_LOCK_MS=300000
 CHAT_PENDING_TEXT_TIMEOUT=300000
 CHAT_PENDING_FILE_TIMEOUT=1200000
 CHAT_PENDING_RETRY_INTERVAL=4000
@@ -1289,6 +1596,9 @@ CHAT_SSE_RECONNECT_DELAY=2000
 CHAT_SEARCH_MAX_RESULTS=5
 CHAT_VOICE_WAVEFORM_MAX_DECODE_BYTES=${DEFAULT_CHAT_VOICE_WAVEFORM_MAX_DECODE_BYTES}
 CHAT_VOICE_WAVEFORM_MAX_DECODE_SECONDS=${DEFAULT_CHAT_VOICE_WAVEFORM_MAX_DECODE_SECONDS}
+APP_TURN_URLS=${existing_turn_urls}
+APP_TURN_USERNAME=${existing_turn_username}
+APP_TURN_CREDENTIAL=${existing_turn_credential}
 NICKNAME_MAX=24
 USERNAME_MAX=16
 STORAGE_ENCRYPTION_KEY=${existing_storage_encryption_key}
@@ -1299,6 +1609,7 @@ EOF"
   if [[ -n "$CERTBOT_EMAIL" ]]; then
     replace_env_value "$env_file" "VAPID_SUBJECT" "mailto:${CERTBOT_EMAIL}"
   fi
+  apply_turn_env_settings "$env_file"
   log "Wrote fallback environment config to ${env_file}."
 }
 
@@ -1362,15 +1673,19 @@ sync_values_from_env() {
 parse_domain_input() {
   local raw="$1"
   DOMAIN_NAMES=()
+  INVALID_DOMAIN_NAMES=()
   local IFS=','
   local d
   for d in $raw; do
-    d="${d#"${d%%[![:space:]]*}"}"
-    d="${d%"${d##*[![:space:]]}"}"
-    d="${d#http://}"
-    d="${d#https://}"
-    d="${d%%/*}"
-    [[ -n "$d" ]] && DOMAIN_NAMES+=("$d")
+    d="$(normalize_domain_name "$d")"
+    if [[ -z "$d" ]]; then
+      continue
+    fi
+    if is_valid_domain_name "$d"; then
+      DOMAIN_NAMES+=("$d")
+    else
+      INVALID_DOMAIN_NAMES+=("$d")
+    fi
   done
   NGINX_SERVER_NAME="${DOMAIN_NAMES[*]}"
 }
@@ -1387,7 +1702,9 @@ collect_install_options() {
       raw_domains="${raw_domains%"${raw_domains##*[![:space:]]}"}"
       if [[ -n "$raw_domains" ]]; then
         parse_domain_input "$raw_domains"
-        if (( ${#DOMAIN_NAMES[@]} > 0 )); then
+        if (( ${#INVALID_DOMAIN_NAMES[@]} > 0 )); then
+          printf "Invalid domain(s): %s\n" "${INVALID_DOMAIN_NAMES[*]}"
+        elif (( ${#DOMAIN_NAMES[@]} > 0 )); then
           break
         fi
       fi
@@ -1432,7 +1749,13 @@ collect_install_options() {
   if [[ "$CERT_MODE" == "http" ]]; then
     CLIENT_PORT="$(prompt_client_port "$DEFAULT_CLIENT_PORT")"
   else
-    CLIENT_PORT="$(prompt_client_port "443")"
+    while true; do
+      CLIENT_PORT="$(prompt_client_port "443")"
+      if [[ "$CLIENT_PORT" != "80" ]]; then
+        break
+      fi
+      printf "HTTPS port cannot be 80 because port 80 is used for HTTP redirect and certificate checks.\n"
+    done
   fi
   if [[ "$CERT_MODE" != "http" ]]; then
     log "Using HTTP redirect on port 80 and HTTPS on port ${CLIENT_PORT}."
@@ -1456,6 +1779,7 @@ collect_install_options() {
     RETENTION_DAYS="0"
   fi
   TEXT_RETENTION_DAYS="$(prompt_text_retention_days)"
+  prompt_turn_options
 
 }
 
@@ -1468,6 +1792,41 @@ apply_ownership() {
   ensure_service_user_exists
   run_silent run_as_root chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "$INSTALL_DIR"
   run_silent run_as_root git config --global --add safe.directory "$INSTALL_DIR"
+}
+
+ensure_runtime_layout() {
+  log "Preparing runtime files and directories..."
+  run_silent run_as_root mkdir -p \
+    "$INSTALL_DIR/data/uploads/messages" \
+    "$INSTALL_DIR/data/uploads/avatars" \
+    "$INSTALL_DIR/data/backups" \
+    "$INSTALL_DIR/logs" || fail "Failed to create BirdX runtime directories."
+
+  run_silent run_as_root test -f "$INSTALL_DIR/server/index.js" || fail "Missing server entry file: ${INSTALL_DIR}/server/index.js"
+  run_silent run_as_root test -d "$INSTALL_DIR/server/node_modules/express" || fail "Server dependencies are missing. Run npm --prefix ${INSTALL_DIR}/server install."
+  run_silent run_as_root test -d "$INSTALL_DIR/server/node_modules/socket.io" || fail "Socket.IO dependency is missing. Run npm --prefix ${INSTALL_DIR}/server install."
+  run_silent run_as_root test -f "$INSTALL_DIR/client/dist/index.html" || fail "Client build is missing. Run npm --prefix ${INSTALL_DIR}/client run build."
+  run_silent run_as_root chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "$INSTALL_DIR/data" "$INSTALL_DIR/logs" || fail "Failed to set BirdX runtime ownership."
+}
+
+wait_for_birdx_service() {
+  sync_values_from_env
+  local attempt
+  local health_url="http://127.0.0.1:${SERVER_PORT}/api/health"
+
+  log "Checking BirdX backend at ${health_url}..."
+  for attempt in {1..30}; do
+    if run_as_root_output curl -fsS --max-time 2 "$health_url" >/dev/null 2>&1; then
+      log "BirdX backend is responding on port ${SERVER_PORT}."
+      return 0
+    fi
+    sleep 1
+  done
+
+  warn "BirdX backend did not respond on port ${SERVER_PORT}."
+  run_as_root systemctl status birdx.service --no-pager -l || true
+  run_as_root journalctl -u birdx.service --no-pager -n 80 || true
+  fail "BirdX backend is not ready; nginx would return 502 Bad Gateway."
 }
 
 configure_systemd_service() {
@@ -1483,6 +1842,8 @@ Type=simple
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
 WorkingDirectory=${INSTALL_DIR}/server
+Environment=NODE_ENV=production
+EnvironmentFile=${INSTALL_DIR}/.env
 ExecStart=${NODE_EXEC_PATH} ${INSTALL_DIR}/server/index.js
 Restart=on-failure
 RestartSec=5
@@ -1494,6 +1855,7 @@ EOF
   run_as_root systemctl daemon-reload
   run_as_root systemctl enable --now birdx.service
   run_as_root systemctl restart birdx.service
+  wait_for_birdx_service
 }
 
 write_nginx_site_config() {
@@ -1504,14 +1866,31 @@ write_nginx_site_config() {
   local listen_line="listen ${CLIENT_PORT} default_server;"
   local ssl_block=""
   local acme_block=""
+  local redirect_acme_block=""
   local redirect_server_block=""
+  local redirect_port_suffix=""
 
-  if [[ "$mode" == "http" && "$DEPLOY_MODE" == "domain" && "$CERT_MODE" == "certbot" ]]; then
+  if [[ "$mode" == "http" && "$CERT_MODE" != "http" ]]; then
     listen_line="listen 80 default_server;"
+  fi
+
+  if [[ "$CERT_MODE" == "certbot" ]]; then
+    run_silent run_as_root mkdir -p "$ACME_WEBROOT/.well-known/acme-challenge" || return 1
+    redirect_acme_block=$(cat <<EOF
+
+  location /.well-known/acme-challenge/ {
+    root ${ACME_WEBROOT};
+    default_type "text/plain";
+  }
+EOF
+)
   fi
 
   if [[ "$mode" == "ssl" ]]; then
     listen_line="listen ${CLIENT_PORT} ssl default_server;"
+    if [[ "$CLIENT_PORT" != "443" ]]; then
+      redirect_port_suffix=":${CLIENT_PORT}"
+    fi
     ssl_block=$(cat <<EOF
   ssl_certificate ${cert_path};
   ssl_certificate_key ${key_path};
@@ -1520,47 +1899,23 @@ write_nginx_site_config() {
 EOF
 )
 
-    if [[ "$DEPLOY_MODE" == "ip" && "$CERT_MODE" == "certbot" ]]; then
+    if [[ "$CLIENT_PORT" != "80" ]]; then
       redirect_server_block=$(cat <<EOF
 
 server {
   listen 80;
   ${server_name_line}
-  location /.well-known/acme-challenge/ {
-    root ${ACME_WEBROOT};
-    default_type "text/plain";
+${redirect_acme_block}
+  location / {
+    return 301 https://\$host${redirect_port_suffix}\$request_uri;
   }
-  if (\$request_uri !~ "^/\\.well-known/acme-challenge/") {
-    return 301 https://\$host$( [[ "$CLIENT_PORT" == "443" ]] && printf "" || printf ":%s" "$CLIENT_PORT" )\$request_uri;
-  }
-}
-EOF
-)
-    elif [[ "$CLIENT_PORT" == "443" ]]; then
-      redirect_server_block=$(cat <<EOF
-
-server {
-  listen 80;
-  ${server_name_line}
-  return 301 https://\$host\$request_uri;
-}
-EOF
-)
-    elif [[ "$CLIENT_PORT" != "80" ]]; then
-      redirect_server_block=$(cat <<EOF
-
-server {
-  listen 80;
-  ${server_name_line}
-  return 301 https://\$host:${CLIENT_PORT}\$request_uri;
 }
 EOF
 )
     fi
   fi
 
-  if [[ "$mode" == "http" && "$DEPLOY_MODE" == "ip" && "$CERT_MODE" == "certbot" ]]; then
-    run_silent run_as_root mkdir -p "$ACME_WEBROOT"
+  if [[ "$mode" == "http" && "$CERT_MODE" == "certbot" ]]; then
     acme_block=$(cat <<EOF
 
   location /.well-known/acme-challenge/ {
@@ -1594,6 +1949,21 @@ ${acme_block}
     add_header X-Accel-Buffering no;
   }
 
+  location /socket.io/ {
+    proxy_pass http://127.0.0.1:${SERVER_PORT};
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_read_timeout 1h;
+    proxy_send_timeout 1h;
+    proxy_buffering off;
+    proxy_cache_bypass \$http_upgrade;
+  }
+
   location / {
     proxy_pass http://127.0.0.1:${SERVER_PORT};
     proxy_http_version 1.1;
@@ -1612,27 +1982,56 @@ EOF
 
 configure_nginx() {
   log "Preparing initial HTTP nginx configuration..."
-  write_nginx_site_config "http"
+  write_nginx_site_config "http" || return 1
 
-  run_as_root ln -sfn "$NGINX_SITE_FILE" "$NGINX_ENABLED_FILE"
+  run_as_root ln -sfn "$NGINX_SITE_FILE" "$NGINX_ENABLED_FILE" || return 1
   if run_as_root test -f /etc/nginx/sites-enabled/default; then
-    run_as_root rm -f /etc/nginx/sites-enabled/default
+    run_as_root rm -f /etc/nginx/sites-enabled/default || return 1
   fi
 
   log "Testing nginx configuration..."
-  run_as_root nginx -t
+  run_as_root nginx -t || return 1
   log "Reloading nginx..."
-  run_as_root systemctl reload nginx
+  run_as_root systemctl reload nginx || return 1
   log "Initial nginx configuration is active."
 }
 
 install_ssl_files_into_nginx() {
   local cert_path="$1"
   local key_path="$2"
+  local backup_file=""
 
-  write_nginx_site_config "ssl" "$cert_path" "$key_path"
-  run_as_root nginx -t
-  run_as_root systemctl reload nginx
+  if [[ -f "$NGINX_SITE_FILE" ]]; then
+    backup_file="${NGINX_SITE_FILE}.bak.$(date +%Y%m%d%H%M%S)"
+    run_silent run_as_root cp "$NGINX_SITE_FILE" "$backup_file" || return 1
+  fi
+
+  if ! write_nginx_site_config "ssl" "$cert_path" "$key_path"; then
+    warn "Failed to write nginx SSL config. Restoring previous nginx config."
+    if [[ -n "$backup_file" ]]; then
+      run_silent run_as_root cp "$backup_file" "$NGINX_SITE_FILE"
+    fi
+    return 1
+  fi
+  if ! run_as_root nginx -t; then
+    warn "Nginx SSL config test failed. Restoring previous nginx config."
+    if [[ -n "$backup_file" ]]; then
+      run_silent run_as_root cp "$backup_file" "$NGINX_SITE_FILE"
+      run_as_root nginx -t || true
+    fi
+    return 1
+  fi
+
+  if ! run_as_root systemctl reload nginx; then
+    warn "Nginx reload failed. Restoring previous nginx config."
+    if [[ -n "$backup_file" ]]; then
+      run_silent run_as_root cp "$backup_file" "$NGINX_SITE_FILE"
+      run_as_root nginx -t || true
+      run_as_root systemctl reload nginx || true
+    fi
+    return 1
+  fi
+
   log "Nginx SSL configured."
 }
 
@@ -1641,14 +2040,58 @@ configure_manual_ssl_files() {
     fail "Manual certificate files were not found."
   fi
 
-  run_silent run_as_root mkdir -p "$CERT_INSTALL_DIR"
-  run_silent run_as_root rm -f "$CERT_INSTALL_DIR/fullchain.pem" "$CERT_INSTALL_DIR/privkey.pem"
-  run_silent run_as_root cp -Lf "$MANUAL_CERT_FULLCHAIN_PATH" "$CERT_INSTALL_DIR/fullchain.pem"
-  run_silent run_as_root cp -Lf "$MANUAL_CERT_PRIVKEY_PATH" "$CERT_INSTALL_DIR/privkey.pem"
-  run_silent run_as_root chmod 644 "$CERT_INSTALL_DIR/fullchain.pem"
-  run_silent run_as_root chmod 600 "$CERT_INSTALL_DIR/privkey.pem"
+  local fullchain_target="$CERT_INSTALL_DIR/fullchain.pem"
+  local privkey_target="$CERT_INSTALL_DIR/privkey.pem"
+  local tmp_fullchain="$CERT_INSTALL_DIR/fullchain.pem.tmp.$$"
+  local tmp_privkey="$CERT_INSTALL_DIR/privkey.pem.tmp.$$"
+  local backup_fullchain=""
+  local backup_privkey=""
 
-  install_ssl_files_into_nginx "$CERT_INSTALL_DIR/fullchain.pem" "$CERT_INSTALL_DIR/privkey.pem"
+  run_silent run_as_root mkdir -p "$CERT_INSTALL_DIR" || return 1
+
+  if [[ -f "$fullchain_target" ]]; then
+    backup_fullchain="$CERT_INSTALL_DIR/fullchain.pem.bak.$(date +%Y%m%d%H%M%S)"
+    run_silent run_as_root cp -p "$fullchain_target" "$backup_fullchain" || return 1
+  fi
+  if [[ -f "$privkey_target" ]]; then
+    backup_privkey="$CERT_INSTALL_DIR/privkey.pem.bak.$(date +%Y%m%d%H%M%S)"
+    run_silent run_as_root cp -p "$privkey_target" "$backup_privkey" || return 1
+  fi
+
+  run_silent run_as_root cp -Lf "$MANUAL_CERT_FULLCHAIN_PATH" "$tmp_fullchain" || return 1
+  run_silent run_as_root cp -Lf "$MANUAL_CERT_PRIVKEY_PATH" "$tmp_privkey" || {
+    run_silent run_as_root rm -f "$tmp_fullchain"
+    return 1
+  }
+  run_silent run_as_root chmod 644 "$tmp_fullchain" || return 1
+  run_silent run_as_root chmod 600 "$tmp_privkey" || return 1
+  run_silent run_as_root mv -f "$tmp_fullchain" "$fullchain_target" || return 1
+  if ! run_silent run_as_root mv -f "$tmp_privkey" "$privkey_target"; then
+    if [[ -n "$backup_fullchain" ]]; then
+      run_silent run_as_root cp -p "$backup_fullchain" "$fullchain_target"
+    else
+      run_silent run_as_root rm -f "$fullchain_target"
+    fi
+    return 1
+  fi
+
+  if install_ssl_files_into_nginx "$fullchain_target" "$privkey_target"; then
+    log "Manual TLS certificate files installed into ${CERT_INSTALL_DIR}."
+    return 0
+  fi
+
+  warn "Manual TLS setup failed. Restoring previous certificate files when available."
+  if [[ -n "$backup_fullchain" ]]; then
+    run_silent run_as_root cp -p "$backup_fullchain" "$fullchain_target"
+  else
+    run_silent run_as_root rm -f "$fullchain_target"
+  fi
+  if [[ -n "$backup_privkey" ]]; then
+    run_silent run_as_root cp -p "$backup_privkey" "$privkey_target"
+  else
+    run_silent run_as_root rm -f "$privkey_target"
+  fi
+  return 1
 }
 
 install_lego_certificate_files() {
@@ -1751,63 +2194,43 @@ configure_ssl_if_needed() {
     files)
       log "Installing TLS certificate files into nginx..."
       configure_manual_ssl_files
-      return 0
+      return $?
       ;;
   esac
 
   if [[ "$DEPLOY_MODE" == "ip" ]]; then
     configure_lego_ip_ssl
-    return 0
+    return $?
   fi
 
-  local existing_certs
-  existing_certs="$(run_as_root certbot certificates 2>/dev/null)"
+  run_silent run_as_root mkdir -p "$ACME_WEBROOT/.well-known/acme-challenge" || return 1
 
-  local uncovered=()
+  local certbot_d_args=()
   local d
   for d in "${DOMAIN_NAMES[@]}"; do
-    local escaped
-    escaped="$(printf '%s' "$d" | sed 's/[.[\*^$]/\\&/g')"
-
-    if echo "$existing_certs" | grep -qP "^\s+Domains:.*\b${escaped}\b"; then
-      log "Domain ${d} already has a certificate. Will reconfigure nginx."
-    else
-      uncovered+=("$d")
-    fi
+    certbot_d_args+=(-d "$d")
   done
 
-  if (( ${#uncovered[@]} > 0 )); then
-    local certbot_d_args=()
-    for d in "${uncovered[@]}"; do
-      certbot_d_args+=(-d "$d")
-    done
-
-    log "Requesting SSL certificate for: ${uncovered[*]}"
-    run_as_root certbot certonly \
-      --nginx \
-      --https-port "$CLIENT_PORT" \
-      --non-interactive \
-      --agree-tos \
-      --email "$CERTBOT_EMAIL" \
-      "${certbot_d_args[@]}" || { log "ERROR: Certbot failed for: ${uncovered[*]}"; return 1; }
-
-    log "SSL certificate obtained for: ${uncovered[*]}"
-  else
-    log "All domains already have certificates. Skipping certificate request."
-  fi
+  log "Requesting or reusing SSL certificate for: ${DOMAIN_NAMES[*]}"
+  run_as_root certbot certonly \
+    --webroot \
+    --webroot-path "$ACME_WEBROOT" \
+    --non-interactive \
+    --agree-tos \
+    --email "$CERTBOT_EMAIL" \
+    --cert-name "${DOMAIN_NAMES[0]}" \
+    --expand \
+    "${certbot_d_args[@]}" || { warn "ERROR: Certbot failed for: ${DOMAIN_NAMES[*]}"; return 1; }
 
   log "Configuring nginx SSL for: ${DOMAIN_NAMES[*]}"
-  local all_d_args=()
-  for d in "${DOMAIN_NAMES[@]}"; do
-    all_d_args+=(-d "$d")
-  done
+  local cert_path="/etc/letsencrypt/live/${DOMAIN_NAMES[0]}/fullchain.pem"
+  local key_path="/etc/letsencrypt/live/${DOMAIN_NAMES[0]}/privkey.pem"
+  if ! run_as_root test -f "$cert_path" || ! run_as_root test -f "$key_path"; then
+    warn "Expected certificate files were not found under /etc/letsencrypt/live/${DOMAIN_NAMES[0]}."
+    return 1
+  fi
 
-  run_as_root certbot install \
-    --nginx \
-    --https-port "$CLIENT_PORT" \
-    --non-interactive \
-    --cert-name "${DOMAIN_NAMES[0]}" \
-    "${all_d_args[@]}" || { warn "ERROR: Failed to configure nginx SSL"; return 1; }
+  install_ssl_files_into_nginx "$cert_path" "$key_path" || return 1
 
   log "Nginx SSL configured for: ${DOMAIN_NAMES[*]}"
 }
@@ -1894,6 +2317,8 @@ update_nginx_runtime_values() {
     return 1
   fi
 
+  read_nginx_server_name_from_existing_config || true
+
   local backup_file="${NGINX_SITE_FILE}.bak.$(date +%Y%m%d%H%M%S)"
   run_silent run_as_root cp "$NGINX_SITE_FILE" "$backup_file"
 
@@ -1907,9 +2332,17 @@ update_nginx_runtime_values() {
   existing_key="$(run_as_root_output grep -E '^\s*ssl_certificate_key ' "$NGINX_SITE_FILE" | head -n 1 | sed -E 's/^\s*ssl_certificate_key\s+([^;]+);/\1/' | tr -d '\r\n')" || existing_key=""
 
   if [[ -n "$existing_cert" && -n "$existing_key" ]]; then
-    write_nginx_site_config "ssl" "$existing_cert" "$existing_key"
+    if ! write_nginx_site_config "ssl" "$existing_cert" "$existing_key"; then
+      warn "Failed to rewrite nginx config. Restoring previous config."
+      run_silent run_as_root cp "$backup_file" "$NGINX_SITE_FILE"
+      return 1
+    fi
   else
-    write_nginx_site_config "http"
+    if ! write_nginx_site_config "http"; then
+      warn "Failed to rewrite nginx config. Restoring previous config."
+      run_silent run_as_root cp "$backup_file" "$NGINX_SITE_FILE"
+      return 1
+    fi
   fi
 
   if run_as_root nginx -t; then
@@ -1929,10 +2362,12 @@ rebuild_and_restart_after_settings_change() {
   local needs_nginx="${1:-no}"
   sync_values_from_env
   log "Rebuilding client after settings change..."
-  run_in_install_dir "npm --prefix client run build"
+  run_in_install_dir "npm --prefix client run build" || fail "Failed to rebuild client assets."
+  ensure_runtime_layout
 
   log "Restarting BirdX service..."
   run_as_root systemctl restart birdx.service
+  wait_for_birdx_service
 
   if [[ "$needs_nginx" == "yes" ]]; then
     log "Updating Nginx config for SERVER_PORT/CLIENT_PORT/MAX_UPLOAD changes..."
@@ -1981,6 +2416,7 @@ update_birdx() {
 
     log "Installing dependencies..."
     install_birdx_dependencies
+    ensure_runtime_layout
     ensure_vapid_keys
 
     log "Synchronizing database schema with latest version..."
@@ -1990,6 +2426,7 @@ update_birdx() {
 
     log "Restarting BirdX service..."
     run_as_root systemctl restart birdx.service
+    wait_for_birdx_service
     run_as_root systemctl reload nginx
 
     log "Update completed successfully."
@@ -2050,6 +2487,7 @@ update_birdx() {
 
   log "Installing dependencies..."
   install_birdx_dependencies
+  ensure_runtime_layout
   ensure_vapid_keys
   
   log "Synchronizing database schema with latest version..."
@@ -2059,6 +2497,7 @@ update_birdx() {
 
   log "Restarting BirdX service..."
   run_as_root systemctl restart birdx.service
+  wait_for_birdx_service
   run_as_root systemctl reload nginx
 
   log "Update completed successfully."
@@ -2067,7 +2506,9 @@ update_birdx() {
 
 restart_birdx() {
   log "Restarting BirdX service..."
+  sync_values_from_env
   run_as_root systemctl restart birdx.service
+  wait_for_birdx_service
   run_as_root systemctl reload nginx
 
   log "BirdX restarted successfully."
@@ -2200,14 +2641,25 @@ install_birdx() {
     return 1
   fi
   RESTORE_BACKUP_QUIET="no"
+  apply_turn_env_settings "$INSTALL_DIR/.env"
+  configure_turn_server
   install_birdx_dependencies
+  ensure_runtime_layout
   ensure_vapid_keys
   apply_ownership
   configure_systemd_service
   log "Starting nginx setup..."
-  configure_nginx
+  if ! configure_nginx; then
+    warn "Nginx setup failed. Review ${NGINX_SITE_FILE} and ${LOG_FILE}."
+    press_enter_to_continue
+    return 1
+  fi
   log "Starting TLS setup..."
-  configure_ssl_if_needed
+  if ! configure_ssl_if_needed; then
+    warn "TLS setup failed. Review ${NGINX_SITE_FILE} and ${LOG_FILE}."
+    press_enter_to_continue
+    return 1
+  fi
 
   log "Installation complete."
   log "BirdX has been installed successfully."
@@ -2237,6 +2689,10 @@ install_birdx() {
     else
       log "Visit: https://${visit_ip}:${CLIENT_PORT}"
     fi
+  fi
+  if [[ "$TURN_ENABLED" == "true" ]]; then
+    log "TURN endpoint: ${TURN_HOST}:3478 (username: ${TURN_USERNAME})"
+    log_turn_firewall_hint
   fi
 
   press_enter_to_continue
@@ -2404,6 +2860,16 @@ run_db_command() {
   run_as_root bash -lc "cd '$INSTALL_DIR' && ${escaped:1}"
 }
 
+run_db_command_interactive() {
+  local args=("$@")
+  local escaped=""
+  local part=""
+  for part in "${args[@]}"; do
+    escaped+=" $(printf '%q' "$part")"
+  done
+  run_as_root bash -lc "cd '$INSTALL_DIR' && ${escaped:1} </dev/tty >/dev/tty 2>&1"
+}
+
 run_db_command_logged_quiet() {
   local args=("$@")
   local escaped=""
@@ -2412,6 +2878,26 @@ run_db_command_logged_quiet() {
     escaped+=" $(printf '%q' "$part")"
   done
   run_logged_quiet run_as_root bash -lc "cd '$INSTALL_DIR' && ${escaped:1}"
+}
+
+ensure_remote_channel_dependencies() {
+  local resolve_telegram="require.resolve('telegram', { paths: [process.cwd() + '/server'] })"
+
+  if run_db_command node -e "$resolve_telegram" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  warn "Remote Channel dependency 'telegram' is not installed. Installing server dependencies..."
+  if [[ -n "$MIRROR_NPM" ]]; then
+    run_db_command npm --prefix server --registry "$MIRROR_NPM" install
+  else
+    run_db_command npm --prefix server install
+  fi
+
+  if ! run_db_command node -e "$resolve_telegram" >/dev/null 2>&1; then
+    warn "Unable to load the 'telegram' package after npm install. Check npm output and network access."
+    return 1
+  fi
 }
 
 resolve_chat_visibility_for_script() {
@@ -2455,9 +2941,12 @@ Use these menu actions inside this installer script:
   17    Add members to a chat
   18    Edit a chat
   19    Edit a user
+  20    Show this help
+  22    Configure Remote Channel Telegram login
 
 Notes:
   - "Ban/unban user" is a toggle and expires that user's sessions.
+  - Remote Channel mirrors Telegram channel posts into BirdX channels.
   - Public chats always allow member invites. Invite settings only apply to private chats.
   - Backups are encrypted zip files containing .env and data/.
 EOF
@@ -2798,6 +3287,100 @@ db_user_ban() {
   press_enter_to_continue
 }
 
+db_remote_configure() {
+  local current_api_id=""
+  local current_api_hash=""
+  local current_proxy_url=""
+  local api_id=""
+  local api_hash=""
+  local proxy_url=""
+  local phone_number=""
+  local two_step_password=""
+  local force_sms="no"
+  local args=()
+
+  if [[ ! -d "${INSTALL_DIR}/server" ]]; then
+    warn "BirdX server directory not found at ${INSTALL_DIR}/server."
+    press_enter_to_continue
+    return 1
+  fi
+
+  if ! ensure_remote_channel_dependencies; then
+    press_enter_to_continue
+    return 1
+  fi
+
+  current_api_id="$(strip_surrounding_quotes "$(get_existing_env_value "REMOTE_CHANNEL_TELEGRAM_API_ID" "")")"
+  current_api_hash="$(strip_surrounding_quotes "$(get_existing_env_value "REMOTE_CHANNEL_TELEGRAM_API_HASH" "")")"
+  current_proxy_url="$(strip_surrounding_quotes "$(get_existing_env_value "REMOTE_CHANNEL_PROXY_URL" "")")"
+  [[ "$current_api_id" == "0" ]] && current_api_id=""
+
+  while true; do
+    if [[ -n "$current_api_id" ]]; then
+      prompt_read "Telegram API ID (default: ${current_api_id}): " api_id
+      [[ -z "$api_id" ]] && api_id="$current_api_id"
+    else
+      prompt_read "Telegram API ID: " api_id
+    fi
+    api_id="${api_id#"${api_id%%[![:space:]]*}"}"
+    api_id="${api_id%"${api_id##*[![:space:]]}"}"
+    if [[ "$api_id" =~ ^[0-9]+$ && "$api_id" -gt 0 ]]; then
+      break
+    fi
+    printf "Please enter a positive numeric Telegram API ID.\n"
+  done
+
+  if [[ -n "$current_api_hash" ]]; then
+    api_hash="$(prompt_secret_optional "Telegram API hash (leave blank to keep existing)")"
+    [[ -z "$api_hash" ]] && api_hash="$current_api_hash"
+  else
+    api_hash="$(prompt_secret "Telegram API hash")"
+  fi
+
+  if [[ -n "$current_proxy_url" ]]; then
+    prompt_read "Telegram proxy URL (optional; default: ${current_proxy_url}; type none to clear): " proxy_url
+    [[ -z "$proxy_url" ]] && proxy_url="$current_proxy_url"
+  else
+    prompt_read "Telegram proxy URL (optional): " proxy_url
+  fi
+  proxy_url="${proxy_url#"${proxy_url%%[![:space:]]*}"}"
+  proxy_url="${proxy_url%"${proxy_url##*[![:space:]]}"}"
+  if [[ "${proxy_url,,}" == "none" || "${proxy_url,,}" == "no" || "${proxy_url,,}" == "direct" ]]; then
+    proxy_url=""
+  fi
+
+  phone_number="$(prompt_non_empty "Telegram phone number (with country code)")"
+  two_step_password="$(prompt_secret_optional "Telegram two-step password (leave blank if disabled)")"
+  force_sms="$(prompt_yes_no "Force SMS delivery for the login code?" "no")"
+
+  printf "\nTelegram will send a login code now. Enter that code when the helper asks for it.\n"
+  args=(
+    node server/scripts/configure-remote-channel.js
+    --env-file "${INSTALL_DIR}/.env"
+    --api-id "$api_id"
+    --api-hash "$api_hash"
+    --phone-number "$phone_number"
+  )
+  if [[ -n "$proxy_url" ]]; then
+    args+=(--proxy-url "$proxy_url")
+  else
+    args+=(--no-proxy)
+  fi
+  if [[ -n "$two_step_password" ]]; then
+    args+=(--password "$two_step_password")
+  fi
+  if [[ "$force_sms" == "yes" ]]; then
+    args+=(--force-sms)
+  fi
+
+  if ! run_db_command_interactive "${args[@]}"; then
+    press_enter_to_continue
+    return 1
+  fi
+
+  press_enter_to_continue
+}
+
 db_restore_backup() {
   local resolved=""
   resolved="$(select_backup_zip_path)"
@@ -2840,7 +3423,8 @@ show_db_menu() {
     printf "20) ❔  Show help\n"
     printf "21) ↩️  Go back\n\n"
 
-    prompt_read "Choose an option [1-21]: " choice
+    printf "22) Remote Channel: configure Telegram login\n"
+    prompt_read "Choose an option [1-22]: " choice
     case "$choice" in
       1) db_inspect "all" ;;
       2) db_inspect "chat" ;;
@@ -2863,7 +3447,8 @@ show_db_menu() {
       19) db_user_edit ;;
       20) db_help ;;
       21) return ;;
-      *) printf "Invalid choice. Select a number from 1 to 21.\n" ;;
+      22) db_remote_configure ;;
+      *) printf "Invalid choice. Select a number from 1 to 22.\n" ;;
     esac
   done
 }

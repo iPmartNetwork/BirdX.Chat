@@ -1,9 +1,12 @@
-const CACHE_VERSION = "v0.9.1.1";
-const CACHE_NAME = `songbird-${CACHE_VERSION}`;
+const CACHE_VERSION = "v2.5.3-rc1";
+const CACHE_NAME = `birdx-${CACHE_VERSION}`;
 const APP_SHELL = [
+  "/",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
+  "/icons/icon-192-maskable.png",
   "/icons/icon-512.png",
+  "/icons/icon-512-maskable.png",
 ];
 
 const isCacheableAssetPath = (pathname) => {
@@ -41,7 +44,11 @@ self.addEventListener("activate", (event) => {
       const keys = await caches.keys();
       await Promise.all(
         keys
-          .filter((key) => key.startsWith("songbird-") && key !== CACHE_NAME)
+          .filter(
+            (key) =>
+              (key.startsWith("songbird-") || key.startsWith("birdx-")) &&
+              key !== CACHE_NAME,
+          )
           .map((key) => caches.delete(key)),
       );
       await self.clients.claim();
@@ -107,22 +114,35 @@ self.addEventListener("push", (event) => {
   try {
     payload = event.data ? event.data.json() : {};
   } catch {
-    payload = { title: "Songbird", body: event.data?.text?.() || "" };
+    payload = { title: "BirdX", body: event.data?.text?.() || "" };
   }
-  const title = payload.title || "Songbird";
-  const body = payload.body || "New message";
   const data = payload.data || {};
+  const isIncomingCall = data.type === "incoming_call";
+  const title = payload.title || (isIncomingCall ? "Incoming voice call" : "BirdX");
+  const body = payload.body || (isIncomingCall ? "Someone is calling..." : "New message");
   const options = {
     body,
     data,
     badge: "/icons/icon-192.png",
     icon: "/icons/icon-192.png",
+    tag: isIncomingCall
+      ? `birdx-call-${data.roomId || data.chatId || "incoming"}`
+      : data.tag || undefined,
+    renotify: isIncomingCall,
+    requireInteraction: isIncomingCall,
+    actions: isIncomingCall
+      ? [
+          { action: "open", title: "Open" },
+          { action: "dismiss", title: "Dismiss" },
+        ]
+      : undefined,
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  if (event.action === "dismiss") return;
   const target = event.notification?.data?.url || "/";
   event.waitUntil(
     self.clients

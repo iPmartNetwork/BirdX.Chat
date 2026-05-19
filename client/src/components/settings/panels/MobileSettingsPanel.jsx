@@ -13,7 +13,9 @@ import { InlineError } from "../common/InlineError.jsx";
 import { SettingsMenuActions } from "../menus/SettingsMenuActions.jsx";
 import { AboutSettingsPanel } from "./AboutSettingsPanel.jsx";
 import { DataSettingsPanel } from "./DataSettingsPanel.jsx";
+import { LanguageSettingsPanel } from "./LanguageSettingsPanel.jsx";
 import { NotificationsSettingsPanel } from "./NotificationsSettingsPanel.jsx";
+import { useLanguage } from "../../../i18n/LanguageContext.jsx";
 import ConfirmPasswordModal from "../../modals/ConfirmPasswordModal.jsx";
 import Avatar from "../../common/Avatar.jsx";
 
@@ -56,12 +58,14 @@ export function MobileSettingsPanel({
   dataCacheStats,
   onOpenOwnProfile,
   onOpenSavedMessages,
+  onOpenAdmin,
   onDeleteAccount,
   appInfo,
   appInfoLoading,
   appInfoError,
   onOpenWhatsNew,
 }) {
+  const { t } = useLanguage();
   const handleClosePanel = useCallback(
     () => setSettingsPanel(null),
     [setSettingsPanel],
@@ -95,7 +99,7 @@ export function MobileSettingsPanel({
             <button
               type="button"
               onClick={onOpenOwnProfile}
-              className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-1 py-1 text-left transition hover:border-emerald-300 hover:bg-emerald-50/50 hover:shadow-[0_0_16px_rgba(16,185,129,0.18)] dark:hover:border-emerald-500/30 dark:hover:bg-emerald-500/10"
+              className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-1 py-1 text-start transition hover:border-emerald-300 hover:bg-emerald-50/50 hover:shadow-[0_0_16px_rgba(16,185,129,0.18)] dark:hover:border-emerald-500/30 dark:hover:bg-emerald-500/10"
             >
               <Avatar
                 src={user.avatarUrl}
@@ -135,6 +139,8 @@ export function MobileSettingsPanel({
               onToggleNotifications={onToggleNotifications}
               onOpenNotifications={openNotificationsPanel}
               onOpenSavedMessages={onOpenSavedMessages}
+              onOpenAdmin={onOpenAdmin}
+              showAdminPanel={Boolean(user?.isAdmin)}
               onOpenWhatsNew={onOpenWhatsNew}
             />
           </div>
@@ -148,12 +154,12 @@ export function MobileSettingsPanel({
               type="button"
               onClick={() => setSettingsPanel(null)}
               className="inline-flex items-center justify-center rounded-full border border-emerald-200 p-2 text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
-              aria-label="Back"
+              aria-label={t("settings.back")}
             >
               <ArrowLeft size={18} />
             </button>
             <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
-              Edit profile
+              {t("settings.profile")}
             </h4>
           </div>
           <form className="space-y-4" onSubmit={handleProfileSave}>
@@ -321,12 +327,12 @@ export function MobileSettingsPanel({
               type="button"
               onClick={() => setSettingsPanel(null)}
               className="inline-flex items-center justify-center rounded-full border border-emerald-200 p-2 text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
-              aria-label="Back"
+              aria-label={t("settings.back")}
             >
               <ArrowLeft size={18} />
             </button>
             <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
-              Security
+              {t("settings.security")}
             </h4>
           </div>
           <form className="space-y-4" onSubmit={handlePasswordSave}>
@@ -451,12 +457,12 @@ export function MobileSettingsPanel({
               type="button"
               onClick={() => setSettingsPanel(null)}
               className="inline-flex items-center justify-center rounded-full border border-emerald-200 p-2 text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
-              aria-label="Back"
+              aria-label={t("settings.back")}
             >
               <ArrowLeft size={18} />
             </button>
             <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
-              Data
+              {t("settings.data")}
             </h4>
           </div>
           <div className="space-y-3 text-xs text-slate-600 dark:text-slate-300">
@@ -468,6 +474,25 @@ export function MobileSettingsPanel({
               variant="mobile"
             />
           </div>
+        </div>
+      ) : null}
+
+      {settingsPanel === "language" ? (
+        <div className="md:hidden">
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-emerald-100/70 bg-white/80 p-4 dark:border-emerald-500/30 dark:bg-slate-950/60">
+            <button
+              type="button"
+              onClick={() => setSettingsPanel(null)}
+              className="inline-flex items-center justify-center rounded-full border border-emerald-200 p-2 text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+              aria-label={t("settings.back")}
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
+              {t("settings.language")}
+            </h4>
+          </div>
+          <LanguageSettingsPanel onClose={handleClosePanel} variant="mobile" />
         </div>
       ) : null}
 
@@ -483,7 +508,7 @@ export function MobileSettingsPanel({
               <ArrowLeft size={18} />
             </button>
             <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
-              Notifications
+              {t("settings.notifications")}
             </h4>
           </div>
           <NotificationsSettingsPanel
@@ -502,7 +527,7 @@ export function MobileSettingsPanel({
               onClick={handleClosePanel}
               className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-400"
             >
-              Done
+              {t("settings.done")}
             </button>
           </div>
         </div>
@@ -520,7 +545,7 @@ export function MobileSettingsPanel({
               <ArrowLeft size={18} />
             </button>
             <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
-              About
+              {t("settings.about")}
             </h4>
           </div>
           <AboutSettingsPanel

@@ -77,6 +77,15 @@ body {
   font-synthesis: weight;
 }
 
+html[dir="rtl"] body {
+  direction: rtl;
+  font-family: 'Vazirmatn', 'DM Sans', system-ui, sans-serif;
+}
+
+html[dir="ltr"] body {
+  direction: ltr;
+}
+
 @layer base {
   :lang(fa),
   [lang="fa"] {

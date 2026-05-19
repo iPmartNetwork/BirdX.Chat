@@ -8,6 +8,7 @@ import {
 } from "../../../icons/lucide.js";
 import { FaGithub, FaGlobe, FaTelegram } from "react-icons/fa6";
 import { checkAppVersion } from "../../../api/appMetaApi.js";
+import { useLanguage } from "../../../i18n/LanguageContext.jsx";
 import { ABOUT_CONTENT } from "../../../settings/aboutContent.js";
 import { copyTextToClipboard } from "../../../utils/clipboard.js";
 
@@ -17,7 +18,7 @@ const SOCIAL_ICONS = {
   website: FaGlobe,
 };
 
-function WalletRow({ label, address }) {
+function WalletRow({ label, address, copyLabel, copiedLabel }) {
   const [copied, setCopied] = useState(false);
 
   return (
@@ -43,7 +44,7 @@ function WalletRow({ label, address }) {
           aria-label={`Copy ${label} wallet`}
         >
           <Copy size={12} className="icon-anim-pop" />
-          {copied ? "Copied" : "Copy"}
+          {copied ? copiedLabel : copyLabel}
         </button>
       </div>
     </div>
@@ -57,6 +58,7 @@ export function AboutSettingsPanel({
   onDone,
   variant = "desktop",
 }) {
+  const { t } = useLanguage();
   const isMobile = variant === "mobile";
   const [checkState, setCheckState] = useState({
     status: "",
@@ -66,14 +68,15 @@ export function AboutSettingsPanel({
   const resetCheckStateTimerRef = useRef(null);
 
   const versionLabel =
-    String(appInfo?.version || "Unknown").trim() || "Unknown";
+    String(appInfo?.version || t("settings.about.unknown")).trim() ||
+    t("settings.about.unknown");
   const ownerHref = ABOUT_CONTENT.copyright?.ownerHref || "";
-  const ownerLabel = ABOUT_CONTENT.copyright?.ownerLabel || "bllackbull";
+  const ownerLabel = ABOUT_CONTENT.copyright?.ownerLabel || "iPmartNetwork";
   const year = new Date().getFullYear();
   const rowBase =
-    "flex w-full items-center justify-between gap-3 rounded-2xl border border-emerald-200/70 bg-white/90 px-4 py-3 text-left text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-slate-900/50 dark:text-emerald-200";
+    "flex w-full items-center justify-between gap-3 rounded-2xl border border-emerald-200/70 bg-white/90 px-4 py-3 text-start text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-slate-900/50 dark:text-emerald-200";
   const actionButtonBase =
-    "inline-flex h-7 min-w-[58px] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold leading-none transition";
+    "inline-flex h-7 min-w-[58px] items-center justify-center gap-1 rounded-full px-3 py-1 text-xs font-semibold leading-none transition";
 
   useEffect(() => {
     return () => {
@@ -102,7 +105,7 @@ export function AboutSettingsPanel({
       return {
         className:
           "cursor-wait border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10",
-        label: "Checking",
+        label: t("settings.about.checking"),
         icon: <LoaderCircle size={12} className="animate-spin" />,
       };
     }
@@ -110,7 +113,7 @@ export function AboutSettingsPanel({
       return {
         className:
           "border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200",
-        label: "Failed",
+        label: t("settings.about.failed"),
         icon: <AlertCircle size={13} />,
       };
     }
@@ -118,7 +121,7 @@ export function AboutSettingsPanel({
       return {
         className:
           "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200",
-        label: "Update available",
+        label: t("settings.about.updateAvailable"),
         icon: <AlertCircle size={13} />,
       };
     }
@@ -126,13 +129,13 @@ export function AboutSettingsPanel({
       return {
         className:
           "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
-        label: "Already up to date",
+        label: t("settings.about.upToDate"),
         icon: <Check size={13} />,
       };
     }
     return {
       className: "bg-emerald-500 text-white hover:bg-emerald-400",
-      label: "Check",
+      label: t("settings.about.check"),
       icon: <Refresh size={13} />,
     };
   })();
@@ -147,15 +150,15 @@ export function AboutSettingsPanel({
         }
       >
         <div className={rowBase}>
-          <span>App version</span>
+          <span>{t("settings.about.version")}</span>
           <span className="truncate text-slate-600 dark:text-slate-300">
-            {appInfoLoading ? "Loading..." : versionLabel}
+            {appInfoLoading ? t("settings.about.loading") : versionLabel}
           </span>
         </div>
 
         <div className={`${rowBase} items-start`}>
           <div className="min-w-0 flex-1">
-            <p>Check for updates</p>
+            <p>{t("settings.about.checkUpdates")}</p>
             {appInfoError ? (
               <p className="mt-1 text-xs font-normal text-rose-600 dark:text-rose-300">
                 {appInfoError}
@@ -195,16 +198,16 @@ export function AboutSettingsPanel({
             className={`${actionButtonBase} ${currentButtonStyle.className}`}
           >
             {currentButtonStyle.icon}
-            <span className="ml-1">{currentButtonStyle.label}</span>
+            <span>{currentButtonStyle.label}</span>
           </button>
         </div>
 
         <div className="rounded-2xl border border-emerald-200/70 bg-white/90 p-4 dark:border-emerald-500/30 dark:bg-slate-900/50">
           <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
-            Support the project
+            {t("settings.about.supportProject")}
           </p>
           <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
-            {ABOUT_CONTENT.supportIntro}
+            {t("settings.about.supportIntro")}
           </p>
           <div className="mt-3 space-y-2.5">
             {ABOUT_CONTENT.wallets.map((wallet) => (
@@ -212,6 +215,8 @@ export function AboutSettingsPanel({
                 key={wallet.label}
                 label={wallet.label}
                 address={wallet.address}
+                copyLabel={t("settings.about.copy")}
+                copiedLabel={t("settings.about.copied")}
               />
             ))}
           </div>
@@ -251,11 +256,10 @@ export function AboutSettingsPanel({
             </a>
           </p>
           <p className="mt-1 text-center text-[11px] text-slate-500 dark:text-slate-400">
-            All rights reserved. Songbird is a free and open-source project,
-            licensed under the MIT License.
+            {t("settings.about.rights")}
           </p>
           <p className="mt-1 text-center text-[11px] text-slate-500 dark:text-slate-400">
-            For Freedom ❤️
+            {t("settings.about.freedom")}
           </p>
         </div>
       </div>
@@ -267,7 +271,7 @@ export function AboutSettingsPanel({
             onClick={() => onDone?.()}
             className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-400"
           >
-            Done
+            {t("settings.done")}
           </button>
         </div>
       ) : null}

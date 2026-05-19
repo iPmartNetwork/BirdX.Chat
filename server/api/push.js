@@ -79,7 +79,7 @@ function registerPushRoutes(app, deps) {
     }
     try {
       await sendPushNotificationToUsers([user.id], {
-        title: "Songbird",
+        title: "BirdX",
         body: "Test notification",
         data: { url: "/" },
       });

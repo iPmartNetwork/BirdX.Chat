@@ -262,6 +262,16 @@ export function useChatEvents({
           }
           if (isUpdateEvent) {
             scheduleLoadChats();
+            if (Array.isArray(payload?.reactions) && payload?.messageId) {
+              const reactionMessageId = Number(payload.messageId);
+              setMessages((prev) =>
+                prev.map((msg) => {
+                  const msgId = Number(msg?._serverId || msg?.id || 0);
+                  if (msgId !== reactionMessageId) return msg;
+                  return { ...msg, reactions: payload.reactions };
+                }),
+              );
+            }
           }
           scheduleMessageRefreshRef.current?.(currentActiveId, {
             preserveHistory: true,

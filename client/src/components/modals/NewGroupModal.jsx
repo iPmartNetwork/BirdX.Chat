@@ -19,13 +19,13 @@ import Avatar from "../common/Avatar.jsx";
 
 export default function NewGroupModal({
   open,
-  groupForm,
+  groupForm = {},
   setGroupForm,
-  groupSearchQuery,
+  groupSearchQuery = "",
   setGroupSearchQuery,
-  groupSearchResults,
+  groupSearchResults = [],
   groupSearchLoading,
-  selectedGroupMembers,
+  selectedGroupMembers = [],
   setSelectedGroupMembers,
   groupError,
   setGroupError,
@@ -48,6 +48,8 @@ export default function NewGroupModal({
   onRegenerateInvite,
   entityLabel = "Group",
   onDeleteChat,
+  showRemoteChannelSettings = false,
+  remoteChannelAvailable = true,
 }) {
   const [copiedRegenerateLink, setCopiedRegenerateLink] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -55,12 +57,41 @@ export default function NewGroupModal({
   if (!open) return null;
   if (typeof document === "undefined") return null;
 
+  const safeGroupForm = {
+    nickname: String(groupForm?.nickname || ""),
+    username: String(groupForm?.username || ""),
+    visibility: String(groupForm?.visibility || "public"),
+    allowMemberInvites: groupForm?.allowMemberInvites !== false,
+    remoteChannelEnabled: Boolean(groupForm?.remoteChannelEnabled),
+    remoteChannelProvider: String(groupForm?.remoteChannelProvider || "telegram"),
+    remoteChannelSource: String(groupForm?.remoteChannelSource || ""),
+    remoteChannelSyncMetadata: Boolean(groupForm?.remoteChannelSyncMetadata),
+    remoteChannelStreamMedia: Boolean(groupForm?.remoteChannelStreamMedia),
+    remoteChannelStatus: groupForm?.remoteChannelStatus || null,
+    remoteChannelLoading: Boolean(groupForm?.remoteChannelLoading),
+  };
+  const safeSearchQuery = String(groupSearchQuery || "");
+  const safeSearchResults = Array.isArray(groupSearchResults)
+    ? groupSearchResults.filter((item) => item && typeof item === "object")
+    : [];
+  const safeSelectedMembers = Array.isArray(selectedGroupMembers)
+    ? selectedGroupMembers.filter((item) => item && typeof item === "object")
+    : [];
+  const safeEntityLabel = String(entityLabel || "Group");
+  const safeAvatarName = String(avatarName || safeEntityLabel || "Group");
+
   const selectedMemberNames = new Set(
-    selectedGroupMembers.map((member) => String(member?.username || "")),
+    safeSelectedMembers.map((member) => String(member?.username || "")),
   );
-  const nicknameHasPersian = hasPersian(groupForm.nickname || "");
-  const usernameHasPersian = hasPersian(groupForm.username || "");
-  const groupSearchHasPersian = hasPersian(groupSearchQuery || "");
+  const nicknameHasPersian = hasPersian(safeGroupForm.nickname);
+  const usernameHasPersian = hasPersian(safeGroupForm.username);
+  const groupSearchHasPersian = hasPersian(safeSearchQuery);
+  const remoteSourceHasPersian = hasPersian(safeGroupForm.remoteChannelSource);
+  const remoteLastError =
+    safeGroupForm.remoteChannelStatus?.source?.lastError ||
+    safeGroupForm.remoteChannelStatus?.error ||
+    "";
+  const remoteQueue = safeGroupForm.remoteChannelStatus?.source?.queue || {};
 
   return createPortal(
     <>
@@ -83,7 +114,7 @@ export default function NewGroupModal({
             {showAvatarField ? (
               <div className="rounded-2xl border border-emerald-200 p-3 dark:border-emerald-500/30">
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  {entityLabel} photo
+                  {safeEntityLabel} photo
                 </p>
                 <div className="mt-3 flex items-center gap-4">
                   {avatarPreview ? (
@@ -94,10 +125,10 @@ export default function NewGroupModal({
                     />
                   ) : (
                     <div
-                      className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full text-lg font-bold ${hasPersian(getAvatarInitials(avatarName || "G")) ? "font-fa" : ""}`}
+                      className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full text-lg font-bold ${hasPersian(getAvatarInitials(safeAvatarName || "G")) ? "font-fa" : ""}`}
                       style={getAvatarStyle(avatarColor || "#10b981")}
                     >
-                      {getAvatarInitials(avatarName || "G")}
+                      {getAvatarInitials(safeAvatarName || "G")}
                     </div>
                   )}
                   <div className="flex w-full flex-nowrap items-center gap-2">
@@ -130,7 +161,7 @@ export default function NewGroupModal({
                           onAvatarRemove?.();
                         }}
                         className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 hover:shadow-md dark:border-rose-500/30 dark:bg-rose-900/40 dark:text-rose-200 dark:hover:bg-rose-800/50"
-                        aria-label={`Remove ${entityLabel.toLowerCase()} photo`}
+                        aria-label={`Remove ${safeEntityLabel.toLowerCase()} photo`}
                       >
                         <Trash size={18} className="icon-anim-sway" />
                       </button>
@@ -142,20 +173,20 @@ export default function NewGroupModal({
 
             <div>
               <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {entityLabel} nickname
+                {safeEntityLabel} nickname
               </label>
               <div className="relative mt-2">
                 <input
-                  value={groupForm.nickname}
+                  value={safeGroupForm.nickname}
                   onChange={(event) => {
-                    setGroupForm((prev) => ({
+                    setGroupForm?.((prev) => ({
                       ...prev,
                       nickname: event.target.value,
                     }));
-                    setGroupError("");
+                    setGroupError?.("");
                   }}
                   maxLength={NICKNAME_MAX}
-                  placeholder={`My ${entityLabel.toLowerCase()}`}
+                  placeholder={`My ${safeEntityLabel.toLowerCase()}`}
                   lang={nicknameHasPersian ? "fa" : "en"}
                   dir={nicknameHasPersian ? "rtl" : "ltr"}
                   className={`w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
@@ -164,27 +195,27 @@ export default function NewGroupModal({
                   style={{ unicodeBidi: "plaintext" }}
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 dark:text-slate-500">
-                  {String(groupForm.nickname || "").length}/{NICKNAME_MAX}
+                  {safeGroupForm.nickname.length}/{NICKNAME_MAX}
                 </span>
               </div>
             </div>
 
             <div>
               <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {entityLabel} username
+                {safeEntityLabel} username
               </label>
               <div className="relative mt-2">
                 <input
-                  value={groupForm.username}
+                  value={safeGroupForm.username}
                   onChange={(event) => {
-                    setGroupForm((prev) => ({
+                    setGroupForm?.((prev) => ({
                       ...prev,
                       username: event.target.value.toLowerCase(),
                     }));
-                    setGroupError("");
+                    setGroupError?.("");
                   }}
                   maxLength={USERNAME_MAX}
-                  placeholder={`my${entityLabel.toLowerCase()}`}
+                  placeholder={`my${safeEntityLabel.toLowerCase()}`}
                   lang={usernameHasPersian ? "fa" : "en"}
                   dir={usernameHasPersian ? "rtl" : "ltr"}
                   className={`w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
@@ -193,7 +224,7 @@ export default function NewGroupModal({
                   style={{ unicodeBidi: "plaintext" }}
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 dark:text-slate-500">
-                  {String(groupForm.username || "").length}/{USERNAME_MAX}
+                  {safeGroupForm.username.length}/{USERNAME_MAX}
                 </span>
               </div>
             </div>
@@ -206,10 +237,10 @@ export default function NewGroupModal({
                 <button
                   type="button"
                   onClick={() =>
-                    setGroupForm((prev) => ({ ...prev, visibility: "public" }))
+                    setGroupForm?.((prev) => ({ ...prev, visibility: "public" }))
                   }
                   className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
-                    groupForm.visibility === "public"
+                    safeGroupForm.visibility === "public"
                       ? "bg-emerald-500 text-white"
                       : "text-slate-700 hover:bg-emerald-50 dark:text-slate-200 dark:hover:bg-emerald-500/10"
                   }`}
@@ -222,10 +253,10 @@ export default function NewGroupModal({
                 <button
                   type="button"
                   onClick={() =>
-                    setGroupForm((prev) => ({ ...prev, visibility: "private" }))
+                    setGroupForm?.((prev) => ({ ...prev, visibility: "private" }))
                   }
                   className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
-                    groupForm.visibility === "private"
+                    safeGroupForm.visibility === "private"
                       ? "bg-emerald-500 text-white"
                       : "text-slate-700 hover:bg-emerald-50 dark:text-slate-200 dark:hover:bg-emerald-500/10"
                   }`}
@@ -237,17 +268,17 @@ export default function NewGroupModal({
                 </button>
               </div>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                {groupForm.visibility === "public"
-                  ? "Anyone can discover and join this group."
-                  : "Private groups can only be joined via invite link."}
+                {safeGroupForm.visibility === "public"
+                  ? `Anyone can discover and join this ${safeEntityLabel.toLowerCase()}.`
+                  : `Private ${safeEntityLabel.toLowerCase()}s can only be joined via invite link.`}
               </p>
-              {groupForm.visibility === "private" ? (
+              {safeGroupForm.visibility === "private" ? (
                 <label className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
                   <input
                     type="checkbox"
-                    checked={groupForm.allowMemberInvites !== false}
+                    checked={safeGroupForm.allowMemberInvites !== false}
                     onChange={(event) =>
-                      setGroupForm((prev) => ({
+                      setGroupForm?.((prev) => ({
                         ...prev,
                         allowMemberInvites: event.target.checked,
                       }))
@@ -309,6 +340,121 @@ export default function NewGroupModal({
               </div>
             ) : null}
 
+            {showRemoteChannelSettings ? (
+              <div className="rounded-2xl border border-emerald-200 p-3 dark:border-emerald-500/30">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      Remote Channel
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      Mirror posts from a Telegram channel into this channel.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={safeGroupForm.remoteChannelEnabled}
+                    disabled={!remoteChannelAvailable}
+                    onClick={() =>
+                      remoteChannelAvailable &&
+                      setGroupForm?.((prev) => ({
+                        ...prev,
+                        remoteChannelEnabled: !prev.remoteChannelEnabled,
+                      }))
+                    }
+                    className={`h-7 w-12 rounded-full p-1 transition ${
+                      safeGroupForm.remoteChannelEnabled && remoteChannelAvailable
+                        ? "bg-emerald-500"
+                        : "bg-slate-300 dark:bg-slate-700"
+                    } ${remoteChannelAvailable ? "" : "opacity-60"}`}
+                  >
+                    <span
+                      className={`block h-5 w-5 rounded-full bg-white transition ${
+                        safeGroupForm.remoteChannelEnabled && remoteChannelAvailable
+                          ? "translate-x-5"
+                          : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+                {!remoteChannelAvailable ? (
+                  <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                    Remote Channel is not configured on this server.
+                  </p>
+                ) : null}
+                {safeGroupForm.remoteChannelLoading ? (
+                  <p className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <LoaderCircle size={13} className="animate-spin" />
+                    Loading Remote Channel settings...
+                  </p>
+                ) : null}
+                {remoteLastError ? (
+                  <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-900/40 dark:text-rose-200">
+                    {remoteLastError}
+                  </p>
+                ) : null}
+                {safeGroupForm.remoteChannelEnabled && remoteChannelAvailable ? (
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        Telegram source
+                      </label>
+                      <input
+                        value={safeGroupForm.remoteChannelSource}
+                        onChange={(event) =>
+                          setGroupForm?.((prev) => ({
+                            ...prev,
+                            remoteChannelSource: event.target.value,
+                          }))
+                        }
+                        placeholder="@channel or https://t.me/channel"
+                        lang={remoteSourceHasPersian ? "fa" : "en"}
+                        dir={remoteSourceHasPersian ? "rtl" : "ltr"}
+                        className={`mt-2 w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
+                          remoteSourceHasPersian ? "font-fa text-right" : "text-left"
+                        }`}
+                        style={{ unicodeBidi: "plaintext" }}
+                      />
+                    </div>
+                    <label className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-slate-200">
+                      <span>Sync Telegram title when saving</span>
+                      <input
+                        type="checkbox"
+                        checked={safeGroupForm.remoteChannelSyncMetadata}
+                        onChange={(event) =>
+                          setGroupForm?.((prev) => ({
+                            ...prev,
+                            remoteChannelSyncMetadata: event.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 rounded border-emerald-300 accent-emerald-500"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-slate-200">
+                      <span>Allow media streaming when supported</span>
+                      <input
+                        type="checkbox"
+                        checked={safeGroupForm.remoteChannelStreamMedia}
+                        onChange={(event) =>
+                          setGroupForm?.((prev) => ({
+                            ...prev,
+                            remoteChannelStreamMedia: event.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 rounded border-emerald-300 accent-emerald-500"
+                      />
+                    </label>
+                    {Object.keys(remoteQueue).length ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Queue: {Object.entries(remoteQueue).map(([key, value]) => `${key} ${value}`).join(" - ")}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="rounded-2xl border border-emerald-200 p-3 dark:border-emerald-500/30">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -318,10 +464,10 @@ export default function NewGroupModal({
               <div className="relative mt-2">
                 <input
                   ref={groupSearchInputRef}
-                  value={groupSearchQuery}
+                  value={safeSearchQuery}
                   onChange={(event) => {
-                    setGroupSearchQuery(event.target.value);
-                    setGroupError("");
+                    setGroupSearchQuery?.(event.target.value);
+                    setGroupError?.("");
                   }}
                   placeholder="username"
                   lang={groupSearchHasPersian ? "fa" : "en"}
@@ -331,10 +477,10 @@ export default function NewGroupModal({
                   }`}
                   style={{ unicodeBidi: "plaintext" }}
                 />
-                {groupSearchQuery.trim() ? (
+                {safeSearchQuery.trim() ? (
                   <button
                     type="button"
-                    onClick={() => setGroupSearchQuery("")}
+                    onClick={() => setGroupSearchQuery?.("")}
                     className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-rose-600 transition hover:bg-rose-100 hover:shadow-[0_0_18px_rgba(244,63,94,0.22)] dark:text-rose-200 dark:hover:bg-rose-500/10"
                     aria-label="Clear member search"
                   >
@@ -343,33 +489,35 @@ export default function NewGroupModal({
                 ) : null}
               </div>
               <div className="mt-3 space-y-2">
-                {groupSearchResults.length ? (
+                {safeSearchResults.length ? (
                   <div className="app-scroll max-h-64 space-y-2 overflow-y-auto pr-1">
-                    {groupSearchResults.map((result) => {
-                      const selected = selectedMemberNames.has(result.username);
-                      const label = result.nickname || result.username;
+                    {safeSearchResults.map((result) => {
+                      const resultUsername = String(result?.username || "");
+                      const selected = selectedMemberNames.has(resultUsername);
+                      const label = result?.nickname || resultUsername;
                       const avatarInitials = getAvatarInitials(label);
                       return (
                         <button
-                          key={result.username}
+                          key={resultUsername}
                           type="button"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => {
                             if (selected) {
-                              setSelectedGroupMembers((prev) =>
-                                prev.filter(
+                              setSelectedGroupMembers?.((prev) =>
+                                (Array.isArray(prev) ? prev : []).filter(
                                   (member) =>
-                                    member.username !== result.username,
+                                    String(member?.username || "") !==
+                                    resultUsername,
                                 ),
                               );
                               groupSearchInputRef.current?.focus?.();
                               return;
                             }
-                            setSelectedGroupMembers((prev) => [
-                              ...prev,
-                              result,
+                            setSelectedGroupMembers?.((prev) => [
+                              ...(Array.isArray(prev) ? prev : []),
+                              { ...result, username: resultUsername },
                             ]);
-                            setGroupSearchQuery("");
+                            setGroupSearchQuery?.("");
                             groupSearchInputRef.current?.focus?.();
                           }}
                           className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-medium transition ${
@@ -398,7 +546,7 @@ export default function NewGroupModal({
                               className="truncate text-xs text-slate-500 dark:text-slate-400"
                               dir="auto"
                             >
-                              @{result.username}
+                              @{resultUsername}
                             </p>
                           </div>
                         </button>
@@ -409,25 +557,27 @@ export default function NewGroupModal({
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Searching...
                   </p>
-                ) : groupSearchQuery.trim() ? (
+                ) : safeSearchQuery.trim() ? (
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     No users found.
                   </p>
                 ) : null}
               </div>
-              {selectedGroupMembers.length && !hideSelectedMemberChips ? (
+              {safeSelectedMembers.length > 0 && !hideSelectedMemberChips ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedGroupMembers.map((member) => {
-                    const label = member.nickname || member.username;
+                  {safeSelectedMembers.map((member) => {
+                    const memberUsername = String(member?.username || "");
+                    const label = member?.nickname || memberUsername;
                     const initials = getAvatarInitials(label);
                     return (
                       <button
-                        key={`member-chip-${member.username}`}
+                        key={`member-chip-${memberUsername}`}
                         type="button"
                         onClick={() =>
-                          setSelectedGroupMembers((prev) =>
-                            prev.filter(
-                              (item) => item.username !== member.username,
+                          setSelectedGroupMembers?.((prev) =>
+                            (Array.isArray(prev) ? prev : []).filter(
+                              (item) =>
+                                String(item?.username || "") !== memberUsername,
                             ),
                           )
                         }
@@ -444,9 +594,9 @@ export default function NewGroupModal({
                         <span
                           className="max-w-[160px] truncate"
                           dir="auto"
-                          title={member.username}
+                          title={memberUsername}
                         >
-                          @{member.username}
+                          @{memberUsername}
                         </span>
                         <Close size={12} />
                       </button>
@@ -474,7 +624,7 @@ export default function NewGroupModal({
               className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200/80 bg-rose-50/70 px-4 py-3 text-xs font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 dark:border-rose-500/40 dark:bg-rose-900/30 dark:text-rose-200 dark:hover:bg-rose-900/50"
             >
               <Trash size={16} className="icon-anim-sway" />
-              Delete {entityLabel.toLowerCase()}
+              Delete {safeEntityLabel.toLowerCase()}
             </button>
           ) : null}
 
@@ -507,10 +657,10 @@ export default function NewGroupModal({
 
       <ConfirmPasswordModal
         open={deleteModalOpen}
-        title={`Delete ${entityLabel.toLowerCase()}`}
-        description={`This permanently deletes the ${entityLabel.toLowerCase()}, removes all members, and erases all messages.`}
+        title={`Delete ${safeEntityLabel.toLowerCase()}`}
+        description={`This permanently deletes the ${safeEntityLabel.toLowerCase()}, removes all members, and erases all messages.`}
         confirmLabel="Continue"
-        deleteLabel={`Delete ${entityLabel.toLowerCase()}`}
+        deleteLabel={`Delete ${safeEntityLabel.toLowerCase()}`}
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={async (password) => {
           await onDeleteChat?.(password);

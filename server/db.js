@@ -218,6 +218,13 @@ runDatabaseMigrations();
 
 saveDatabase();
 
+const USER_ROLE_SELECT_SQL = hasColumn("users", "role") ? "role" : "'user' AS role";
+const USER_ROLE_QUALIFIED_SELECT_SQL = hasColumn("users", "role")
+  ? "users.role"
+  : "'user' AS role";
+const SESSIONS_HAS_IP_ADDRESS = hasColumn("sessions", "ip_address");
+const SESSIONS_HAS_USER_AGENT = hasColumn("sessions", "user_agent");
+
 process.once("beforeExit", () => {
   saveDatabase();
 });
@@ -232,14 +239,14 @@ export function getCurrentSchemaVersion() {
 
 export function findUserByUsername(username) {
   return getRow(
-    "SELECT id, username, nickname, avatar_url, color, status, password_hash, banned FROM users WHERE username = ?",
+    `SELECT id, username, nickname, avatar_url, color, status, password_hash, banned, ${USER_ROLE_SELECT_SQL} FROM users WHERE username = ?`,
     [username],
   );
 }
 
 export function findUserById(id) {
   return getRow(
-    "SELECT id, username, nickname, avatar_url, color, status, password_hash, banned FROM users WHERE id = ?",
+    `SELECT id, username, nickname, avatar_url, color, status, password_hash, banned, ${USER_ROLE_SELECT_SQL} FROM users WHERE id = ?`,
     [id],
   );
 }
@@ -247,13 +254,13 @@ export function findUserById(id) {
 export function listUsers(excludeUsername) {
   if (excludeUsername) {
     return getAll(
-      "SELECT id, username, nickname, avatar_url, color, status FROM users WHERE username != ? ORDER BY username",
+      `SELECT id, username, nickname, avatar_url, color, status, banned, ${USER_ROLE_SELECT_SQL} FROM users WHERE username != ? ORDER BY username`,
       [excludeUsername],
     );
   }
 
   return getAll(
-    "SELECT id, username, nickname, avatar_url, color, status, banned FROM users ORDER BY username",
+    `SELECT id, username, nickname, avatar_url, color, status, banned, ${USER_ROLE_SELECT_SQL} FROM users ORDER BY username`,
   );
 }
 
@@ -262,13 +269,13 @@ export function searchUsers(query, excludeUsername) {
 
   if (excludeUsername) {
     return getAll(
-      "SELECT id, username, nickname, avatar_url, color, status, banned FROM users WHERE username != ? AND (username LIKE ? OR nickname LIKE ?) ORDER BY username",
+      `SELECT id, username, nickname, avatar_url, color, status, banned, ${USER_ROLE_SELECT_SQL} FROM users WHERE username != ? AND (username LIKE ? OR nickname LIKE ?) ORDER BY username`,
       [excludeUsername, like, like],
     );
   }
 
   return getAll(
-    "SELECT id, username, nickname, avatar_url, color, status, banned FROM users WHERE username LIKE ? OR nickname LIKE ? ORDER BY username",
+    `SELECT id, username, nickname, avatar_url, color, status, banned, ${USER_ROLE_SELECT_SQL} FROM users WHERE username LIKE ? OR nickname LIKE ? ORDER BY username`,
     [like, like],
   );
 }
@@ -376,6 +383,168 @@ export function addChatMember(chatId, userId, role = "member") {
   );
 }
 
+export function listRequiredChannels() {
+  return getAll(
+    `SELECT
+       required_channels.chat_id,
+       required_channels.enabled,
+       required_channels.created_at,
+       required_channels.updated_at,
+       chats.id,
+       chats.name,
+       chats.group_username,
+       chats.group_visibility,
+       chats.group_color,
+       chats.group_avatar_url,
+       (SELECT COUNT(*) FROM chat_members WHERE chat_id = chats.id) AS member_count
+     FROM required_channels
+     JOIN chats ON chats.id = required_channels.chat_id
+     WHERE chats.type = 'channel'
+     ORDER BY chats.name COLLATE NOCASE ASC, chats.id ASC`,
+  ).map((row) => ({
+    ...row,
+    enabled: Boolean(Number(row.enabled || 0)),
+    member_count: Number(row.member_count || 0),
+  }));
+}
+
+export function listRequiredChannelIds() {
+  return getAll(
+    `SELECT required_channels.chat_id
+     FROM required_channels
+     JOIN chats ON chats.id = required_channels.chat_id
+     WHERE required_channels.enabled = 1
+       AND chats.type = 'channel'`,
+  )
+    .map((row) => Number(row.chat_id || 0))
+    .filter(Boolean);
+}
+
+export function isRequiredChannel(chatId) {
+  const row = getRow(
+    `SELECT 1 AS required
+     FROM required_channels
+     JOIN chats ON chats.id = required_channels.chat_id
+     WHERE required_channels.chat_id = ?
+       AND required_channels.enabled = 1
+       AND chats.type = 'channel'`,
+    [Number(chatId || 0)],
+  );
+  return Boolean(row?.required);
+}
+
+export function listAvailableRequiredChannels() {
+  return getAll(
+    `SELECT
+       chats.id,
+       chats.name,
+       chats.group_username,
+       chats.group_visibility,
+       chats.group_color,
+       chats.group_avatar_url,
+       COALESCE(required_channels.enabled, 0) AS required,
+       (SELECT COUNT(*) FROM chat_members WHERE chat_id = chats.id) AS member_count
+     FROM chats
+     LEFT JOIN required_channels ON required_channels.chat_id = chats.id
+     WHERE chats.type = 'channel'
+     ORDER BY chats.name COLLATE NOCASE ASC, chats.id ASC`,
+  ).map((row) => ({
+    ...row,
+    required: Boolean(Number(row.required || 0)),
+    member_count: Number(row.member_count || 0),
+  }));
+}
+
+export function setRequiredChannels(chatIds = []) {
+  const normalizedIds = Array.from(
+    new Set(
+      (Array.isArray(chatIds) ? chatIds : [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0),
+    ),
+  );
+  const validIds = normalizedIds.length
+    ? getAll(
+        `SELECT id FROM chats WHERE type = 'channel' AND id IN (${normalizedIds
+          .map(() => "?")
+          .join(", ")})`,
+        normalizedIds,
+      ).map((row) => Number(row.id))
+    : [];
+
+  const savepoint = `sp_required_channels_${Date.now()}`;
+  runWithoutSave(`SAVEPOINT ${savepoint}`);
+  try {
+    runWithoutSave("DELETE FROM required_channels");
+    validIds.forEach((chatId) => {
+      runWithoutSave(
+        `INSERT INTO required_channels (chat_id, enabled, created_at, updated_at)
+         VALUES (?, 1, datetime('now'), datetime('now'))`,
+        [chatId],
+      );
+    });
+    runWithoutSave(`RELEASE ${savepoint}`);
+    saveDatabase();
+  } catch (error) {
+    try {
+      runWithoutSave(`ROLLBACK TO ${savepoint}`);
+      runWithoutSave(`RELEASE ${savepoint}`);
+    } catch {
+      // ignore rollback failures
+    }
+    throw error;
+  }
+
+  return validIds;
+}
+
+export function applyRequiredChannelsToUser(userId) {
+  const targetUserId = Number(userId || 0);
+  if (!targetUserId) return 0;
+
+  const channelIds = listRequiredChannelIds();
+  let added = 0;
+  channelIds.forEach((chatId) => {
+    const before = getRow(
+      "SELECT 1 AS member FROM chat_members WHERE chat_id = ? AND user_id = ?",
+      [chatId, targetUserId],
+    );
+    run(
+      "INSERT OR IGNORE INTO chat_members (chat_id, user_id, role) VALUES (?, ?, 'member')",
+      [chatId, targetUserId],
+    );
+    run("DELETE FROM chat_left_members WHERE chat_id = ? AND user_id = ?", [
+      chatId,
+      targetUserId,
+    ]);
+    run("DELETE FROM hidden_chats WHERE chat_id = ? AND user_id = ?", [
+      chatId,
+      targetUserId,
+    ]);
+    run("DELETE FROM group_removed_members WHERE chat_id = ? AND user_id = ?", [
+      chatId,
+      targetUserId,
+    ]);
+    if (!before?.member) added += 1;
+  });
+  return added;
+}
+
+export function applyRequiredChannelsToAllUsers() {
+  const users = getAll("SELECT id FROM users ORDER BY id ASC")
+    .map((row) => Number(row.id || 0))
+    .filter(Boolean);
+  let membershipsAdded = 0;
+  users.forEach((userId) => {
+    membershipsAdded += applyRequiredChannelsToUser(userId);
+  });
+  return {
+    usersProcessed: users.length,
+    membershipsAdded,
+    requiredChannels: listRequiredChannelIds().length,
+  };
+}
+
 export function searchPublicGroups(query, viewerUserId, limit = 20) {
   const like = `%${String(query || "").trim()}%`;
   const safeLimit = Math.max(1, Math.min(100, Number(limit) || 20));
@@ -438,6 +607,347 @@ export function searchPublicChannels(query, viewerUserId, limit = 20) {
      LIMIT ?`,
     [Number(viewerUserId), Number(viewerUserId), like, like, like, safeLimit],
   );
+}
+
+const normalizeRemoteSourceUsername = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/^@+/, "")
+    .toLowerCase() || null;
+
+const normalizeRemoteSourceChatId = (value) => {
+  const raw = String(value || "").trim();
+  return raw || null;
+};
+
+export function getRemoteChannelSourceByChatId(chatId) {
+  return getRow(
+    `SELECT id, chat_id, provider, source_raw, source_chat_id, source_username,
+            source_title, source_avatar_url, last_remote_message_id, enabled,
+            source_version, sync_metadata, stream_media, last_error, last_seen_at,
+            created_at, updated_at
+     FROM remote_channel_sources
+     WHERE chat_id = ? AND provider = 'telegram'`,
+    [Number(chatId)],
+  );
+}
+
+export function getRemoteChannelSourceById(sourceId) {
+  return getRow(
+    `SELECT id, chat_id, provider, source_raw, source_chat_id, source_username,
+            source_title, source_avatar_url, last_remote_message_id, enabled,
+            source_version, sync_metadata, stream_media, last_error, last_seen_at,
+            created_at, updated_at
+     FROM remote_channel_sources
+     WHERE id = ? AND provider = 'telegram'`,
+    [Number(sourceId)],
+  );
+}
+
+export function upsertRemoteChannelSource(payload = {}) {
+  const chatId = Number(payload.chatId || 0);
+  if (!chatId) return null;
+
+  const sourceRaw = String(payload.sourceRaw || "").trim() || null;
+  const sourceChatId = normalizeRemoteSourceChatId(payload.sourceChatId);
+  const sourceUsername = normalizeRemoteSourceUsername(payload.sourceUsername);
+  const enabled = payload.enabled ? 1 : 0;
+  const syncMetadata = payload.syncMetadata ? 1 : 0;
+  const streamMedia = payload.streamMedia ? 1 : 0;
+  const current = getRemoteChannelSourceByChatId(chatId);
+  const sourceChanged = Boolean(
+    current?.id &&
+      (String(current.source_raw || "") !== String(sourceRaw || "") ||
+        String(current.source_chat_id || "") !== String(sourceChatId || "") ||
+        String(current.source_username || "") !== String(sourceUsername || "")),
+  );
+  const sourceVersion = sourceChanged
+    ? Math.max(1, Number(current?.source_version || 1) || 1) + 1
+    : Math.max(1, Number(current?.source_version || 1) || 1);
+
+  run(
+    `INSERT INTO remote_channel_sources (
+       chat_id, provider, source_raw, source_chat_id, source_username,
+       source_version, sync_metadata, stream_media, enabled, last_error, updated_at
+     )
+     VALUES (?, 'telegram', ?, ?, ?, ?, ?, ?, ?, NULL, datetime('now'))
+     ON CONFLICT(chat_id) DO UPDATE SET
+       provider = excluded.provider,
+       source_title = CASE
+         WHEN COALESCE(remote_channel_sources.source_raw, '') != COALESCE(excluded.source_raw, '')
+           OR COALESCE(remote_channel_sources.source_chat_id, '') != COALESCE(excluded.source_chat_id, '')
+           OR COALESCE(remote_channel_sources.source_username, '') != COALESCE(excluded.source_username, '')
+         THEN NULL
+         ELSE remote_channel_sources.source_title
+       END,
+       source_avatar_url = CASE
+         WHEN COALESCE(remote_channel_sources.source_raw, '') != COALESCE(excluded.source_raw, '')
+           OR COALESCE(remote_channel_sources.source_chat_id, '') != COALESCE(excluded.source_chat_id, '')
+           OR COALESCE(remote_channel_sources.source_username, '') != COALESCE(excluded.source_username, '')
+         THEN NULL
+         ELSE remote_channel_sources.source_avatar_url
+       END,
+       last_remote_message_id = CASE
+         WHEN COALESCE(remote_channel_sources.source_raw, '') != COALESCE(excluded.source_raw, '')
+           OR COALESCE(remote_channel_sources.source_chat_id, '') != COALESCE(excluded.source_chat_id, '')
+           OR COALESCE(remote_channel_sources.source_username, '') != COALESCE(excluded.source_username, '')
+         THEN NULL
+         ELSE remote_channel_sources.last_remote_message_id
+       END,
+       source_raw = excluded.source_raw,
+       source_chat_id = excluded.source_chat_id,
+       source_username = excluded.source_username,
+       source_version = excluded.source_version,
+       sync_metadata = excluded.sync_metadata,
+       stream_media = excluded.stream_media,
+       enabled = excluded.enabled,
+       last_error = NULL,
+       updated_at = datetime('now')`,
+    [
+      chatId,
+      sourceRaw,
+      sourceChatId,
+      sourceUsername,
+      sourceVersion,
+      syncMetadata,
+      streamMedia,
+      enabled,
+    ],
+  );
+
+  if (current?.id && (sourceChanged || !enabled)) {
+    run(
+      `UPDATE remote_channel_queue
+       SET status = 'skipped',
+           locked_at = NULL,
+           lock_owner = NULL,
+           last_error = ?,
+           processed_at = datetime('now')
+       WHERE source_id = ?
+         AND status IN ('pending', 'retry', 'processing')`,
+      [
+        sourceChanged
+          ? "Remote source changed before this item was mirrored."
+          : "Remote Channel was disabled before this item was mirrored.",
+        Number(current.id),
+      ],
+    );
+  }
+  saveDatabase();
+
+  return getRemoteChannelSourceByChatId(chatId);
+}
+
+export function listEnabledRemoteChannelSources(provider = "telegram") {
+  return getAll(
+    `SELECT id, chat_id, provider, source_raw, source_chat_id, source_username,
+            source_title, source_avatar_url, last_remote_message_id, enabled,
+            source_version, sync_metadata, stream_media, last_error, last_seen_at,
+            created_at, updated_at
+     FROM remote_channel_sources
+     WHERE provider = ? AND enabled = 1
+     ORDER BY id ASC`,
+    [String(provider || "telegram")],
+  );
+}
+
+export function updateRemoteChannelSourceSeen(sourceId, payload = {}) {
+  const sourceChatId = normalizeRemoteSourceChatId(payload.sourceChatId);
+  const sourceUsername = normalizeRemoteSourceUsername(payload.sourceUsername);
+  const sourceTitle = Object.prototype.hasOwnProperty.call(payload, "sourceTitle")
+    ? String(payload.sourceTitle || "").trim() || null
+    : undefined;
+  const lastRemoteMessageId = Number.isFinite(Number(payload.lastRemoteMessageId))
+    ? Math.max(0, Math.trunc(Number(payload.lastRemoteMessageId)))
+    : null;
+  run(
+    `UPDATE remote_channel_sources
+     SET source_chat_id = COALESCE(?, source_chat_id),
+         source_username = COALESCE(?, source_username),
+         source_title = CASE WHEN ? THEN ? ELSE source_title END,
+         last_remote_message_id = CASE
+           WHEN ? IS NOT NULL AND (
+             last_remote_message_id IS NULL OR ? > last_remote_message_id
+           ) THEN ?
+           ELSE last_remote_message_id
+         END,
+         last_seen_at = datetime('now'),
+         last_error = NULL,
+         updated_at = datetime('now')
+     WHERE id = ?`,
+    [
+      sourceChatId,
+      sourceUsername,
+      sourceTitle !== undefined ? 1 : 0,
+      sourceTitle === undefined ? null : sourceTitle,
+      lastRemoteMessageId,
+      lastRemoteMessageId,
+      lastRemoteMessageId,
+      Number(sourceId),
+    ],
+  );
+  saveDatabase();
+}
+
+export function updateRemoteChannelSourceError(sourceId, error) {
+  run(
+    `UPDATE remote_channel_sources
+     SET last_error = ?, updated_at = datetime('now')
+     WHERE id = ?`,
+    [String(error || "").slice(0, 1000) || null, Number(sourceId)],
+  );
+  saveDatabase();
+}
+
+export function enqueueRemoteChannelQueueItem(payload = {}) {
+  const sourceId = Number(payload.sourceId || 0);
+  const payloadJson = String(payload.payloadJson || "").trim();
+  if (!sourceId || !payloadJson) return null;
+  const telegramUpdateId = Number.isFinite(Number(payload.telegramUpdateId))
+    ? Math.trunc(Number(payload.telegramUpdateId))
+    : null;
+  const telegramMessageId = Number.isFinite(Number(payload.telegramMessageId))
+    ? Math.trunc(Number(payload.telegramMessageId))
+    : null;
+  const sourceVersion = Math.max(1, Math.trunc(Number(payload.sourceVersion || 1)) || 1);
+
+  run(
+    `INSERT OR IGNORE INTO remote_channel_queue (
+       source_id, provider, telegram_update_id, telegram_message_id,
+       source_version, payload_json, status, next_attempt_at
+     )
+     VALUES (?, 'telegram', ?, ?, ?, ?, 'pending', datetime('now'))`,
+    [sourceId, telegramUpdateId, telegramMessageId, sourceVersion, payloadJson],
+  );
+  saveDatabase();
+}
+
+export function getRemoteChannelQueueSummary(sourceId) {
+  const rows = getAll(
+    `SELECT status, COUNT(*) AS count
+     FROM remote_channel_queue
+     WHERE source_id = ?
+     GROUP BY status`,
+    [Number(sourceId)],
+  );
+  return rows.reduce((acc, row) => {
+    const status = String(row?.status || "").trim() || "unknown";
+    acc[status] = Number(row?.count || 0);
+    return acc;
+  }, {});
+}
+
+export function releaseStaleRemoteChannelQueueItems(staleBeforeIso) {
+  run(
+    `UPDATE remote_channel_queue
+     SET status = 'retry',
+         locked_at = NULL,
+         lock_owner = NULL,
+         next_attempt_at = datetime('now')
+     WHERE status = 'processing'
+       AND locked_at IS NOT NULL
+       AND julianday(locked_at) <= julianday(?)`,
+    [String(staleBeforeIso || new Date().toISOString())],
+  );
+}
+
+export function claimNextRemoteChannelQueueItem(lockOwner, nowIso) {
+  const now = String(nowIso || new Date().toISOString());
+  const row = getRow(
+    `SELECT q.id, q.source_id, q.provider, q.telegram_update_id,
+            q.telegram_message_id, q.source_version, q.payload_json, q.status,
+            q.attempts, q.next_attempt_at, q.locked_at, q.lock_owner,
+            q.last_error, q.created_message_id, q.created_at, q.processed_at,
+            s.chat_id, s.source_raw, s.source_chat_id, s.source_username,
+            s.source_title, s.source_avatar_url, s.last_remote_message_id,
+            s.source_version AS current_source_version, s.sync_metadata,
+            s.stream_media,
+            c.name AS target_chat_name, c.created_by_user_id
+     FROM remote_channel_queue q
+     JOIN remote_channel_sources s ON s.id = q.source_id
+     JOIN chats c ON c.id = s.chat_id
+     WHERE q.provider = 'telegram'
+       AND s.provider = 'telegram'
+       AND s.enabled = 1
+       AND q.source_version = s.source_version
+       AND c.type = 'channel'
+       AND q.status IN ('pending', 'retry')
+       AND (
+         q.next_attempt_at IS NULL
+         OR q.next_attempt_at = ''
+         OR julianday(q.next_attempt_at) <= julianday(?)
+       )
+     ORDER BY julianday(q.created_at) ASC, q.id ASC
+     LIMIT 1`,
+    [now],
+  );
+  if (!row?.id) return null;
+
+  run(
+    `UPDATE remote_channel_queue
+     SET status = 'processing',
+         locked_at = ?,
+         lock_owner = ?
+     WHERE id = ?
+       AND status IN ('pending', 'retry')`,
+    [now, String(lockOwner || "remote-channel-worker"), Number(row.id)],
+  );
+
+  return {
+    ...row,
+    status: "processing",
+    locked_at: now,
+    lock_owner: String(lockOwner || "remote-channel-worker"),
+  };
+}
+
+export function markRemoteChannelQueueItemDone(id, messageId) {
+  run(
+    `UPDATE remote_channel_queue
+     SET status = 'done',
+         locked_at = NULL,
+         lock_owner = NULL,
+         last_error = NULL,
+         created_message_id = ?,
+         processed_at = datetime('now')
+     WHERE id = ?`,
+    [Number(messageId) || null, Number(id)],
+  );
+  saveDatabase();
+}
+
+export function markRemoteChannelQueueItemSkipped(id, reason) {
+  run(
+    `UPDATE remote_channel_queue
+     SET status = 'skipped',
+         locked_at = NULL,
+         lock_owner = NULL,
+         last_error = ?,
+         processed_at = datetime('now')
+     WHERE id = ?`,
+    [String(reason || "Skipped").slice(0, 1000), Number(id)],
+  );
+  saveDatabase();
+}
+
+export function markRemoteChannelQueueItemRetry(id, payload = {}) {
+  run(
+    `UPDATE remote_channel_queue
+     SET status = ?,
+         attempts = attempts + 1,
+         next_attempt_at = ?,
+         locked_at = NULL,
+         lock_owner = NULL,
+         last_error = ?
+     WHERE id = ?`,
+    [
+      payload.failed ? "failed" : "retry",
+      payload.failed ? null : String(payload.nextAttemptAt || new Date().toISOString()),
+      String(payload.error || "").slice(0, 1000) || null,
+      Number(id),
+    ],
+  );
+  saveDatabase();
 }
 
 export function removeChatMember(chatId, userId) {
@@ -646,6 +1156,190 @@ export function setChatMemberRole(chatId, userId, role = "member") {
   ]);
 }
 
+const OPEN_CALL_STATUSES = ["ringing", "accepted", "connected", "reconnecting"];
+
+function getLatestOpenCallLogByRoom(roomId) {
+  const placeholders = OPEN_CALL_STATUSES.map(() => "?").join(", ");
+  return getRow(
+    `SELECT *
+     FROM call_logs
+     WHERE room_id = ? AND status IN (${placeholders})
+     ORDER BY id DESC
+     LIMIT 1`,
+    [String(roomId || ""), ...OPEN_CALL_STATUSES],
+  );
+}
+
+export function createCallLog({
+  chatId,
+  roomId,
+  callerUserId = null,
+  participantUserIds = [],
+  callType = "voice",
+}) {
+  const targetChatId = Number(chatId || 0);
+  const normalizedRoomId = String(roomId || "").trim();
+  const callerId = Number(callerUserId || 0) || null;
+  if (!targetChatId || !normalizedRoomId) return null;
+
+  const existing = getLatestOpenCallLogByRoom(normalizedRoomId);
+  if (existing?.id) return Number(existing.id);
+
+  run(
+    `INSERT INTO call_logs (chat_id, room_id, call_type, status, caller_user_id)
+     VALUES (?, ?, ?, 'ringing', ?)`,
+    [
+      targetChatId,
+      normalizedRoomId,
+      String(callType || "voice").toLowerCase() === "video" ? "video" : "voice",
+      callerId,
+    ],
+  );
+  const callLogId = Number(getLastInsertId() || 0);
+  if (!callLogId) return null;
+
+  const uniqueParticipantIds = Array.from(
+    new Set(
+      [callerId, ...(Array.isArray(participantUserIds) ? participantUserIds : [])]
+        .map((value) => Number(value || 0))
+        .filter((value) => Number.isFinite(value) && value > 0),
+    ),
+  );
+
+  uniqueParticipantIds.forEach((userId) => {
+    const isCaller = callerId && Number(userId) === Number(callerId);
+    run(
+      `INSERT OR IGNORE INTO call_log_participants
+        (call_log_id, user_id, role, status, joined_at)
+       VALUES (?, ?, ?, ?, ${isCaller ? "CURRENT_TIMESTAMP" : "NULL"})`,
+      [
+        callLogId,
+        userId,
+        isCaller ? "caller" : "participant",
+        isCaller ? "joined" : "invited",
+      ],
+    );
+  });
+
+  return callLogId;
+}
+
+export function markCallLogAccepted({ roomId, acceptedByUserId = null }) {
+  const callLog = getLatestOpenCallLogByRoom(roomId);
+  if (!callLog?.id) return null;
+
+  run(
+    `UPDATE call_logs
+     SET status = 'accepted',
+         accepted_at = COALESCE(accepted_at, CURRENT_TIMESTAMP)
+     WHERE id = ?`,
+    [Number(callLog.id)],
+  );
+
+  const userId = Number(acceptedByUserId || 0);
+  if (userId) {
+    run(
+      `UPDATE call_log_participants
+       SET status = 'joined',
+           joined_at = COALESCE(joined_at, CURRENT_TIMESTAMP)
+       WHERE call_log_id = ? AND user_id = ?`,
+      [Number(callLog.id), userId],
+    );
+  }
+
+  return Number(callLog.id);
+}
+
+export function finishCallLog({
+  roomId,
+  status = "ended",
+  endedByUserId = null,
+  reason = "",
+}) {
+  const callLog = getLatestOpenCallLogByRoom(roomId);
+  if (!callLog?.id) return null;
+
+  const normalizedStatus = [
+    "ended",
+    "rejected",
+    "missed",
+    "disconnect_timeout",
+    "failed",
+  ].includes(String(status || "").toLowerCase())
+    ? String(status || "").toLowerCase()
+    : "ended";
+
+  run(
+    `UPDATE call_logs
+     SET status = ?,
+         ended_at = CURRENT_TIMESTAMP,
+         duration_seconds = MAX(
+           0,
+           CAST(
+             (julianday(CURRENT_TIMESTAMP) - julianday(COALESCE(accepted_at, started_at))) * 86400
+             AS INTEGER
+           )
+         ),
+         end_reason = ?
+     WHERE id = ?`,
+    [
+      normalizedStatus,
+      String(reason || normalizedStatus).slice(0, 120),
+      Number(callLog.id),
+    ],
+  );
+
+  const userId = Number(endedByUserId || 0);
+  if (userId) {
+    run(
+      `UPDATE call_log_participants
+       SET left_at = COALESCE(left_at, CURRENT_TIMESTAMP)
+       WHERE call_log_id = ? AND user_id = ?`,
+      [Number(callLog.id), userId],
+    );
+  }
+
+  return Number(callLog.id);
+}
+
+export function listCallLogsForChat(chatId, limit = 30) {
+  const targetChatId = Number(chatId || 0);
+  if (!targetChatId) return [];
+  const safeLimit = Math.min(100, Math.max(1, Number(limit || 30)));
+  const rows = getAll(
+    `SELECT call_logs.id, call_logs.chat_id, call_logs.room_id, call_logs.call_type,
+            call_logs.status, call_logs.caller_user_id, call_logs.started_at,
+            call_logs.accepted_at, call_logs.ended_at, call_logs.duration_seconds,
+            call_logs.end_reason,
+            users.username AS caller_username,
+            users.nickname AS caller_nickname,
+            users.avatar_url AS caller_avatar_url,
+            users.color AS caller_color
+     FROM call_logs
+     LEFT JOIN users ON users.id = call_logs.caller_user_id
+     WHERE call_logs.chat_id = ?
+     ORDER BY julianday(call_logs.started_at) DESC, call_logs.id DESC
+     LIMIT ?`,
+    [targetChatId, safeLimit],
+  );
+
+  return rows.map((row) => {
+    const callLogId = Number(row.id);
+    const participants = getAll(
+      `SELECT call_log_participants.user_id, call_log_participants.role,
+              call_log_participants.status, call_log_participants.joined_at,
+              call_log_participants.left_at,
+              users.username, users.nickname, users.avatar_url, users.color
+       FROM call_log_participants
+       LEFT JOIN users ON users.id = call_log_participants.user_id
+       WHERE call_log_participants.call_log_id = ?
+       ORDER BY call_log_participants.role = 'caller' DESC, users.username ASC`,
+      [callLogId],
+    );
+    return { ...row, participants };
+  });
+}
+
 export function deleteChatById(chatId) {
   const targetChatId = Number(chatId);
   if (!targetChatId) return { storedNames: [] };
@@ -683,10 +1377,29 @@ export function deleteChatById(chatId) {
     );
     runWithoutSave("DELETE FROM chat_messages WHERE chat_id = ?", [targetChatId]);
     runWithoutSave("DELETE FROM chat_members WHERE chat_id = ?", [targetChatId]);
-    runWithoutSave("DELETE FROM hidden_chats WHERE chat_id = ?", [targetChatId]);
-    runWithoutSave("DELETE FROM chat_mutes WHERE chat_id = ?", [targetChatId]);
-    runWithoutSave("DELETE FROM chat_left_members WHERE chat_id = ?", [targetChatId]);
-    runWithoutSave("DELETE FROM group_removed_members WHERE chat_id = ?", [targetChatId]);
+      runWithoutSave("DELETE FROM hidden_chats WHERE chat_id = ?", [targetChatId]);
+      runWithoutSave("DELETE FROM chat_mutes WHERE chat_id = ?", [targetChatId]);
+      runWithoutSave("DELETE FROM chat_left_members WHERE chat_id = ?", [targetChatId]);
+      runWithoutSave("DELETE FROM group_removed_members WHERE chat_id = ?", [targetChatId]);
+      runWithoutSave("DELETE FROM required_channels WHERE chat_id = ?", [
+        targetChatId,
+      ]);
+      runWithoutSave(
+        `DELETE FROM remote_channel_queue
+         WHERE source_id IN (
+         SELECT id FROM remote_channel_sources WHERE chat_id = ?
+       )`,
+      [targetChatId],
+    );
+    runWithoutSave("DELETE FROM remote_channel_sources WHERE chat_id = ?", [
+      targetChatId,
+    ]);
+    runWithoutSave(
+      `DELETE FROM call_log_participants
+       WHERE call_log_id IN (SELECT id FROM call_logs WHERE chat_id = ?)`,
+      [targetChatId],
+    );
+    runWithoutSave("DELETE FROM call_logs WHERE chat_id = ?", [targetChatId]);
     runWithoutSave("DELETE FROM chats WHERE id = ?", [targetChatId]);
     runWithoutSave(`RELEASE ${savepoint}`);
     saveDatabase();
@@ -1290,11 +2003,37 @@ export function getMessages(chatId, options = {}) {
 
   const totalCount = Number(totalRow?.total || 0);
 
-  return {
-    messages: rows.map(decryptMessageRow),
-    hasMore,
-    totalCount,
-  };
+const messageIds = rows
+  .map((row) => Number(row.id || 0))
+  .filter((id) => Number.isFinite(id) && id > 0);
+
+const reactions = getMessageReactions(messageIds);
+
+const reactionsByMessageId = reactions.reduce((acc, row) => {
+  const messageId = Number(row.message_id || 0);
+  if (!messageId) return acc;
+
+  if (!acc[messageId]) acc[messageId] = [];
+
+  acc[messageId].push({
+    reaction: row.reaction,
+    count: Number(row.count || 0),
+  });
+
+  return acc;
+}, {});
+
+return {
+  messages: rows.map((row) => {
+    const message = decryptMessageRow(row);
+    return {
+      ...message,
+      reactions: reactionsByMessageId[Number(message.id || 0)] || [],
+    };
+  }),
+  hasMore,
+  totalCount,
+};
 }
 
 export function listMessageFilesByMessageIds(messageIds = []) {
@@ -1602,7 +2341,20 @@ export function listMutedUserIdsForChat(chatId) {
     .filter((userId) => Number.isFinite(userId) && userId > 0);
 }
 
-export function createSession(userId, token) {
+export function createSession(userId, token, metadata = {}) {
+  if (SESSIONS_HAS_IP_ADDRESS && SESSIONS_HAS_USER_AGENT) {
+    run(
+      "INSERT INTO sessions (user_id, token, ip_address, user_agent) VALUES (?, ?, ?, ?)",
+      [
+        userId,
+        token,
+        String(metadata.ipAddress || "").slice(0, 120) || null,
+        String(metadata.userAgent || "").slice(0, 500) || null,
+      ],
+    );
+    return;
+  }
+
   run("INSERT INTO sessions (user_id, token) VALUES (?, ?)", [userId, token]);
 }
 
@@ -1610,13 +2362,51 @@ export function getSession(token) {
   return getRow(
     `
     SELECT sessions.id AS session_id, sessions.token, users.id, users.username, users.nickname,
-           users.avatar_url, users.color, users.status, users.banned
+           users.avatar_url, users.color, users.status, users.banned, ${USER_ROLE_QUALIFIED_SELECT_SQL}
     FROM sessions
     JOIN users ON users.id = sessions.user_id
     WHERE sessions.token = ?
       AND COALESCE(users.banned, 0) = 0
   `,
     [token],
+  );
+}
+
+export function toggleMessageReaction(messageId, userId, reaction) {
+  const exists = getRow(
+    "SELECT id FROM message_reactions WHERE message_id=? AND user_id=? AND reaction=?",
+    [messageId, userId, reaction]
+  );
+
+  if (exists) {
+    run(
+      "DELETE FROM message_reactions WHERE message_id=? AND user_id=? AND reaction=?",
+      [messageId, userId, reaction]
+    );
+    return { removed: true };
+  }
+
+  run(
+    "INSERT INTO message_reactions (message_id, user_id, reaction) VALUES (?, ?, ?)",
+    [messageId, userId, reaction]
+  );
+
+  return { added: true };
+}
+
+export function getMessageReactions(messageIds = []) {
+  if (!messageIds.length) return [];
+
+  const placeholders = messageIds.map(() => "?").join(",");
+
+  return getAll(
+    `
+    SELECT message_id, reaction, COUNT(*) as count
+    FROM message_reactions
+    WHERE message_id IN (${placeholders})
+    GROUP BY message_id, reaction
+    `,
+    messageIds,
   );
 }
 

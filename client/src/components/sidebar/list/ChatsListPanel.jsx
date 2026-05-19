@@ -156,7 +156,8 @@ export default function ChatsListPanel({
     if (!target) return null;
     const dmChat = (visibleChats || []).find((chat) => {
       if (chat?.type !== "dm") return false;
-      return (chat.members || []).some(
+      const members = Array.isArray(chat?.members) ? chat.members : [];
+      return members.some(
         (member) => String(member?.username || "").toLowerCase() === target,
       );
     });
@@ -457,7 +458,7 @@ export default function ChatsListPanel({
         ))
       ) : !showSearchMode && sidebarChats.length ? (
         sidebarChats.map((conv, index) => {
-          const members = conv.members || [];
+          const members = Array.isArray(conv?.members) ? conv.members : [];
           const other =
             conv.type === "dm"
               ? members.find((member) => member.username !== user.username)
@@ -513,7 +514,7 @@ export default function ChatsListPanel({
           const card = (
             <div
               className={`w-full min-h-[72px] rounded-2xl border px-3 py-3 text-left text-sm transition ${
-                activeChatId === conv.id
+                  Number(activeChatId || 0) === Number(conv.id || 0)
                   ? "border-emerald-400 bg-emerald-100 text-emerald-900 dark:border-emerald-400/60 dark:bg-emerald-500/20 dark:text-emerald-100"
                   : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-emerald-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.18)] dark:border-emerald-500/20 dark:bg-slate-950/60 dark:text-slate-200"
               } ${editMode ? "animate-chat-wiggle-ios shadow-[0_0_0_1px_rgba(16,185,129,0.35),0_0_16px_rgba(16,185,129,0.22)]" : ""}`}
@@ -762,7 +763,7 @@ export default function ChatsListPanel({
                   setActiveChatId(Number(conv.id));
                   const nextOther =
                     conv.type === "dm"
-                      ? conv.members?.find(
+                      ? members.find(
                           (member) => member.username !== user.username,
                         )
                       : null;

@@ -23,7 +23,17 @@ const readEnvBool = (key, fallback) => {
 
 export const APP_CONFIG = {
   appName: "BirdX",
+  appFullName: "BirdX App",
+  defaultNickname: "BirdX User",
   appDescription: "Advanced self-hosted chat and file sharing platform",
+
+  owner: {
+    name: "iPmartNetwork",
+    label: "@iPmartNetwork",
+    url: "https://github.com/iPmartNetwork",
+    repo: "https://github.com/iPmartNetwork/BirdX",
+  },
+
   debugEnabled: readEnvBool("APP_DEBUG", false),
   accountCreationEnabled: readEnvBool("ACCOUNT_CREATION", true),
   messageMaxChars: readEnvNumber(["MESSAGE_MAX_CHARS", "MESSAGE_MAX"], 4000, {

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import logo from './assets/birdx-logo.svg'
+import { LanguageProvider } from './i18n/LanguageContext.jsx'
 import { APP_CONFIG } from './settings/appConfig.js'
 import InstallBar from './components/pwa/InstallBar.jsx'
 import InstallGuideModal from './components/pwa/InstallGuideModal.jsx'
@@ -13,8 +14,10 @@ const PWA_PERMISSIONS_PROMPT_KEY = 'birdx-pwa-permissions-prompt'
 const ROUTE_CHUNK_TELEMETRY_KEY = 'birdx-route-chunk-telemetry-v1'
 const CHUNK_RECOVERY_ATTEMPT_KEY = 'birdx-chunk-recovery-attempted'
 const loadAuthPage = () => import('./pages/AuthPage.jsx')
-const loadChatPage = () => import('./pages/ChatPage.jsx')import logo from './assets/birdx-logo.svg'
+const loadAdminPage = () => import('./pages/AdminPage.jsx')
+const loadChatPage = () => import('./pages/ChatPage.jsx')
 const loadInvitePage = () => import('./pages/InvitePage.jsx')
+const AdminPage = lazy(loadAdminPage)
 const AuthPage = lazy(loadAuthPage)
 const ChatPage = lazy(loadChatPage)
 const InvitePage = lazy(loadInvitePage)
@@ -61,6 +64,7 @@ function RouteLoadingFallback({ themeColor, onVisibleChange = null }) {
 function getRoute(pathname) {
   if (pathname === '/signup') return 'signup'
   if (pathname.startsWith('/invite/')) return 'invite'
+  if (pathname === '/admin') return 'admin'
   if (pathname === '/chat') return 'chat'
   return 'login'
 }
@@ -159,6 +163,7 @@ export default function App() {
     if (!isIOS || isStandaloneDisplay) return false
     return localStorage.getItem(PWA_INSTALL_DISMISS_KEY) !== '1'
   })
+  const [showAndroidInstallFallback, setShowAndroidInstallFallback] = useState(false)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
   const [routeChunkLoading, setRouteChunkLoading] = useState(false)
   const preloadedRoutesRef = useRef(new Set())
@@ -171,7 +176,10 @@ export default function App() {
   const showInstallBar =
     !isStandaloneDisplay &&
     !installDismissed &&
-    (showInstallBanner || showIosInstallBanner || isDesktopViewport)
+    (showInstallBanner ||
+      showIosInstallBanner ||
+      showAndroidInstallFallback ||
+      isDesktopViewport)
 
   function normalizeSessionUser(data) {
     if (!data?.username) return null
@@ -182,6 +190,8 @@ export default function App() {
       avatarUrl: data.avatarUrl || null,
       color: data.color || null,
       status: data.status || 'online',
+      role: data.role || 'user',
+      isAdmin: Boolean(data.isAdmin),
     }
   }
 
@@ -385,6 +395,7 @@ export default function App() {
       setInstallPromptEvent(null)
       setShowInstallBanner(false)
       setShowIosInstallBanner(false)
+      setShowAndroidInstallFallback(false)
       setInstallDismissed(true)
       localStorage.setItem(PWA_INSTALL_DISMISS_KEY, '1')
       localStorage.setItem(PWA_PERMISSIONS_PROMPT_KEY, 'pending')
@@ -402,6 +413,21 @@ export default function App() {
       window.removeEventListener('birdx-show-install-bar', handleShowInstall)
     }
   }, [isStandaloneDisplay])
+
+  useEffect(() => {
+    if (!isAndroid || isStandaloneDisplay || installDismissed) {
+      setShowAndroidInstallFallback(false)
+      return undefined
+    }
+    if (installPromptEvent || showInstallBanner) {
+      setShowAndroidInstallFallback(false)
+      return undefined
+    }
+    const timer = window.setTimeout(() => {
+      setShowAndroidInstallFallback(true)
+    }, 2200)
+    return () => window.clearTimeout(timer)
+  }, [installDismissed, installPromptEvent, isAndroid, isStandaloneDisplay, showInstallBanner])
 
   useEffect(() => {
     if (!APP_CONFIG.debugEnabled) {
@@ -697,7 +723,7 @@ export default function App() {
       return
     }
 
-    if (!user && (route === 'chat' || route === 'invite')) {
+    if (!user && (route === 'chat' || route === 'invite' || route === 'admin')) {
       if (route === 'invite') {
         const nextPath = window.location.pathname
         if (nextPath.startsWith('/invite/')) {
@@ -755,6 +781,8 @@ export default function App() {
         avatarUrl: data.avatarUrl || null,
         color: data.color || null,
         status: data.status || 'online',
+        role: data.role || 'user',
+        isAdmin: Boolean(data.isAdmin),
       }
       const nextUser = await resolveSessionUserWithRetry(fallbackUser)
       setUser(nextUser)
@@ -847,7 +875,8 @@ export default function App() {
     : undefined
 
   return (
-    <div className={appShellClass} style={appContainerStyle}>
+    <LanguageProvider>
+      <div className={appShellClass} style={appContainerStyle}>
       <div
         className={
           isAuthRoute
@@ -973,6 +1002,9 @@ export default function App() {
               {route === 'chat' && user ? (
                 <ChatPage user={user} setUser={setUser} isDark={isDark} setIsDark={setIsDark} toggleTheme={toggleTheme} />
               ) : null}
+              {route === 'admin' && user ? (
+                <AdminPage user={user} isDark={isDark} onToggleTheme={toggleTheme} onNavigate={navigate} />
+              ) : null}
               {route === 'invite' && user ? (
                 <InvitePage
                   token={inviteToken}
@@ -1001,6 +1033,7 @@ export default function App() {
         onDismiss={() => {
           setShowInstallBanner(false)
           setShowIosInstallBanner(false)
+          setShowAndroidInstallFallback(false)
           setInstallDismissed(true)
           localStorage.setItem(PWA_INSTALL_DISMISS_KEY, '1')
         }}
@@ -1021,6 +1054,7 @@ export default function App() {
             } finally {
               setInstallPromptEvent(null)
               setShowInstallBanner(false)
+              setShowAndroidInstallFallback(false)
             }
             return
           }
@@ -1031,9 +1065,11 @@ export default function App() {
       <InstallGuideModal
         open={showInstallGuide}
         iconSrc="/icons/icon-192.png"
+        isAndroid={isAndroid}
         isDesktop={isDesktopViewport}
         onClose={() => setShowInstallGuide(false)}
       />
-    </div>
+      </div>
+    </LanguageProvider>
   )
 }

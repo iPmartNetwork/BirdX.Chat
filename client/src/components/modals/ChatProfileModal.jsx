@@ -6,10 +6,13 @@ import {
   Bookmark,
   Chat,
   Close,
+  Clock12,
   Copy,
   LogIn,
   LogOut,
   Pencil,
+  PhoneCall,
+  ShieldCheck,
   Volume2,
   VolumeX,
 } from "../../icons/lucide.js";
@@ -19,8 +22,9 @@ import { hasPersian } from "../../utils/fontUtils.js";
 import Avatar from "../common/Avatar.jsx";
 
 const MEMBERS_BATCH_SIZE = 10;
+const MEMBER_ROLE_OPTIONS = ["owner", "admin", "moderator", "member"];
 
-export default function ChatProfileModal({
+function ChatProfileModal({
   open,
   chat,
   targetUser,
@@ -37,6 +41,9 @@ export default function ChatProfileModal({
   onOpenUserContextMenu,
   onEditGroup,
   onEditSelfProfile,
+  onChangeMemberRole,
+  callLogs = [],
+  callLogsLoading = false,
   showJoinAction = false,
   onJoinChat,
   showMembers = true,
@@ -99,7 +106,10 @@ export default function ChatProfileModal({
       (member) => String(member.role || "").toLowerCase() === "owner",
     )?.id || 0,
   );
-  const isOwner = Number(currentUser?.id || 0) === ownerId;
+  const currentMemberRole = String(
+    members.find((member) => Number(member.id) === Number(currentUser?.id || 0))?.role || "",
+  ).toLowerCase();
+  const isOwner = currentMemberRole === "owner" || Number(currentUser?.id || 0) === ownerId;
   const isReadOnly = Boolean(readOnly);
   const canSeeMembers =
     showMembers && !isReadOnly && (isGroup || (isChannel && isOwner));
@@ -141,6 +151,25 @@ export default function ChatProfileModal({
 
   const visibleMembers = sortedMembers.slice(0, memberLimit);
   const hasMoreMembers = sortedMembers.length > memberLimit;
+  const safeCallLogs = Array.isArray(callLogs) ? callLogs.slice(0, 8) : [];
+  const formatCallTime = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+  const formatCallDuration = (seconds) => {
+    const total = Math.max(0, Number(seconds || 0));
+    if (!total) return "";
+    const minutes = Math.floor(total / 60);
+    const rest = total % 60;
+    return minutes ? `${minutes}m ${rest}s` : `${rest}s`;
+  };
   if (!open) return null;
   if (typeof document === "undefined") return null;
 
@@ -311,6 +340,61 @@ export default function ChatProfileModal({
           </div>
         ) : null}
 
+        {!isReadOnly && !isSaved ? (
+          <div className="mt-4 rounded-2xl border border-emerald-200/80 p-3 dark:border-emerald-500/30">
+            <div className="flex items-center justify-between gap-2">
+              <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-200">
+                <PhoneCall size={13} className="icon-anim-bob" />
+                Call history
+              </p>
+              {callLogsLoading ? (
+                <span className="text-[11px] font-semibold text-slate-400">
+                  Loading
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-3 space-y-2">
+              {safeCallLogs.length ? (
+                safeCallLogs.map((call) => {
+                  const caller =
+                    call?.caller?.nickname ||
+                    call?.caller?.username ||
+                    "Unknown";
+                  const status = String(call?.status || "ended").replace(/_/g, " ");
+                  const duration = formatCallDuration(call?.durationSeconds);
+                  return (
+                    <div
+                      key={`call-log-${call?.id}`}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100/80 bg-white/80 px-3 py-2 text-xs dark:border-emerald-500/20 dark:bg-slate-900/70"
+                    >
+                      <div className="min-w-0">
+                        <p
+                          className="truncate font-semibold capitalize text-slate-700 dark:text-slate-100"
+                          title={`${status} call`}
+                        >
+                          {status} {call?.type || "voice"} call
+                        </p>
+                        <p className="truncate text-slate-500 dark:text-slate-400">
+                          {caller}
+                          {duration ? ` - ${duration}` : ""}
+                        </p>
+                      </div>
+                      <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-slate-400">
+                        <Clock12 size={12} />
+                        {formatCallTime(call?.startedAt)}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="rounded-xl border border-dashed border-emerald-200 px-3 py-2 text-xs text-slate-500 dark:border-emerald-500/30 dark:text-slate-400">
+                  No calls yet.
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
+
         {canSeeMembers ? (
           <div className="mt-4 rounded-2xl border border-emerald-200/80 p-3 dark:border-emerald-500/30">
             <div className="relative">
@@ -348,6 +432,11 @@ export default function ChatProfileModal({
                 const memberInitials = getAvatarInitials(label);
                 const memberIsOwner =
                   String(member.role || "").toLowerCase() === "owner";
+                const memberRole = MEMBER_ROLE_OPTIONS.includes(
+                  String(member.role || "").toLowerCase(),
+                )
+                  ? String(member.role || "").toLowerCase()
+                  : "member";
                 return (
                   <ContextMenuSurface
                     as="div"
@@ -409,11 +498,27 @@ export default function ChatProfileModal({
                         </p>
                       </div>
                     </button>
-                    {memberIsOwner ? (
-                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
-                        Owner
+                    {isOwner ? (
+                      <label className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                        <ShieldCheck size={11} />
+                        <select
+                          value={memberRole}
+                          onChange={(event) => onChangeMemberRole?.(member, event.target.value)}
+                          className="bg-transparent text-[10px] font-semibold outline-none dark:bg-transparent"
+                          aria-label={`Change ${member.username} role`}
+                        >
+                          {MEMBER_ROLE_OPTIONS.map((role) => (
+                            <option key={role} value={role}>
+                              {role}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : (
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold capitalize text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                        {memberRole}
                       </span>
-                    ) : null}
+                    )}
                     {isOwner && !memberIsOwner ? (
                       <button
                         type="button"
@@ -455,3 +560,6 @@ export default function ChatProfileModal({
     document.body,
   );
 }
+
+export { ChatProfileModal };
+export default ChatProfileModal;

@@ -21,6 +21,13 @@ import { migration020ChatMessageExpiry } from "./020-chat-message-expiry.js";
 import { migration021ChatQueryIndexes } from "./021-chat-query-indexes.js";
 import { migration022MessageClientRequestId } from "./022-message-client-request-id.js";
 import { migration023ChatLeftMembers } from "./023-chat-left-members.js";
+import * as migration024MessageReactions from "./024-message-reactions.js";
+import { migration025AdminPanel } from "./025-admin-panel.js";
+import { migration026AdminSecurity } from "./026-admin-security.js";
+import { migration027SecurityEvents } from "./027-security-events.js";
+import { migration028CallLogs } from "./028-call-logs.js";
+import { migration029RemoteChannelQueue } from "./029-remote-channel-queue.js";
+import { migration030RequiredChannels } from "./030-required-channels.js";
 
 export const migrations = [
   migration001InitialSchema,
@@ -46,4 +53,11 @@ export const migrations = [
   migration021ChatQueryIndexes,
   migration022MessageClientRequestId,
   migration023ChatLeftMembers,
+  migration024MessageReactions,
+  migration025AdminPanel,
+  migration026AdminSecurity,
+  migration027SecurityEvents,
+  migration028CallLogs,
+  migration029RemoteChannelQueue,
+  migration030RequiredChannels,
 ];

@@ -30,6 +30,7 @@ export function useAppContextMenu({
   onReplyToMessage,
   onEditMessage,
   onDeleteMessage,
+  onReactMessage,
   onForwardMessage,
   onSaveMessageFiles,
   onOpenOrCreateDm,
@@ -52,7 +53,8 @@ export function useAppContextMenu({
       return (
         chats.find((chat) => {
           if (chat?.type !== "dm") return false;
-          return (chat.members || []).some(
+          const members = Array.isArray(chat?.members) ? chat.members : [];
+          return members.some(
             (member) =>
               String(member?.username || "").toLowerCase() === targetUsername,
           );
@@ -83,67 +85,83 @@ export function useAppContextMenu({
       const items = [];
 
       if (kind === "message") {
-        const message = data?.message || null;
-        const hasText = hasMessageText(message);
-        const files = getMessageFiles(message);
-        items.push(
+  const message = data?.message || null;
+  const hasText = hasMessageText(message);
+  const files = getMessageFiles(message);
+
+  items.push(
+    {
+      id: "react",
+      type: "reactions",
+      emojis: [
+        "\u{1F44D}",
+        "\u{2764}\u{FE0F}",
+        "\u{1F602}",
+        "\u{1F525}",
+        "\u{1F62E}",
+        "\u{1F44E}",
+      ],
+      onReact: (emoji) => {
+        onReactMessage?.(message, emoji);
+      },
+    },
+    {
+      id: "reply",
+      label: "Reply",
+      icon: Reply,
+      onSelect: () => onReplyToMessage?.(message),
+    },
+    ...(hasText
+      ? [
           {
-            id: "reply",
-            label: "Reply",
-            icon: Reply,
-            onSelect: () => onReplyToMessage?.(message),
-          },
-          ...(hasText
-            ? [
-                {
-                  id: "copy",
-                  label: "Copy text",
-                  icon: Copy,
-                  onSelect: () =>
-                    copyTextToClipboard(extractMessageBodyText(message?.body)),
-                },
-              ]
-            : []),
-          ...(hasText && canEditMessage?.(message)
-            ? [
-                {
-                  id: "edit",
-                  label: "Edit",
-                  icon: Pencil,
-                  onSelect: () => onEditMessage?.(message),
-                },
-              ]
-            : []),
-          ...(files.length
-            ? [
-                {
-                  id: "save",
-                  label: "Save",
-                  icon: Download,
-                  onSelect: () => onSaveMessageFiles?.(message),
-                },
-              ]
-            : []),
-          {
-            id: "forward",
-            label: "Forward",
-            icon: Forward,
-            onSelect: () => onForwardMessage?.(message),
-          },
-          {
-            id: "delete",
-            label: "Delete",
-            icon: Trash,
-            danger: true,
+            id: "copy",
+            label: "Copy text",
+            icon: Copy,
             onSelect: () =>
-              onDeleteMessage?.(message, {
-                allowDeleteForEveryone: Boolean(
-                  canDeleteMessageForEveryone?.(message),
-                ),
-              }),
+              copyTextToClipboard(extractMessageBodyText(message?.body)),
           },
-        );
-      }
+        ]
+      : []),
+    ...(hasText && canEditMessage?.(message)
+      ? [
+          {
+            id: "edit",
+            label: "Edit",
+            icon: Pencil,
+            onSelect: () => onEditMessage?.(message),
+          },
+        ]
+      : []),
+    ...(files.length
+      ? [
+          {
+            id: "save",
+            label: "Save",
+            icon: Download,
+            onSelect: () => onSaveMessageFiles?.(message),
+          },
+        ]
+      : []),
+    {
+      id: "forward",
+      label: "Forward",
+      icon: Forward,
+      onSelect: () => onForwardMessage?.(message),
+    },
+    {
+      id: "delete",
+      label: "Delete",
+      icon: Trash,
+      danger: true,
+      onSelect: () =>
+        onDeleteMessage?.(message, {
+          allowDeleteForEveryone: Boolean(
+            canDeleteMessageForEveryone?.(message),
+          ),
+        }),
+    },
+  );
+}
 
       if (kind === "user") {
         const targetUser = data?.member || data?.user || null;
@@ -234,6 +252,7 @@ export function useAppContextMenu({
       onDeleteMessage,
       onEditMessage,
       onForwardMessage,
+      onReactMessage,
       onSaveMessageFiles,
       onOpenOrCreateDm,
       onOpenProfile,

@@ -5,6 +5,10 @@ function registerAuthRoutes(app, deps) {
     USERNAME_MAX,
     USERNAME_REGEX,
     ACCOUNT_CREATION,
+    ADMIN_USERNAMES = [],
+    adminRun,
+    adminSave,
+    applyRequiredChannelsToUser,
     bcrypt,
     clearSessionCookie,
     createSession,
@@ -20,6 +24,42 @@ function registerAuthRoutes(app, deps) {
     updateLastSeen,
     getSessionFromRequest,
   } = deps;
+
+  const getRequestIp = (req) =>
+    String(
+      req.headers?.["x-forwarded-for"] ||
+        req.headers?.["x-real-ip"] ||
+        req.socket?.remoteAddress ||
+        req.ip ||
+        "",
+    )
+      .split(",")[0]
+      .trim();
+
+  const getSessionMetadata = (req) => ({
+    ipAddress: getRequestIp(req),
+    userAgent: String(req.headers?.["user-agent"] || "").slice(0, 500),
+  });
+
+  const recordSecurityEvent = (req, type, details = {}) => {
+    try {
+      adminRun?.(
+        `INSERT INTO security_events (type, username, user_id, ip_address, user_agent, details)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          String(type || ""),
+          String(details.username || "").trim().toLowerCase() || null,
+          Number(details.userId || 0) || null,
+          getRequestIp(req),
+          String(req.headers?.["user-agent"] || "").slice(0, 500),
+          JSON.stringify(details),
+        ],
+      );
+      adminSave?.();
+    } catch (error) {
+      console.warn("[security] event log failed:", String(error?.message || error));
+    }
+  };
 
   app.post("/api/register", (req, res) => {
     if (!ACCOUNT_CREATION) {
@@ -85,7 +125,8 @@ function registerAuthRoutes(app, deps) {
 
     const token = crypto.randomBytes(24).toString("hex");
 
-    createSession(id, token);
+    createSession(id, token, getSessionMetadata(req));
+    const requiredChannelMemberships = applyRequiredChannelsToUser?.(id) || 0;
     setSessionCookie(req, res, token);
 
     return res.json({
@@ -95,6 +136,9 @@ function registerAuthRoutes(app, deps) {
       avatarUrl: ensureAvatarExists(id, avatarUrl?.trim()) || null,
       color: assignedColor,
       status: "online",
+      role: "user",
+      isAdmin: ADMIN_USERNAMES.includes(trimmed),
+      requiredChannelMemberships,
     });
   });
 
@@ -111,10 +155,19 @@ function registerAuthRoutes(app, deps) {
     const user = findUserByUsername(trimmed);
 
     if (user?.banned) {
+      recordSecurityEvent(req, "login.banned", {
+        username: trimmed,
+        userId: user.id,
+      });
       return res.status(403).json({ error: "Account is banned." });
     }
 
     if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+      recordSecurityEvent(req, "login.failed", {
+        username: trimmed,
+        userId: user?.id || null,
+        reason: "invalid_credentials",
+      });
       return res.status(401).json({ error: "Invalid credentials." });
     }
 
@@ -122,7 +175,7 @@ function registerAuthRoutes(app, deps) {
 
     const token = crypto.randomBytes(24).toString("hex");
 
-    createSession(user.id, token);
+    createSession(user.id, token, getSessionMetadata(req));
     setSessionCookie(req, res, token);
 
     return res.json({
@@ -132,6 +185,12 @@ function registerAuthRoutes(app, deps) {
       avatarUrl: ensureAvatarExists(user.id, user.avatar_url) || null,
       color: user.color || USER_COLORS[0],
       status: user.status || "online",
+      role: user.role || "user",
+      isAdmin:
+        ["owner", "admin", "moderator", "support"].includes(
+          String(user.role || "").toLowerCase(),
+        ) ||
+        ADMIN_USERNAMES.includes(String(user.username || "").toLowerCase()),
     });
   });
 
@@ -148,6 +207,12 @@ function registerAuthRoutes(app, deps) {
       avatarUrl: ensureAvatarExists(session.id, session.avatar_url) || null,
       color: session.color || USER_COLORS[0],
       status: session.status || "online",
+      role: session.role || "user",
+      isAdmin:
+        ["owner", "admin", "moderator", "support"].includes(
+          String(session.role || "").toLowerCase(),
+        ) ||
+        ADMIN_USERNAMES.includes(String(session.username || "").toLowerCase()),
     });
   });
 

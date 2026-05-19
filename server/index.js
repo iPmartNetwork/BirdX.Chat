@@ -20,20 +20,26 @@ import { createMessageFileJobs } from "./lib/messageFileJobs.js";
 import { createInspector } from "./lib/inspect.js";
 import { createSessionHelpers } from "./lib/sessions.js";
 import { storageEncryption } from "./lib/storageEncryption.js";
+import { createRemoteChannelManager } from "./lib/remoteChannels.js";
 import { buildTimestampSchedule } from "./lib/timeUtils.js";
 import { isLoopbackRequest, parseUploadFileMetadata } from "./lib/requestUtils.js";
 import { USER_COLORS, setUserColor } from "./settings/colors.js";
 import { readEnvBool, readEnvInt } from "./settings/env.js";
+import { createServer } from "node:http";
+import { Server as SocketIOServer } from "socket.io";
 import {
   addChatMember,
   adminGetAll,
   adminGetRow,
   adminRun,
   adminSave,
+  applyRequiredChannelsToAllUsers,
+  applyRequiredChannelsToUser,
   ensureSavedChatForUser,
   clearChatMemberLeft,
   clearGroupMemberRemoved,
   createChat,
+  createCallLog,
   createMessageFiles,
   createMessage,
   createOrReuseMessage,
@@ -53,24 +59,39 @@ import {
   hideMessageForUser,
   findUserById,
   findUserByUsername,
+  finishCallLog,
+  claimNextRemoteChannelQueueItem,
+  enqueueRemoteChannelQueueItem,
   getMessageReadCounts,
   getMessageAuthors,
   getMessageReadByUser,
   getMessages,
+  getRemoteChannelQueueSummary,
+  getRemoteChannelSourceByChatId,
+  getRemoteChannelSourceById,
   recordMessageReads,
+  listEnabledRemoteChannelSources,
   listMessageFilesByMessageIds,
   markGroupMemberRemoved,
   markChatMemberLeft,
+  markRemoteChannelQueueItemDone,
+  markRemoteChannelQueueItemRetry,
+  markRemoteChannelQueueItemSkipped,
   regenerateGroupInviteToken,
   removeChatMember,
+  releaseStaleRemoteChannelQueueItems,
   setMessageExpiresAt,
   setMessageForwardOrigin,
   getSession,
   isMember,
   isGroupMemberRemoved,
+  isRequiredChannel,
   listChatMembers,
+  listCallLogsForChat,
   listChatsForUser,
+  listAvailableRequiredChannels,
   listUsers,
+  listRequiredChannels,
   searchUsers,
   searchPublicGroups,
   searchPublicChannels,
@@ -81,21 +102,28 @@ import {
   hideChatsForUser,
   markMessagesRead,
   markMessageRead,
+  markCallLogAccepted,
   updateUserPassword,
   updateUserProfile,
   updateUserStatus,
   updateGroupChat,
   updateChannelChat,
+  updateRemoteChannelSourceError,
+  updateRemoteChannelSourceSeen,
   unhideChat,
   getChatMemberRole,
   setChatMemberRole,
   upsertPushSubscription,
+  upsertRemoteChannelSource,
   deletePushSubscription,
   listPushSubscriptionsByUserIds,
   listMutedUserIdsForChat,
+  getMessageReactions,
+  setRequiredChannels,
+  toggleMessageReaction,
 } from "./db.js";
 
-process.title = "songbird-server";
+process.title = "birdx-server";
 
 const app = express();
 const serverDir = path.dirname(fileURLToPath(import.meta.url));
@@ -204,6 +232,12 @@ const MESSAGE_MAX_CHARS = readEnvInt(
   { min: 1, max: 20000 },
 );
 const ACCOUNT_CREATION = readEnvBool("ACCOUNT_CREATION", true);
+const ADMIN_USERNAMES = String(
+  process.env.ADMIN_USERNAMES || process.env.BIRDX_ADMIN_USERNAMES || "",
+)
+  .split(/[,\s]+/)
+  .map((item) => item.trim().toLowerCase())
+  .filter(Boolean);
 const vapid = ensureValidVapidKeys({ projectRootDir, fs, path, webpush });
 const dataDir = path.resolve(serverDir, "..", "data");
 const uploadRootDir = path.join(dataDir, "uploads", "messages");
@@ -239,6 +273,53 @@ const TRANSCODE_VIDEOS_TO_H264 = readEnvBool(
 );
 
 const FILE_UPLOAD = readEnvBool("FILE_UPLOAD", true);
+const REMOTE_CHANNEL = readEnvBool("REMOTE_CHANNEL", false);
+const REMOTE_CHANNEL_TELEGRAM_API_ID = readEnvInt(
+  "REMOTE_CHANNEL_TELEGRAM_API_ID",
+  0,
+  { min: 1 },
+);
+const REMOTE_CHANNEL_TELEGRAM_API_HASH = String(
+  process.env.REMOTE_CHANNEL_TELEGRAM_API_HASH || "",
+).trim();
+const REMOTE_CHANNEL_TELEGRAM_SESSION_STRING = String(
+  process.env.REMOTE_CHANNEL_TELEGRAM_SESSION_STRING || "",
+).trim();
+const REMOTE_CHANNEL_PROXY_URL = String(
+  process.env.REMOTE_CHANNEL_PROXY_URL || "",
+).trim();
+const REMOTE_CHANNEL_TELEGRAM_CONFIGURED = Boolean(
+  REMOTE_CHANNEL_TELEGRAM_API_ID &&
+    REMOTE_CHANNEL_TELEGRAM_API_HASH &&
+    REMOTE_CHANNEL_TELEGRAM_SESSION_STRING,
+);
+const REMOTE_CHANNEL_CONFIG = {
+  enabled: REMOTE_CHANNEL,
+  telegramConfigured: REMOTE_CHANNEL_TELEGRAM_CONFIGURED,
+  proxyConfigured: Boolean(REMOTE_CHANNEL_PROXY_URL),
+  telegramApiId: REMOTE_CHANNEL_TELEGRAM_API_ID,
+  telegramApiHash: REMOTE_CHANNEL_TELEGRAM_API_HASH,
+  telegramSessionString: REMOTE_CHANNEL_TELEGRAM_SESSION_STRING,
+  proxyUrl: REMOTE_CHANNEL_PROXY_URL,
+  pollIntervalMs: readEnvInt("REMOTE_CHANNEL_POLL_INTERVAL_MS", 5000, {
+    min: 1000,
+  }),
+  telegramPollLimit: readEnvInt("REMOTE_CHANNEL_TELEGRAM_POLL_LIMIT", 50, {
+    min: 1,
+    max: 100,
+  }),
+  queueIntervalMs: readEnvInt("REMOTE_CHANNEL_QUEUE_INTERVAL_MS", 1000, {
+    min: 100,
+  }),
+  queueMaxAttempts: readEnvInt("REMOTE_CHANNEL_QUEUE_MAX_ATTEMPTS", 10, {
+    min: 1,
+    max: 100,
+  }),
+  queueStaleLockMs: readEnvInt("REMOTE_CHANNEL_QUEUE_STALE_LOCK_MS", 300000, {
+    min: 10000,
+  }),
+  messageMaxChars: MESSAGE_MAX_CHARS,
+};
 const MESSAGE_FILE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 const uploadTools = createUploadTools({
@@ -354,6 +435,37 @@ const {
   requireSessionUsernameMatch,
 } = sessionHelpers;
 
+function bootstrapEnvAdmins() {
+  if (!ADMIN_USERNAMES.length) return;
+  try {
+    const placeholders = ADMIN_USERNAMES.map(() => "?").join(", ");
+    const rows = adminGetAll(
+      `SELECT id, username FROM users WHERE lower(username) IN (${placeholders})`,
+      ADMIN_USERNAMES,
+    );
+    if (!rows.length) {
+      console.warn(
+        "[admin] ADMIN_USERNAMES is set, but no matching users were found:",
+        ADMIN_USERNAMES.join(", "),
+      );
+      return;
+    }
+    adminRun(
+      `UPDATE users
+       SET role = 'owner', banned = 0
+       WHERE lower(username) IN (${placeholders})`,
+      ADMIN_USERNAMES,
+    );
+    adminSave();
+    console.log(
+      "[admin] Bootstrapped admin users:",
+      rows.map((row) => row.username).join(", "),
+    );
+  } catch (error) {
+    console.warn("[admin] Unable to bootstrap ADMIN_USERNAMES:", String(error?.message || error));
+  }
+}
+
 function backfillStorageEncryption() {
   if (!storageEncryption.isEnabled()) return;
 
@@ -408,6 +520,10 @@ function backfillStorageEncryption() {
 
 registerUploadRoutes(app, { express, adminGetRow });
 
+if (isProduction) {
+  app.use("/api", apiLimiter);
+}
+
 
 
 
@@ -428,9 +544,18 @@ const apiDeps = {
   USERNAME_MAX,
   MESSAGE_MAX_CHARS,
   ACCOUNT_CREATION,
+  APP_ENV: appEnv,
+  ADMIN_USERNAMES,
+  REMOTE_CHANNELS: {
+    enabled: REMOTE_CHANNEL_CONFIG.enabled,
+    telegramConfigured: REMOTE_CHANNEL_CONFIG.telegramConfigured,
+    proxyConfigured: REMOTE_CHANNEL_CONFIG.proxyConfigured,
+  },
   USERNAME_REGEX,
   VAPID_PUBLIC_KEY: PUSH_ENABLED ? VAPID_PUBLIC_KEY : "",
   addChatMember,
+  applyRequiredChannelsToAllUsers,
+  applyRequiredChannelsToUser,
   addSseClient,
   adminGetAll,
   adminGetRow,
@@ -441,6 +566,7 @@ const apiDeps = {
   bcrypt,
   buildInspectSnapshot,
   buildTimestampSchedule,
+  claimNextRemoteChannelQueueItem,
   chunkArray,
   cleanupMissingMessageFiles,
   clearGroupMemberRemoved,
@@ -448,6 +574,7 @@ const apiDeps = {
   clearSessionCookie,
   computeExpiryIso,
   createChat,
+  createCallLog,
   createMessage,
   createOrReuseMessage,
   createMessageFiles,
@@ -462,6 +589,7 @@ const apiDeps = {
   deleteUserById,
   emitChatEvent,
   emitSseEvent,
+  enqueueRemoteChannelQueueItem,
   enqueueVideoTranscodeJob,
   ensureAvatarExists,
   ensureFfmpegAvailable,
@@ -473,11 +601,15 @@ const apiDeps = {
   findMessageById,
   findUserById,
   findUserByUsername,
+  finishCallLog,
   fs,
   getMessageReadCounts,
   getMessageAuthors,
   getMessageReadByUser,
   getMessages,
+  getRemoteChannelQueueSummary,
+  getRemoteChannelSourceByChatId,
+  getRemoteChannelSourceById,
   getSessionFromRequest,
   getUploadKind,
   getUserPresence,
@@ -491,11 +623,16 @@ const apiDeps = {
   isLoopbackRequest,
   isMember,
   isGroupMemberRemoved,
+  isRequiredChannel,
   isVideoFileProcessing,
   listPushSubscriptionsByUserIds,
+  listCallLogsForChat,
   listChatMembers,
   listChatsForUser,
+  listAvailableRequiredChannels,
+  listEnabledRemoteChannelSources,
   listMessageFilesByMessageIds,
+  listRequiredChannels,
   listUsers,
   setMessageForwardOrigin,
   getChatMemberRole,
@@ -505,12 +642,17 @@ const apiDeps = {
   markGroupMemberRemoved,
   markMessagesRead,
   markMessageRead,
+  markCallLogAccepted,
+  markRemoteChannelQueueItemDone,
+  markRemoteChannelQueueItemRetry,
+  markRemoteChannelQueueItemSkipped,
   parseCookies,
   parseUploadFileMetadata,
   path,
   projectRootDir,
   probeVideoMetadata,
   regenerateGroupInviteToken,
+  releaseStaleRemoteChannelQueueItems,
   removeAllMessageUploads,
   removeAvatarByUrl,
   removeChatMember,
@@ -526,6 +668,7 @@ const apiDeps = {
   searchPublicGroups,
   searchPublicChannels,
   setChatMuted,
+  setRequiredChannels,
   setMessageExpiresAt,
   listMutedUserIdsForChat,
   setSessionCookie,
@@ -533,6 +676,8 @@ const apiDeps = {
   updateLastSeen,
   updateGroupChat,
   updateChannelChat,
+  updateRemoteChannelSourceError,
+  updateRemoteChannelSourceSeen,
   unhideChat,
   updateUserPassword,
   updateUserProfile,
@@ -541,14 +686,41 @@ const apiDeps = {
   uploadFiles,
   uploadRootDir,
   upsertPushSubscription,
+  upsertRemoteChannelSource,
   sendPushNotificationToUsers,
   storageEncryption,
+  getMessageReactions,
+  toggleMessageReaction,
 };
+
+const remoteChannelManager = createRemoteChannelManager({
+  config: REMOTE_CHANNEL_CONFIG,
+  createOrReuseMessage,
+  debugLog,
+  emitChatEvent,
+  enqueueRemoteChannelQueueItem,
+  findChatById,
+  findUserById,
+  getRemoteChannelSourceById,
+  listChatMembers,
+  listEnabledRemoteChannelSources,
+  listMutedUserIdsForChat,
+  markRemoteChannelQueueItemDone,
+  markRemoteChannelQueueItemRetry,
+  markRemoteChannelQueueItemSkipped,
+  releaseStaleRemoteChannelQueueItems,
+  claimNextRemoteChannelQueueItem,
+  sendPushNotificationToUsers,
+  setMessageForwardOrigin,
+  updateRemoteChannelSourceError,
+  updateRemoteChannelSourceSeen,
+});
+
+apiDeps.remoteChannelManager = remoteChannelManager;
 
 registerApiRoutes(app, apiDeps);
 
 if (isProduction) {
-  app.use("/api", apiLimiter);
   app.use(staticLimiter);
 
   const clientDist = path.resolve(serverDir, "..", "client", "dist");
@@ -761,8 +933,274 @@ if (MESSAGE_TEXT_RETENTION_DAYS > 0) {
   }
 }
 
+bootstrapEnvAdmins();
 backfillStorageEncryption();
+remoteChannelManager.start();
 
-app.listen(port, () => {
-  console.log(`Songbird server running on http://localhost:${port}`);
+const httpServer = createServer(app);
+
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: isProduction ? false : "*",
+    credentials: true,
+  },
+});
+
+io.use((socket, next) => {
+  try {
+    const cookieHeader = socket.handshake?.headers?.cookie || "";
+    const cookies = cookieHeader.split(";").reduce((acc, cookie) => {
+      const [name, ...rest] = cookie.trim().split("=");
+      if (name) acc[name] = decodeURIComponent(rest.join("="));
+      return acc;
+    }, {});
+    if (!cookies.sid) return next(new Error("Authentication required"));
+    const session = getSession(cookies.sid);
+    if (!session) return next(new Error("Invalid session"));
+    socket.data = { userId: session.id, username: session.username };
+    next();
+  } catch {
+    next(new Error("Authentication failed"));
+  }
+});
+
+const activeCalls = new Map();
+const liveCalls = new Map();
+const callDisconnectTimers = new Map();
+const CALL_DISCONNECT_GRACE_MS = 45000;
+
+function clearCallDisconnectTimer(roomId) {
+  const timer = callDisconnectTimers.get(roomId);
+  if (!timer) return;
+  clearTimeout(timer);
+  callDisconnectTimers.delete(roomId);
+}
+
+function scheduleCallDisconnectEnd(roomId) {
+  if (!roomId || callDisconnectTimers.has(roomId)) return;
+  const timer = setTimeout(() => {
+    callDisconnectTimers.delete(roomId);
+    activeCalls.delete(roomId);
+    liveCalls.delete(roomId);
+    finishCallLog({
+      roomId,
+      status: "disconnect_timeout",
+      reason: "disconnect_timeout",
+    });
+    io.to(roomId).emit("call-ended", { roomId, reason: "disconnect_timeout" });
+  }, CALL_DISCONNECT_GRACE_MS);
+  if (typeof timer.unref === "function") {
+    timer.unref();
+  }
+  callDisconnectTimers.set(roomId, timer);
+}
+
+function parseCallRoomChatId(roomId) {
+  const match = String(roomId || "").match(/^chat-(\d+)$/);
+  if (!match) return 0;
+  return Number(match[1] || 0);
+}
+
+function normalizeCallType(callType) {
+  return String(callType || "voice").toLowerCase() === "video" ? "video" : "voice";
+}
+
+async function notifyIncomingCallByPush({
+  roomId,
+  chatId,
+  callType,
+  callerUserId,
+  callerName,
+}) {
+  const normalizedCallType = normalizeCallType(callType);
+  const targetChatId = Number(chatId || parseCallRoomChatId(roomId) || 0);
+  if (!targetChatId) return;
+  const chat = findChatById(targetChatId);
+  if (!chat || String(chat.type || "").toLowerCase() !== "dm") return;
+
+  const members = listChatMembers(targetChatId);
+  const mutedRows = listMutedUserIdsForChat(targetChatId);
+  const mutedIds = new Set(
+    mutedRows.map((row) => Number(row?.user_id || 0)).filter(Boolean),
+  );
+  const callerId = Number(callerUserId || 0);
+  const recipientIds = members
+    .map((member) => Number(member?.id || 0))
+    .filter(
+      (memberId) =>
+        Number.isFinite(memberId) &&
+        memberId > 0 &&
+        memberId !== callerId &&
+        !mutedIds.has(memberId),
+    );
+  if (!recipientIds.length) return;
+
+  await sendPushNotificationToUsers(recipientIds, {
+    title: `Incoming ${normalizedCallType} call`,
+    body: `${callerName || "Someone"} is calling...`,
+    data: {
+      type: "incoming_call",
+      chatId: targetChatId,
+      callType: normalizedCallType,
+      roomId,
+      url: `/chat?openChatId=${encodeURIComponent(String(targetChatId))}`,
+    },
+  });
+}
+
+io.on("connection", (socket) => {
+  console.log("SOCKET CONNECTED:", socket.id);
+  const socketCallRooms = new Set();
+
+  socket.on("join-call", (roomId) => {
+    if (!roomId) return;
+    console.log("JOIN CALL:", socket.id, roomId);
+    socket.join(roomId);
+    socketCallRooms.add(roomId);
+
+    const activeCall = activeCalls.get(roomId);
+    if (activeCall && activeCall.callerSocketId !== socket.id) {
+      console.log("SEND PENDING INCOMING CALL:", socket.id, roomId);
+      socket.emit("incoming-call", activeCall);
+    }
+  });
+
+  socket.on("resume-call", ({ roomId }) => {
+    if (!roomId) return;
+    console.log("RESUME CALL:", socket.id, roomId);
+    socket.join(roomId);
+    socketCallRooms.add(roomId);
+    clearCallDisconnectTimer(roomId);
+    const participants = liveCalls.get(roomId);
+    if (participants) {
+      participants.add(socket.id);
+    }
+  });
+
+  socket.on("leave-call", (payload) => {
+    const roomId = typeof payload === "string" ? payload : payload?.roomId;
+    if (!roomId) return;
+    const endedByUserId =
+      typeof payload === "object" ? Number(payload?.userId || 0) || null : null;
+    console.log("LEAVE CALL:", socket.id, roomId);
+    clearCallDisconnectTimer(roomId);
+    activeCalls.delete(roomId);
+    liveCalls.delete(roomId);
+    finishCallLog({
+      roomId,
+      status: "ended",
+      endedByUserId,
+      reason: "ended",
+    });
+    socket.leave(roomId);
+    socket.to(roomId).emit("call-ended", { roomId });
+  });
+
+  socket.on("call-user", ({ roomId, chatId, callType, callerUserId, callerUsername, callerName }) => {
+    if (!roomId) return;
+    const normalizedCallType = normalizeCallType(callType);
+    clearCallDisconnectTimer(roomId);
+    socket.join(roomId);
+    socketCallRooms.add(roomId);
+
+    const payload = {
+      roomId,
+      chatId: Number(chatId || parseCallRoomChatId(roomId) || 0) || null,
+      callType: normalizedCallType,
+      callerUserId: Number(callerUserId || 0) || null,
+      callerUsername: callerUsername || "",
+      callerName: callerName || "Someone",
+      callerSocketId: socket.id,
+    };
+
+    activeCalls.set(roomId, payload);
+    const participantUserIds = listChatMembers(payload.chatId)
+      .map((member) => Number(member?.id || 0))
+      .filter(Boolean);
+    createCallLog({
+      chatId: payload.chatId,
+      roomId,
+      callerUserId: payload.callerUserId,
+      participantUserIds,
+      callType: normalizedCallType,
+    });
+
+    console.log("CALL USER:", socket.id, roomId, callerName);
+    console.log(
+      "ROOM MEMBERS:",
+      roomId,
+      Array.from(io.sockets.adapter.rooms.get(roomId) || []),
+    );
+
+    socket.to(roomId).emit("incoming-call", payload);
+    notifyIncomingCallByPush(payload).catch((error) => {
+      console.warn("[call] incoming-call push failed:", String(error?.message || error));
+    });
+    console.log("INCOMING CALL EMITTED:", roomId);
+  });
+
+  socket.on("accept-call", ({ roomId, userId }) => {
+    if (!roomId) return;
+    console.log("ACCEPT CALL:", socket.id, roomId);
+    clearCallDisconnectTimer(roomId);
+    socket.join(roomId);
+    socketCallRooms.add(roomId);
+    const activeCall = activeCalls.get(roomId);
+    if (activeCall?.callerSocketId) {
+      liveCalls.set(roomId, new Set([activeCall.callerSocketId, socket.id]));
+    }
+    markCallLogAccepted({ roomId, acceptedByUserId: userId });
+    activeCalls.delete(roomId);
+    socket.to(roomId).emit("call-accepted", { roomId });
+  });
+
+  socket.on("reject-call", ({ roomId, userId }) => {
+    if (!roomId) return;
+    console.log("REJECT CALL:", socket.id, roomId);
+    clearCallDisconnectTimer(roomId);
+    activeCalls.delete(roomId);
+    finishCallLog({
+      roomId,
+      status: "rejected",
+      endedByUserId: userId,
+      reason: "rejected",
+    });
+    socket.to(roomId).emit("call-rejected", { roomId });
+  });
+
+  socket.on("offer", ({ roomId, offer }) => {
+    if (!roomId || !offer) return;
+    console.log("OFFER:", socket.id, roomId);
+    socket.to(roomId).emit("offer", offer);
+  });
+
+  socket.on("answer", ({ roomId, answer }) => {
+    if (!roomId || !answer) return;
+    console.log("ANSWER:", socket.id, roomId);
+    socket.to(roomId).emit("answer", answer);
+  });
+
+  socket.on("ice-candidate", ({ roomId, candidate }) => {
+    if (!roomId || !candidate) return;
+    socket.to(roomId).emit("ice-candidate", candidate);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("SOCKET DISCONNECTED:", socket.id);
+    for (const [roomId, activeCall] of activeCalls.entries()) {
+      if (activeCall?.callerSocketId === socket.id) {
+        scheduleCallDisconnectEnd(roomId);
+      }
+    }
+    for (const roomId of socketCallRooms) {
+      const participants = liveCalls.get(roomId);
+      if (!participants?.has(socket.id)) continue;
+      participants.delete(socket.id);
+      scheduleCallDisconnectEnd(roomId);
+    }
+  });
+});
+
+httpServer.listen(port, () => {
+  console.log(`BirdX server running on http://localhost:${port}`);
 });

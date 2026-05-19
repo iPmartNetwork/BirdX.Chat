@@ -4,6 +4,7 @@ export default function InstallGuideModal({
   open,
   onClose,
   iconSrc = "/icons/icon-192.png",
+  isAndroid = false,
   isDesktop = false,
 }) {
   if (!open) return null;
@@ -13,7 +14,7 @@ export default function InstallGuideModal({
       <div className="w-full max-w-md rounded-2xl border border-emerald-200 bg-white p-6 shadow-2xl dark:border-emerald-500/30 dark:bg-slate-950">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-emerald-700 dark:text-emerald-200">
-            Install Songbird
+            Install BirdX
           </h3>
           <button
             type="button"
@@ -42,7 +43,7 @@ export default function InstallGuideModal({
               </svg>
             </span>
             <span>
-              {isDesktop
+              {isAndroid || isDesktop
                 ? "Open the browser menu."
                 : "Tap the Share button."}
             </span>
@@ -64,8 +65,10 @@ export default function InstallGuideModal({
               </svg>
             </span>
             <span>
-              {isDesktop
-                ? 'Choose "Install app".'
+              {isAndroid
+                ? 'Choose "Install app" or "Add to Home screen".'
+                : isDesktop
+                  ? 'Choose "Install app".'
                 : 'Select "Add to Home Screen".'}
             </span>
           </div>
@@ -77,7 +80,7 @@ export default function InstallGuideModal({
                 className="h-full w-full scale-110 object-cover"
               />
             </span>
-            <span>Open Songbird from your home screen.</span>
+            <span>Open BirdX from your home screen.</span>
           </div>
         </div>
         <div className="mt-6 flex justify-end">

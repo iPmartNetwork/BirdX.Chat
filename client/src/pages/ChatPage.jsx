@@ -1,9 +1,21 @@
-import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Component,
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import MobileTabMenu from "../components/navigation/MobileTabMenu.jsx";
 import ChatWindowPanel from "../components/chat/ChatWindowPanel.jsx";
 import { ChatSidebar } from "../components/sidebar/index.js";
 import AppContextMenu from "../components/context-menu/AppContextMenu.jsx";
 import { useAppContextMenu } from "../components/context-menu/useAppContextMenu.js";
+import ChatProfileModal from "../components/modals/ChatProfileModal.jsx";
+import NewGroupModal from "../components/modals/NewGroupModal.jsx";
 import { CHAT_PAGE_CONFIG } from "../settings/chatPageConfig.js";
 import { getAvatarInitials } from "../utils/avatarInitials.js";
 import { NICKNAME_MAX, USERNAME_MAX } from "../utils/nameLimits.js";
@@ -11,6 +23,7 @@ import { resolveReplyPreview, summarizeFiles, truncateText } from "../utils/mess
 import {
   formatBytesAsMb,
   formatChatCardTimestamp,
+  formatDayKey,
   formatDayLabel,
   formatTime,
   parseServerDate,
@@ -31,10 +44,27 @@ import { useNewGroupModal } from "../hooks/chat/useNewGroupModal.js";
 import { usePerfTelemetry } from "../hooks/chat/usePerfTelemetry.js";
 import { useResumeRefresh } from "../hooks/chat/useResumeRefresh.js";
 import { useAppReleaseInfo } from "../hooks/useAppReleaseInfo.js";
-import { Bookmark } from "../icons/lucide.js";
+import {
+  Bookmark,
+  Camera,
+  CameraOff,
+  Maximize2,
+  Mic,
+  MicOff,
+  Minimize2,
+  Phone,
+  PhoneOff,
+  Refresh,
+  ScreenShare,
+  ScreenShareOff,
+  Settings,
+  Video,
+  Volume2,
+} from "../icons/lucide.js";
 import { CLIPBOARD_COPY_EVENT } from "../utils/clipboard.js";
 import { CACHE_STORES } from "../utils/cacheDb.js";
 import { downloadMessageFiles } from "../utils/fileDownload.js";
+import { io } from "socket.io-client";
 import {
   CHAT_CACHE_VERSION,
   buildChatListCacheKey,
@@ -56,6 +86,7 @@ import {
   writeMessagesIndex,
 } from "../utils/chatCache.js";
 import { getMessageFiles } from "../utils/messageContent.js";
+import { isMessageAuthoredByUser } from "../utils/messageOwnership.js";
 import {
   createDmChat,
   discoverUsersAndGroups,
@@ -66,7 +97,9 @@ import {
   deleteGroupChat,
   editMessage,
   fetchHealth,
+  fetchChatCallLogs,
   fetchPresence,
+  getRemoteChannelSettings,
   getChatPreview,
   getGroupInviteLink,
   getMessagesUploadUrl,
@@ -81,13 +114,16 @@ import {
   searchUsers,
   sendTypingIndicator,
   sendMessage,
+  toggleMessageReaction,
   removeGroupMember,
+  updateGroupMemberRole,
   removeGroupAvatar,
   regenerateGroupInviteLink,
   setChatMute,
   updateChannelChat,
   getMessageReadCounts,
   updateGroupChat,
+  updateRemoteChannelSettings,
   uploadGroupAvatar,
   getSavedMessagesChat,
   fetchPushPublicKey,
@@ -110,7 +146,6 @@ import {
   UPLOAD_PROGRESS_HIDE_DELAY_MS,
 } from "../utils/chatPageConstants.js";
 
-const loadChatProfileModal = () => import("../components/modals/ChatProfileModal.jsx");
 const loadDeleteChatsModal = () => import("../components/modals/DeleteChatsModal.jsx");
 const loadDeleteMessageScopeModal = () =>
   import("../components/modals/DeleteMessageScopeModal.jsx");
@@ -119,7 +154,6 @@ const loadForwardMessageModal = () =>
 const loadLeaveGroupModal = () => import("../components/modals/LeaveGroupModal.jsx");
 const loadGroupInviteLinkModal = () => import("../components/modals/GroupInviteLinkModal.jsx");
 const loadNewChatModal = () => import("../components/modals/NewChatModal.jsx");
-const loadNewGroupModal = () => import("../components/modals/NewGroupModal.jsx");
 const loadDesktopSettingsModal = () =>
   import("../components/settings/modals/DesktopSettingsModal.jsx").then((mod) => ({
     default: mod.DesktopSettingsModal,
@@ -130,14 +164,12 @@ const loadNotificationsSettingsModal = () =>
   }));
 const loadWhatsNewModal = () => import("../components/modals/WhatsNewModal.jsx");
 
-const ChatProfileModal = lazy(loadChatProfileModal);
 const DeleteChatsModal = lazy(loadDeleteChatsModal);
 const DeleteMessageScopeModal = lazy(loadDeleteMessageScopeModal);
 const ForwardMessageModal = lazy(loadForwardMessageModal);
 const LeaveGroupModal = lazy(loadLeaveGroupModal);
 const GroupInviteLinkModal = lazy(loadGroupInviteLinkModal);
 const NewChatModal = lazy(loadNewChatModal);
-const NewGroupModal = lazy(loadNewGroupModal);
 const DesktopSettingsModal = lazy(loadDesktopSettingsModal);
 const NotificationsSettingsModal = lazy(loadNotificationsSettingsModal);
 const WhatsNewModal = lazy(loadWhatsNewModal);
@@ -152,14 +184,12 @@ const preloadChatPageCriticalChunks = () =>
 
 const preloadChatPageLazyChunks = () =>
   Promise.allSettled([
-    loadChatProfileModal(),
     loadDeleteChatsModal(),
     loadDeleteMessageScopeModal(),
     loadForwardMessageModal(),
     loadLeaveGroupModal(),
     loadGroupInviteLinkModal(),
     loadNewChatModal(),
-    loadNewGroupModal(),
     loadDesktopSettingsModal(),
     loadNotificationsSettingsModal(),
     loadWhatsNewModal(),
@@ -176,9 +206,78 @@ const resolveChunkPreloadMode = () => {
   return "eager";
 };
 
+class ModalErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error) {
+    console.error("Modal render failed:", error);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/45 px-5">
+        <div className="w-full max-w-sm rounded-2xl border border-rose-200 bg-white p-5 text-center shadow-xl dark:border-rose-500/30 dark:bg-slate-950">
+          <p className="text-sm font-semibold text-rose-600 dark:text-rose-200">
+            {this.props.title || "Unable to open editor"}
+          </p>
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            Please close this panel and try again.
+          </p>
+          <button
+            type="button"
+            onClick={this.props.onClose}
+            className="mt-4 rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-900/30 dark:text-rose-200"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
 const IN_MEMORY_MESSAGES_CACHE_MAX_CHATS = 8;
 const IN_MEMORY_MESSAGES_PER_CHAT = 480;
 const IN_MEMORY_MESSAGES_CACHE_STALE_MS = 20 * 60 * 1000;
+
+const normalizeChatSummary = (chat) => {
+  if (!chat || typeof chat !== "object") return chat;
+  const members = Array.isArray(chat.members) ? chat.members : [];
+  return {
+    ...chat,
+    id: Number(chat.id || 0),
+    last_message: normalizeMessageBody(chat.last_message),
+    members: members.map((member) => ({
+      ...member,
+      id: Number(member?.id || 0),
+      role: String(member?.role || "member").toLowerCase(),
+    })),
+  };
+};
+
+const revokeObjectUrlSafe = (value) => {
+  const url = String(value || "");
+  if (!url) return;
+  try {
+    URL.revokeObjectURL(url);
+  } catch {
+    // Ignore cleanup errors from stale or already-revoked object URLs.
+  }
+};
 
 const pruneMessagesForMemory = (messages) => {
   const list = Array.isArray(messages) ? messages : [];
@@ -270,6 +369,126 @@ const patchChatAndMoveToFront = (chats, chatId, updateChat) => {
   return nextChats;
 };
 
+const splitEnvList = (value) =>
+  String(value || "")
+    .split(/[,\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const resolveCallIceServers = () => {
+  const turnUrls = splitEnvList(
+    import.meta.env.APP_TURN_URLS ||
+      import.meta.env.CHAT_TURN_URLS ||
+      import.meta.env.APP_TURN_URL ||
+      import.meta.env.CHAT_TURN_URL,
+  );
+  const turnUsername =
+    import.meta.env.APP_TURN_USERNAME || import.meta.env.CHAT_TURN_USERNAME || "";
+  const turnCredential =
+    import.meta.env.APP_TURN_CREDENTIAL || import.meta.env.CHAT_TURN_CREDENTIAL || "";
+  const iceServers = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ];
+  if (turnUrls.length) {
+    iceServers.push({
+      urls: turnUrls,
+      ...(turnUsername ? { username: turnUsername } : {}),
+      ...(turnCredential ? { credential: turnCredential } : {}),
+    });
+  }
+  return iceServers;
+};
+
+const CALL_ICE_SERVERS = resolveCallIceServers();
+
+const CALL_STATUS_LABELS = {
+  preparing: "Preparing microphone...",
+  calling: "Calling...",
+  ringing: "Incoming voice call",
+  connecting: "Connecting...",
+  connected: "Connected",
+  reconnecting: "Reconnecting...",
+  ended: "Call ended",
+  error: "Call failed",
+};
+
+const VIDEO_CALL_STATUS_LABELS = {
+  ...CALL_STATUS_LABELS,
+  preparing: "Preparing camera...",
+  ringing: "Incoming video call",
+};
+
+const CALL_TYPES = new Set(["voice", "video"]);
+
+const normalizeCallType = (callType) => {
+  const normalized = String(callType || "voice").trim().toLowerCase();
+  return CALL_TYPES.has(normalized) ? normalized : "voice";
+};
+
+const CALL_RING_PATTERN = [0, 280, 520, 800, 1500];
+const CALL_RING_LOOP_MS = 2400;
+const CALL_PREVIEW_SWAP_HOLD_MS = 900;
+const CALL_CONTROLS_AUTO_HIDE_MS = 3000;
+
+const DEFAULT_CALL_QUALITY = {
+  level: "checking",
+  label: "Checking",
+  bitrateKbps: null,
+  rttMs: null,
+};
+
+const formatCallDuration = (seconds) => {
+  const total = Math.max(0, Number(seconds || 0));
+  const minutes = Math.floor(total / 60);
+  const remainingSeconds = total % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+};
+
+const getCallErrorMessage = (error, callType = "voice") => {
+  const isVideoCall = normalizeCallType(callType) === "video";
+  const name = String(error?.name || "");
+  if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+    return isVideoCall
+      ? "Camera or microphone permission was denied."
+      : "Microphone permission was denied.";
+  }
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    return isVideoCall
+      ? "No camera or microphone was found on this device."
+      : "No microphone was found on this device.";
+  }
+  if (name === "NotReadableError" || name === "TrackStartError") {
+    return isVideoCall
+      ? "The camera or microphone is already in use by another app."
+      : "The microphone is already in use by another app.";
+  }
+  return error?.message || `${isVideoCall ? "Video" : "Voice"} call could not be started.`;
+};
+
+const buildCallChatUrl = (chatId) => {
+  const numericChatId = Number(chatId || 0);
+  if (!numericChatId) return "/chat";
+  return `/chat?openChatId=${encodeURIComponent(String(numericChatId))}`;
+};
+
+const isLoopbackHost = (hostname) =>
+  hostname === "localhost" ||
+  hostname === "127.0.0.1" ||
+  hostname === "::1" ||
+  hostname?.endsWith?.(".localhost");
+
+const resolveSocketOrigin = () => {
+  if (typeof window === "undefined") return undefined;
+  const explicitUrl = import.meta.env.APP_SOCKET_URL || import.meta.env.CHAT_SOCKET_URL;
+  if (explicitUrl) return explicitUrl;
+  const { protocol, hostname, port, origin } = window.location;
+  if (port === "5173" && isLoopbackHost(hostname)) {
+    return `${protocol}//${hostname}:5174`;
+  }
+  return origin;
+};
+
  
 
 export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme }) {
@@ -289,6 +508,8 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileModalMember, setProfileModalMember] = useState(null);
   const [profileInviteLink, setProfileInviteLink] = useState("");
+  const [profileCallLogs, setProfileCallLogs] = useState([]);
+  const [profileCallLogsLoading, setProfileCallLogsLoading] = useState(false);
   const [mentionProfile, setMentionProfile] = useState(null);
   const [mentionRefreshToken, _setMentionRefreshToken] = useState(0);
   const [editingGroup, setEditingGroup] = useState(false);
@@ -314,6 +535,30 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const [forwardMessageTarget, setForwardMessageTarget] = useState(null);
   const [forwardSavedChat, setForwardSavedChat] = useState(null);
   const [copyToastVisible, setCopyToastVisible] = useState(false);
+  const [callState, setCallState] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [callMuted, setCallMuted] = useState(false);
+  const [callDurationSeconds, setCallDurationSeconds] = useState(0);
+  const [callVideoFocus, setCallVideoFocus] = useState("remote");
+  const [callVideoStreamsReady, setCallVideoStreamsReady] = useState({
+    local: false,
+    remote: false,
+  });
+  const [callPreviewPosition, setCallPreviewPosition] = useState(null);
+  const [callMinimized, setCallMinimized] = useState(false);
+  const [callMinimizedPosition, setCallMinimizedPosition] = useState(null);
+  const [callControlsVisible, setCallControlsVisible] = useState(true);
+  const [callCameraEnabled, setCallCameraEnabled] = useState(true);
+  const [callScreenSharing, setCallScreenSharing] = useState(false);
+  const [callDevicePanelOpen, setCallDevicePanelOpen] = useState(false);
+  const [callDevices, setCallDevices] = useState({
+    audioInputs: [],
+    videoInputs: [],
+  });
+  const [selectedCallAudioInputId, setSelectedCallAudioInputId] = useState("");
+  const [selectedCallVideoInputId, setSelectedCallVideoInputId] = useState("");
+  const [callConnectionQuality, setCallConnectionQuality] =
+    useState(DEFAULT_CALL_QUALITY);
   const updateToastTimerRef = useRef(null);
   const copyToastTimerRef = useRef(null);
   const chatScrollRef = useRef(null);
@@ -348,6 +593,1423 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const messageBlobUrlsRef = useRef(new Set());
   const [sseConnected, setSseConnected] = useState(false);
   const lazyChunksPreloadedRef = useRef(false);
+  const peerRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const remoteStreamRef = useRef(null);
+  const remoteAudioRef = useRef(null);
+  const primaryCallVideoRef = useRef(null);
+  const previewCallVideoRef = useRef(null);
+  const miniCallVideoRef = useRef(null);
+  const callVideoStageRef = useRef(null);
+  const callPreviewDragRef = useRef(null);
+  const callMinimizedDragRef = useRef(null);
+  const callPreviewLongPressTimerRef = useRef(null);
+  const callControlsHideTimerRef = useRef(null);
+  const screenStreamRef = useRef(null);
+  const selectedCallAudioInputIdRef = useRef("");
+  const selectedCallVideoInputIdRef = useRef("");
+  const callVideoFacingModeRef = useRef("user");
+  const callStatsSnapshotRef = useRef(null);
+  const callReconnectTimerRef = useRef(null);
+  const socketRef = useRef(null);
+  const activeChatIdRef = useRef(null);
+  const callStateRef = useRef(null);
+  const incomingCallRef = useRef(null);
+  const joinedCallRoomsRef = useRef(new Set());
+  const chatsRef = useRef([]);
+  const pendingOfferRef = useRef(null);
+  const pendingAnswerRef = useRef(null);
+  const pendingIceCandidatesRef = useRef([]);
+  const callResetTimerRef = useRef(null);
+  const ringtoneAudioContextRef = useRef(null);
+  const ringtoneTimersRef = useRef([]);
+  const ringtoneActiveRef = useRef(false);
+  const incomingCallNotificationRef = useRef(null);
+  const callWakeLockRef = useRef(null);
+
+  function setSyncedCallState(value) {
+    setCallState((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      callStateRef.current = next;
+      return next;
+    });
+  }
+
+  function setSyncedIncomingCall(value) {
+    incomingCallRef.current = value;
+    setIncomingCall(value);
+  }
+
+  function setSelectedCallAudioDevice(deviceId) {
+    const normalized = String(deviceId || "");
+    selectedCallAudioInputIdRef.current = normalized;
+    setSelectedCallAudioInputId(normalized);
+  }
+
+  function setSelectedCallVideoDevice(deviceId) {
+    const normalized = String(deviceId || "");
+    selectedCallVideoInputIdRef.current = normalized;
+    setSelectedCallVideoInputId(normalized);
+  }
+
+  async function refreshCallDevices() {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) {
+      setCallDevices({ audioInputs: [], videoInputs: [] });
+      return;
+    }
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      setCallDevices({
+        audioInputs: devices.filter((device) => device.kind === "audioinput"),
+        videoInputs: devices.filter((device) => device.kind === "videoinput"),
+      });
+    } catch {
+      setCallDevices({ audioInputs: [], videoInputs: [] });
+    }
+  }
+
+  function ensureRemoteAudioElement() {
+    if (remoteAudioRef.current || typeof Audio === "undefined") {
+      return remoteAudioRef.current;
+    }
+    const audio = new Audio();
+    audio.autoplay = true;
+    audio.playsInline = true;
+    audio.setAttribute?.("playsinline", "");
+    remoteAudioRef.current = audio;
+    return audio;
+  }
+
+  async function requestCallWakeLock() {
+    if (typeof navigator === "undefined" || typeof document === "undefined") return;
+    if (!navigator.wakeLock?.request) return;
+    if (document.visibilityState !== "visible") return;
+    if (callWakeLockRef.current) return;
+    try {
+      const wakeLock = await navigator.wakeLock.request("screen");
+      callWakeLockRef.current = wakeLock;
+      wakeLock.addEventListener?.("release", () => {
+        if (callWakeLockRef.current === wakeLock) {
+          callWakeLockRef.current = null;
+        }
+      });
+    } catch {
+      // Screen Wake Lock is best-effort and may be blocked by the browser or battery mode.
+    }
+  }
+
+  function releaseCallWakeLock() {
+    const wakeLock = callWakeLockRef.current;
+    callWakeLockRef.current = null;
+    try {
+      wakeLock?.release?.();
+    } catch {
+      // ignore wake lock cleanup failures
+    }
+  }
+
+  function replayRemoteAudio() {
+    const audio = remoteAudioRef.current;
+    if (!audio?.srcObject) return;
+    audio.play?.().catch(() => null);
+  }
+
+  function updateCallStatus(status, patch = {}) {
+    setSyncedCallState((prev) => {
+      if (!prev) return prev;
+      return { ...prev, status, ...patch };
+    });
+  }
+
+  function joinCallRoom(roomId, socket = socketRef.current) {
+    const normalizedRoomId = String(roomId || "").trim();
+    if (!normalizedRoomId || !socket?.connected) return false;
+    if (joinedCallRoomsRef.current.has(normalizedRoomId)) return true;
+    socket.emit("join-call", normalizedRoomId);
+    joinedCallRoomsRef.current.add(normalizedRoomId);
+    return true;
+  }
+
+  function joinKnownCallRooms(socket = socketRef.current) {
+    if (!socket?.connected) return;
+    const roomIds = new Set();
+    if (activeChatIdRef.current) {
+      roomIds.add(`chat-${activeChatIdRef.current}`);
+    }
+    if (callStateRef.current?.roomId) {
+      roomIds.add(callStateRef.current.roomId);
+    }
+    (Array.isArray(chatsRef.current) ? chatsRef.current : []).forEach((chat) => {
+      const chatId = Number(chat?.id || 0);
+      const chatType = String(chat?.type || "").toLowerCase();
+      if (!chatId || chatType !== "dm") return;
+      roomIds.add(`chat-${chatId}`);
+    });
+    roomIds.forEach((roomId) => joinCallRoom(roomId, socket));
+  }
+
+  function syncLocalAudioMute(nextMuted) {
+    localStreamRef.current?.getAudioTracks?.().forEach((track) => {
+      track.enabled = !nextMuted;
+    });
+  }
+
+  function toggleCallMute() {
+    setCallMuted((prev) => {
+      const next = !prev;
+      syncLocalAudioMute(next);
+      return next;
+    });
+  }
+
+  function streamHasLiveVideo(stream) {
+    return Boolean(
+      stream
+        ?.getVideoTracks?.()
+        ?.some((track) => track.readyState === "live"),
+    );
+  }
+
+  function buildCallAudioConstraints(deviceId = selectedCallAudioInputIdRef.current) {
+    const constraints = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    };
+    if (deviceId) {
+      constraints.deviceId = { exact: deviceId };
+    }
+    return constraints;
+  }
+
+  function buildCallVideoConstraints(deviceId = selectedCallVideoInputIdRef.current) {
+    if (deviceId) {
+      return {
+        deviceId: { exact: deviceId },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      };
+    }
+    return {
+      facingMode: { ideal: callVideoFacingModeRef.current },
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    };
+  }
+
+  function getCallSender(kind) {
+    return peerRef.current
+      ?.getSenders?.()
+      ?.find((sender) => sender.track?.kind === kind);
+  }
+
+  function updateLocalVideoTrackState() {
+    setCallVideoStreamsReady((prev) => ({
+      ...prev,
+      local: streamHasLiveVideo(localStreamRef.current),
+    }));
+  }
+
+  function reportCallActionError(error, fallbackMessage = "Call control failed.") {
+    console.warn(fallbackMessage, error);
+    setSyncedCallState((prev) =>
+      prev
+        ? {
+            ...prev,
+            error: error?.message || fallbackMessage,
+          }
+        : prev,
+    );
+  }
+
+  function runCallAction(action, fallbackMessage) {
+    try {
+      const result = action?.();
+      if (result?.catch) {
+        result.catch((error) => reportCallActionError(error, fallbackMessage));
+      }
+    } catch (error) {
+      reportCallActionError(error, fallbackMessage);
+    }
+  }
+
+  function clearCallPreviewLongPress() {
+    if (!callPreviewLongPressTimerRef.current || typeof window === "undefined") return;
+    window.clearTimeout(callPreviewLongPressTimerRef.current);
+    callPreviewLongPressTimerRef.current = null;
+  }
+
+  function clearCallControlsAutoHide() {
+    if (!callControlsHideTimerRef.current || typeof window === "undefined") return;
+    window.clearTimeout(callControlsHideTimerRef.current);
+    callControlsHideTimerRef.current = null;
+  }
+
+  function scheduleCallControlsAutoHide() {
+    clearCallControlsAutoHide();
+    if (typeof window === "undefined") return;
+    if (normalizeCallType(callStateRef.current?.callType) !== "video") return;
+    if (!callStateRef.current?.roomId || callMinimized || callDevicePanelOpen) return;
+    callControlsHideTimerRef.current = window.setTimeout(() => {
+      callControlsHideTimerRef.current = null;
+      setCallControlsVisible(false);
+    }, CALL_CONTROLS_AUTO_HIDE_MS);
+  }
+
+  function revealCallControls() {
+    if (normalizeCallType(callStateRef.current?.callType) !== "video") return;
+    setCallControlsVisible(true);
+    scheduleCallControlsAutoHide();
+  }
+
+  function clampCallPreviewPosition(nextX, nextY, previewWidth, previewHeight) {
+    const stage = callVideoStageRef.current;
+    const stageRect = stage?.getBoundingClientRect?.();
+    if (!stageRect) return { x: nextX, y: nextY };
+    const margin = 12;
+    const maxX = Math.max(margin, stageRect.width - previewWidth - margin);
+    const maxY = Math.max(margin, stageRect.height - previewHeight - margin);
+    return {
+      x: Math.min(Math.max(nextX, margin), maxX),
+      y: Math.min(Math.max(nextY, margin), maxY),
+    };
+  }
+
+  function toggleCallVideoFocus() {
+    setCallVideoFocus((prev) => (prev === "remote" ? "local" : "remote"));
+  }
+
+  function handleCallPreviewPointerDown(event) {
+    if (!callVideoStageRef.current) return;
+    const previewElement = event.currentTarget;
+    const stageRect = callVideoStageRef.current.getBoundingClientRect();
+    const previewRect = previewElement.getBoundingClientRect();
+    const initialX =
+      typeof callPreviewPosition?.x === "number"
+        ? callPreviewPosition.x
+        : previewRect.left - stageRect.left;
+    const initialY =
+      typeof callPreviewPosition?.y === "number"
+        ? callPreviewPosition.y
+        : previewRect.top - stageRect.top;
+
+    callPreviewDragRef.current = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: initialX,
+      startY: initialY,
+      width: previewRect.width,
+      height: previewRect.height,
+      moved: false,
+      longPressTriggered: false,
+    };
+
+    try {
+      previewElement.setPointerCapture?.(event.pointerId);
+    } catch {
+      // Pointer capture is a nice-to-have for dragging, not a hard requirement.
+    }
+    clearCallPreviewLongPress();
+    if (typeof window !== "undefined") {
+      callPreviewLongPressTimerRef.current = window.setTimeout(() => {
+        const drag = callPreviewDragRef.current;
+        if (!drag || drag.moved) return;
+        drag.longPressTriggered = true;
+        toggleCallVideoFocus();
+      }, CALL_PREVIEW_SWAP_HOLD_MS);
+    }
+  }
+
+  function handleCallPreviewPointerMove(event) {
+    const drag = callPreviewDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.startClientX;
+    const dy = event.clientY - drag.startClientY;
+    if (Math.hypot(dx, dy) > 8) {
+      drag.moved = true;
+      clearCallPreviewLongPress();
+    }
+    if (!drag.moved) return;
+    event.preventDefault();
+    setCallPreviewPosition(
+      clampCallPreviewPosition(
+        drag.startX + dx,
+        drag.startY + dy,
+        drag.width,
+        drag.height,
+      ),
+    );
+  }
+
+  function handleCallPreviewPointerEnd(event) {
+    const drag = callPreviewDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    try {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
+    clearCallPreviewLongPress();
+    callPreviewDragRef.current = null;
+  }
+
+  function clampMinimizedCallPosition(x, y, width, height) {
+    if (typeof window === "undefined") return { x, y };
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 8;
+    const maxX = vw - width - margin;
+    const maxY = vh - height - margin;
+    return {
+      x: Math.min(Math.max(x, margin), maxX),
+      y: Math.min(Math.max(y, margin), maxY),
+    };
+  }
+
+  function handleMinimizedCallPointerDown(event) {
+    const element = event.currentTarget;
+    const rect = element.getBoundingClientRect();
+    callMinimizedDragRef.current = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: rect.left,
+      startY: rect.top,
+      width: rect.width,
+      height: rect.height,
+      moved: false,
+    };
+    try {
+      element.setPointerCapture?.(event.pointerId);
+    } catch {
+      // Pointer capture is best-effort.
+    }
+  }
+
+  function handleMinimizedCallPointerMove(event) {
+    const drag = callMinimizedDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.startClientX;
+    const dy = event.clientY - drag.startClientY;
+    if (Math.hypot(dx, dy) > 6) {
+      drag.moved = true;
+    }
+    if (!drag.moved) return;
+    event.preventDefault();
+    setCallMinimizedPosition(
+      clampMinimizedCallPosition(
+        drag.startX + dx,
+        drag.startY + dy,
+        drag.width,
+        drag.height,
+      ),
+    );
+  }
+
+  function handleMinimizedCallPointerEnd(event) {
+    const drag = callMinimizedDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    try {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
+    callMinimizedDragRef.current = null;
+  }
+
+  function attachCallVideoElement(videoElement, stream) {
+    if (!videoElement) return;
+    if (videoElement.srcObject !== stream) {
+      videoElement.srcObject = stream || null;
+    }
+    videoElement.muted = true;
+    videoElement.playsInline = true;
+    videoElement.setAttribute?.("playsinline", "");
+    if (stream) {
+      videoElement.play?.().catch(() => null);
+    }
+  }
+
+  async function replaceLocalAudioTrack(deviceId) {
+    setSelectedCallAudioDevice(deviceId);
+    if (!localStreamRef.current || !peerRef.current) return;
+    const nextStream = await navigator.mediaDevices.getUserMedia({
+      audio: buildCallAudioConstraints(deviceId),
+      video: false,
+    });
+    const [nextTrack] = nextStream.getAudioTracks();
+    if (!nextTrack) return;
+
+    const previousTracks = localStreamRef.current.getAudioTracks();
+    const sender = getCallSender("audio");
+    if (sender) {
+      await sender.replaceTrack(nextTrack);
+    } else {
+      peerRef.current.addTrack(nextTrack, localStreamRef.current);
+    }
+    previousTracks.forEach((track) => {
+      localStreamRef.current.removeTrack?.(track);
+      track.stop();
+    });
+    localStreamRef.current.addTrack(nextTrack);
+    syncLocalAudioMute(callMuted);
+    await refreshCallDevices();
+  }
+
+  async function replaceLocalVideoTrack(
+    nextTrack,
+    { screen = false, enabled = callCameraEnabled } = {},
+  ) {
+    if (!nextTrack || !localStreamRef.current || !peerRef.current) return;
+    const previousTracks = localStreamRef.current.getVideoTracks();
+    const sender = getCallSender("video");
+    if (sender) {
+      await sender.replaceTrack(nextTrack);
+    } else {
+      peerRef.current.addTrack(nextTrack, localStreamRef.current);
+    }
+    previousTracks.forEach((track) => {
+      if (track === nextTrack) return;
+      localStreamRef.current.removeTrack?.(track);
+      track.stop();
+    });
+    if (!localStreamRef.current.getVideoTracks().includes(nextTrack)) {
+      localStreamRef.current.addTrack(nextTrack);
+    }
+    nextTrack.enabled = enabled;
+    setCallScreenSharing(screen);
+    updateLocalVideoTrackState();
+  }
+
+  async function restoreCallCamera(deviceId = selectedCallVideoInputIdRef.current) {
+    if (normalizeCallType(callStateRef.current?.callType) !== "video") return;
+    const nextStream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: buildCallVideoConstraints(deviceId),
+    });
+    const [nextTrack] = nextStream.getVideoTracks();
+    if (!nextTrack) return;
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks?.().forEach((track) => track.stop());
+      screenStreamRef.current = null;
+    }
+    await replaceLocalVideoTrack(nextTrack, { screen: false, enabled: true });
+    setCallCameraEnabled(true);
+    await refreshCallDevices();
+  }
+
+  async function replaceCallVideoInput(deviceId) {
+    setSelectedCallVideoDevice(deviceId);
+    await restoreCallCamera(deviceId);
+  }
+
+  async function switchCallCamera() {
+    const videoInputs = callDevices.videoInputs || [];
+    if (videoInputs.length > 1) {
+      const currentId = selectedCallVideoInputIdRef.current;
+      const currentIndex = Math.max(
+        0,
+        videoInputs.findIndex((device) => device.deviceId === currentId),
+      );
+      const nextDevice = videoInputs[(currentIndex + 1) % videoInputs.length];
+      if (nextDevice?.deviceId) {
+        await replaceCallVideoInput(nextDevice.deviceId);
+        return;
+      }
+    }
+    callVideoFacingModeRef.current =
+      callVideoFacingModeRef.current === "user" ? "environment" : "user";
+    setSelectedCallVideoDevice("");
+    await restoreCallCamera("");
+  }
+
+  async function toggleCallCamera() {
+    const videoTrack = localStreamRef.current?.getVideoTracks?.()?.[0];
+    if (!videoTrack || videoTrack.readyState !== "live") {
+      await restoreCallCamera();
+      return;
+    }
+    const nextEnabled = !callCameraEnabled;
+    videoTrack.enabled = nextEnabled;
+    setCallCameraEnabled(nextEnabled);
+  }
+
+  async function toggleCallScreenShare() {
+    if (callScreenSharing) {
+      await restoreCallCamera();
+      return;
+    }
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getDisplayMedia) {
+      updateCallStatus("connected", {
+        error: "Screen sharing is not available in this browser.",
+      });
+      return;
+    }
+    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: false,
+    });
+    const [displayTrack] = displayStream.getVideoTracks();
+    if (!displayTrack) return;
+    screenStreamRef.current = displayStream;
+    displayTrack.onended = () => {
+      if (callStateRef.current?.roomId) {
+        void restoreCallCamera().catch(() => {
+          setCallScreenSharing(false);
+          updateLocalVideoTrackState();
+        });
+      }
+    };
+    await replaceLocalVideoTrack(displayTrack, { screen: true, enabled: true });
+    setCallCameraEnabled(true);
+  }
+
+  function getRingtoneAudioContext() {
+    if (typeof window === "undefined") return null;
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) return null;
+    if (!ringtoneAudioContextRef.current) {
+      ringtoneAudioContextRef.current = new AudioContextCtor();
+    }
+    return ringtoneAudioContextRef.current;
+  }
+
+  async function unlockRingtoneAudio() {
+    const audioContext = getRingtoneAudioContext();
+    if (!audioContext) return;
+    try {
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+    } catch {
+      // Browsers may keep audio locked until a direct user gesture.
+    }
+  }
+
+  function playRingtonePulse() {
+    const audioContext = getRingtoneAudioContext();
+    if (!audioContext) return;
+    if (audioContext.state === "suspended") {
+      void audioContext.resume().catch(() => null);
+      if (audioContext.state === "suspended") return;
+    }
+
+    try {
+      const now = audioContext.currentTime;
+      const gain = audioContext.createGain();
+      const osc = audioContext.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(660, now + 0.14);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.16, now + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.start(now);
+      osc.stop(now + 0.28);
+    } catch {
+      // Ringtone is a best-effort helper; the visual incoming-call card remains.
+    }
+  }
+
+  function stopIncomingRingtone() {
+    ringtoneActiveRef.current = false;
+    ringtoneTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    ringtoneTimersRef.current = [];
+    try {
+      incomingCallNotificationRef.current?.close?.();
+    } catch {
+      // ignore notification cleanup failures
+    }
+    incomingCallNotificationRef.current = null;
+  }
+
+  function startIncomingRingtone() {
+    if (typeof window === "undefined") return;
+    stopIncomingRingtone();
+    ringtoneActiveRef.current = true;
+
+    const scheduleLoop = () => {
+      if (!ringtoneActiveRef.current) return;
+      CALL_RING_PATTERN.forEach((delay) => {
+        const timer = window.setTimeout(() => {
+          if (ringtoneActiveRef.current) playRingtonePulse();
+        }, delay);
+        ringtoneTimersRef.current.push(timer);
+      });
+      const loopTimer = window.setTimeout(scheduleLoop, CALL_RING_LOOP_MS);
+      ringtoneTimersRef.current.push(loopTimer);
+    };
+
+    void unlockRingtoneAudio().finally(scheduleLoop);
+  }
+
+  async function showIncomingCallNotification(payload) {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+    const chatId = Number(payload?.chatId || String(payload?.roomId || "").replace(/^chat-/, ""));
+    const isVideoCall = normalizeCallType(payload?.callType) === "video";
+    const title = `Incoming ${isVideoCall ? "video" : "voice"} call`;
+    const body = `${payload?.callerName || "Someone"} is calling...`;
+    const options = {
+      body,
+      tag: `birdx-call-${payload?.roomId || chatId || "incoming"}`,
+      renotify: true,
+      requireInteraction: true,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: {
+        type: "incoming_call",
+        chatId,
+        callType: normalizeCallType(payload?.callType),
+        roomId: payload?.roomId || "",
+        url: buildCallChatUrl(chatId),
+      },
+    };
+
+    try {
+      if ("serviceWorker" in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration?.showNotification) {
+          await registration.showNotification(title, options);
+          return;
+        }
+      }
+    } catch {
+      // Fall back to a page notification below.
+    }
+
+    try {
+      const notification = new Notification(title, options);
+      notification.onclick = () => {
+        window.focus?.();
+        if (chatId) {
+          window.sessionStorage.setItem(OPEN_CHAT_ID_KEY, String(chatId));
+        }
+      };
+      incomingCallNotificationRef.current = notification;
+    } catch {
+      // ignore local notification failures
+    }
+  }
+
+  function cleanupCallMedia() {
+    releaseCallWakeLock();
+    if (callReconnectTimerRef.current && typeof window !== "undefined") {
+      window.clearTimeout(callReconnectTimerRef.current);
+      callReconnectTimerRef.current = null;
+    }
+    screenStreamRef.current?.getTracks?.().forEach((track) => {
+      try {
+        track.stop();
+      } catch {
+        // ignore screen-share cleanup failures
+      }
+    });
+    screenStreamRef.current = null;
+    localStreamRef.current?.getTracks?.().forEach((track) => {
+      try {
+        track.stop();
+      } catch (error) {
+        console.warn("Failed to stop local call track:", error);
+      }
+    });
+    localStreamRef.current = null;
+    remoteStreamRef.current = null;
+    setCallVideoStreamsReady({ local: false, remote: false });
+    setCallVideoFocus("remote");
+    setCallPreviewPosition(null);
+    setCallMinimized(false);
+    setCallMinimizedPosition(null);
+    setCallControlsVisible(true);
+    setCallCameraEnabled(true);
+    setCallScreenSharing(false);
+    setCallDevicePanelOpen(false);
+    setCallConnectionQuality(DEFAULT_CALL_QUALITY);
+    callStatsSnapshotRef.current = null;
+    clearCallPreviewLongPress();
+    clearCallControlsAutoHide();
+    callPreviewDragRef.current = null;
+    callMinimizedDragRef.current = null;
+
+    [
+      primaryCallVideoRef.current,
+      previewCallVideoRef.current,
+      miniCallVideoRef.current,
+    ].forEach((video) => {
+      if (!video) return;
+      try {
+        video.pause?.();
+        video.srcObject = null;
+      } catch {
+        // ignore video cleanup failures
+      }
+    });
+
+    try {
+      peerRef.current?.close?.();
+    } catch (error) {
+      console.warn("Failed to close peer connection:", error);
+    }
+    peerRef.current = null;
+
+    if (remoteAudioRef.current) {
+      try {
+        remoteAudioRef.current.pause?.();
+        remoteAudioRef.current.srcObject = null;
+      } catch (error) {
+        console.warn("Failed to clear remote audio:", error);
+      }
+      remoteAudioRef.current = null;
+    }
+  }
+
+  function resetCallState() {
+    if (callResetTimerRef.current && typeof window !== "undefined") {
+      window.clearTimeout(callResetTimerRef.current);
+      callResetTimerRef.current = null;
+    }
+    cleanupCallMedia();
+    stopIncomingRingtone();
+    pendingOfferRef.current = null;
+    pendingAnswerRef.current = null;
+    pendingIceCandidatesRef.current = [];
+    setCallMuted(false);
+    setCallDurationSeconds(0);
+    setSyncedIncomingCall(null);
+    setSyncedCallState(null);
+  }
+
+  function scheduleCallReset(delayMs = 2200) {
+    if (typeof window === "undefined") {
+      resetCallState();
+      return;
+    }
+    if (callResetTimerRef.current) {
+      window.clearTimeout(callResetTimerRef.current);
+    }
+    callResetTimerRef.current = window.setTimeout(() => {
+      callResetTimerRef.current = null;
+      resetCallState();
+    }, delayMs);
+  }
+
+  function validateMicrophoneSupport(callType = "voice") {
+    const isVideoCall = normalizeCallType(callType) === "video";
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error(
+        `${isVideoCall ? "Camera and microphone APIs are" : "Microphone API is"} not available in this browser.`,
+      );
+    }
+    if (typeof window !== "undefined") {
+      const { hostname, protocol } = window.location;
+      if (protocol !== "https:" && !isLoopbackHost(hostname)) {
+        throw new Error(`${isVideoCall ? "Video" : "Voice"} calls require HTTPS or localhost.`);
+      }
+    }
+    if (typeof RTCPeerConnection === "undefined") {
+      throw new Error("WebRTC is not available in this browser.");
+    }
+  }
+
+  async function flushPendingIceCandidates() {
+    const peer = peerRef.current;
+    if (!peer?.remoteDescription || !pendingIceCandidatesRef.current.length) {
+      return;
+    }
+    const queuedCandidates = [...pendingIceCandidatesRef.current];
+    pendingIceCandidatesRef.current = [];
+    for (const candidate of queuedCandidates) {
+      try {
+        await peer.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (error) {
+        console.warn("Queued ICE candidate failed:", error);
+      }
+    }
+  }
+
+  async function createAndSendOffer(roomId, options = {}) {
+    const peer = peerRef.current;
+    const socket = socketRef.current;
+    if (!peer || !socket || !roomId) return;
+    if (peer.signalingState !== "stable") return;
+
+    const offer = await peer.createOffer(
+      options.iceRestart ? { iceRestart: true } : undefined,
+    );
+    await peer.setLocalDescription(offer);
+    socket.emit("offer", {
+      roomId,
+      offer: peer.localDescription || offer,
+    });
+    updateCallStatus("connecting");
+  }
+
+  async function restartCallIce(roomId) {
+    const peer = peerRef.current;
+    if (!peer || !roomId) return;
+    try {
+      peer.restartIce?.();
+      if (callStateRef.current?.isCaller) {
+        await createAndSendOffer(roomId, { iceRestart: true });
+      }
+    } catch (error) {
+      console.warn("ICE restart failed:", error);
+    }
+  }
+
+  function scheduleCallReconnectEnd(roomId) {
+    if (typeof window === "undefined") return;
+    if (callReconnectTimerRef.current) {
+      window.clearTimeout(callReconnectTimerRef.current);
+    }
+    callReconnectTimerRef.current = window.setTimeout(() => {
+      callReconnectTimerRef.current = null;
+      if (callStateRef.current?.roomId !== roomId) return;
+      if (callStateRef.current?.status !== "reconnecting") return;
+      updateCallStatus("ended", { error: "Call connection was lost." });
+      scheduleCallReset(1600);
+    }, 12000);
+  }
+
+  async function handleIncomingAnswer(answer) {
+    const peer = peerRef.current;
+    if (!answer) return;
+    if (!peer || peer.signalingState !== "have-local-offer") {
+      pendingAnswerRef.current = answer;
+      return;
+    }
+    await peer.setRemoteDescription(new RTCSessionDescription(answer));
+    await flushPendingIceCandidates();
+  }
+
+  async function flushPendingAnswer() {
+    if (!pendingAnswerRef.current) return;
+    const answer = pendingAnswerRef.current;
+    pendingAnswerRef.current = null;
+    await handleIncomingAnswer(answer);
+  }
+
+  async function handleIncomingOffer(offer) {
+    const peer = peerRef.current;
+    const roomId = callStateRef.current?.roomId || incomingCallRef.current?.roomId;
+    if (!offer) return;
+    if (!peer || !roomId) {
+      pendingOfferRef.current = offer;
+      return;
+    }
+    if (peer.signalingState !== "stable") {
+      pendingOfferRef.current = offer;
+      return;
+    }
+
+    await peer.setRemoteDescription(new RTCSessionDescription(offer));
+    await flushPendingIceCandidates();
+    const answer = await peer.createAnswer();
+    await peer.setLocalDescription(answer);
+    socketRef.current?.emit?.("answer", {
+      roomId,
+      answer: peer.localDescription || answer,
+    });
+    updateCallStatus("connecting");
+  }
+
+  async function flushPendingOffer() {
+    if (!pendingOfferRef.current) return;
+    const offer = pendingOfferRef.current;
+    pendingOfferRef.current = null;
+    await handleIncomingOffer(offer);
+  }
+
+  async function handleRemoteIceCandidate(candidate) {
+    if (!candidate) return;
+    const peer = peerRef.current;
+    if (!peer?.remoteDescription) {
+      pendingIceCandidatesRef.current.push(candidate);
+      return;
+    }
+    await peer.addIceCandidate(new RTCIceCandidate(candidate));
+  }
+
+  async function prepareCallPeer(roomId, callType = "voice") {
+    const normalizedCallType = normalizeCallType(callType || callStateRef.current?.callType);
+    const isVideoCall = normalizedCallType === "video";
+    validateMicrophoneSupport(normalizedCallType);
+    ensureRemoteAudioElement();
+
+    const existingPeer = peerRef.current;
+    const hasLiveAudio = localStreamRef.current
+      ?.getAudioTracks?.()
+      ?.some((track) => track.readyState === "live");
+    const hasLiveVideo = streamHasLiveVideo(localStreamRef.current);
+    if (
+      existingPeer &&
+      existingPeer.connectionState !== "closed" &&
+      hasLiveAudio &&
+      (!isVideoCall || hasLiveVideo)
+    ) {
+      return existingPeer;
+    }
+
+    cleanupCallMedia();
+    ensureRemoteAudioElement();
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: buildCallAudioConstraints(),
+      video: isVideoCall ? buildCallVideoConstraints() : false,
+    });
+    localStreamRef.current = stream;
+    const audioDeviceId = stream.getAudioTracks?.()?.[0]?.getSettings?.()?.deviceId;
+    const videoDeviceId = stream.getVideoTracks?.()?.[0]?.getSettings?.()?.deviceId;
+    if (audioDeviceId) {
+      setSelectedCallAudioDevice(audioDeviceId);
+    }
+    if (videoDeviceId) {
+      setSelectedCallVideoDevice(videoDeviceId);
+    }
+    setCallVideoStreamsReady({
+      local: isVideoCall && streamHasLiveVideo(stream),
+      remote: false,
+    });
+    setMicrophonePermission("granted");
+    syncLocalAudioMute(callMuted);
+
+    const peer = new RTCPeerConnection({
+      iceServers: CALL_ICE_SERVERS,
+      iceCandidatePoolSize: 4,
+    });
+    peerRef.current = peer;
+
+    setCallCameraEnabled(true);
+    setCallScreenSharing(false);
+    void refreshCallDevices();
+
+    stream.getTracks().forEach((track) => {
+      peer.addTrack(track, stream);
+    });
+
+    peer.onicecandidate = (event) => {
+      const activeRoomId = callStateRef.current?.roomId || roomId;
+      if (!event.candidate || !activeRoomId) return;
+      socketRef.current?.emit?.("ice-candidate", {
+        roomId: activeRoomId,
+        candidate: event.candidate,
+      });
+    };
+
+    peer.ontrack = (event) => {
+      const [remoteStream] = event.streams || [];
+      if (!remoteStream) return;
+      remoteStreamRef.current = remoteStream;
+      if (streamHasLiveVideo(remoteStream)) {
+        setCallVideoStreamsReady((prev) => ({ ...prev, remote: true }));
+      }
+      const audio = ensureRemoteAudioElement();
+      if (!audio) return;
+      audio.muted = false;
+      audio.volume = 1;
+      audio.srcObject = remoteStream;
+      audio.play?.().catch((error) => {
+        console.warn("Remote audio playback was blocked:", error);
+        updateCallStatus("connected", {
+          playbackBlocked: true,
+          error: "Tap the call card once if you cannot hear audio.",
+        });
+      });
+      updateCallStatus("connected");
+    };
+
+    peer.onconnectionstatechange = () => {
+      const state = peer.connectionState;
+      const activeRoomId = callStateRef.current?.roomId || roomId;
+      if (state === "connected") {
+        if (callReconnectTimerRef.current && typeof window !== "undefined") {
+          window.clearTimeout(callReconnectTimerRef.current);
+          callReconnectTimerRef.current = null;
+        }
+        updateCallStatus("connected");
+      } else if (state === "disconnected") {
+        updateCallStatus("reconnecting");
+        scheduleCallReconnectEnd(activeRoomId);
+      } else if (state === "failed" || state === "closed") {
+        updateCallStatus("reconnecting");
+        scheduleCallReconnectEnd(activeRoomId);
+        void restartCallIce(activeRoomId);
+      }
+    };
+
+    peer.oniceconnectionstatechange = () => {
+      const state = peer.iceConnectionState;
+      const activeRoomId = callStateRef.current?.roomId || roomId;
+      if (state === "connected" || state === "completed") {
+        if (callReconnectTimerRef.current && typeof window !== "undefined") {
+          window.clearTimeout(callReconnectTimerRef.current);
+          callReconnectTimerRef.current = null;
+        }
+        updateCallStatus("connected");
+      } else if (state === "disconnected") {
+        updateCallStatus("reconnecting");
+        scheduleCallReconnectEnd(activeRoomId);
+      } else if (state === "failed" || state === "closed") {
+        updateCallStatus("reconnecting");
+        scheduleCallReconnectEnd(activeRoomId);
+        void restartCallIce(activeRoomId);
+      }
+    };
+
+    await flushPendingOffer();
+    await flushPendingAnswer();
+    await flushPendingIceCandidates();
+    return peer;
+  }
+
+  async function startOutgoingCall(callType = "voice") {
+    const normalizedCallType = normalizeCallType(callType);
+    const chatId = Number(activeChatIdRef.current || activeChatId || 0);
+    if (!chatId || callStateRef.current) return;
+
+    const socket = socketRef.current;
+    const roomId = `chat-${chatId}`;
+    const peerName = activeFallbackTitle || activeHeaderAvatar?.nickname || "Contact";
+    const nextState = {
+      roomId,
+      chatId,
+      isCaller: true,
+      callType: normalizedCallType,
+      status: "preparing",
+      peerName,
+      error: "",
+    };
+
+    setSyncedIncomingCall(null);
+    setSyncedCallState(nextState);
+    setCallMuted(false);
+    setCallDurationSeconds(0);
+
+    try {
+      if (!socket?.connected) {
+        throw new Error("Call service is not connected yet.");
+      }
+      joinCallRoom(roomId, socket);
+      await prepareCallPeer(roomId, normalizedCallType);
+      socket.emit("call-user", {
+        roomId,
+        chatId,
+        callType: normalizedCallType,
+        callerUserId: user?.id || null,
+        callerUsername: user?.username || "",
+        callerName: user?.nickname || user?.username || "Someone",
+      });
+      updateCallStatus("calling");
+    } catch (error) {
+      console.error("Start call failed:", error);
+      if (String(error?.name || "") === "NotAllowedError") {
+        setMicrophonePermission("denied");
+      }
+      updateCallStatus("error", { error: getCallErrorMessage(error, normalizedCallType) });
+      scheduleCallReset(2600);
+    }
+  }
+
+  async function acceptIncomingCall() {
+    const payload = incomingCallRef.current;
+    const roomId = payload?.roomId;
+    if (!roomId || callStateRef.current) return;
+
+    stopIncomingRingtone();
+    setSyncedIncomingCall(null);
+    setSyncedCallState({
+      roomId,
+      chatId: Number(String(roomId).replace(/^chat-/, "")) || null,
+      isCaller: false,
+      callType: normalizeCallType(payload?.callType),
+      status: "connecting",
+      peerName: payload?.callerName || "Caller",
+      error: "",
+    });
+    setCallMuted(false);
+    setCallDurationSeconds(0);
+
+    try {
+      const socket = socketRef.current;
+      if (!socket?.connected) {
+        throw new Error("Call service is not connected yet.");
+      }
+      joinCallRoom(roomId, socket);
+      await prepareCallPeer(roomId, payload?.callType);
+      socket.emit("accept-call", { roomId, userId: user?.id || null });
+      updateCallStatus("connecting", { startedAt: Date.now() });
+      await flushPendingOffer();
+    } catch (error) {
+      console.error("Accept call failed:", error);
+      if (String(error?.name || "") === "NotAllowedError") {
+        setMicrophonePermission("denied");
+      }
+      socketRef.current?.emit?.("reject-call", { roomId, userId: user?.id || null });
+      updateCallStatus("error", { error: getCallErrorMessage(error, payload?.callType) });
+      scheduleCallReset(2600);
+    }
+  }
+
+  function rejectIncomingCall() {
+    const roomId = incomingCallRef.current?.roomId;
+    if (roomId) {
+      socketRef.current?.emit?.("reject-call", { roomId, userId: user?.id || null });
+    }
+    stopIncomingRingtone();
+    setSyncedIncomingCall(null);
+  }
+
+  function endActiveCall() {
+    const roomId = callStateRef.current?.roomId;
+    if (roomId) {
+      socketRef.current?.emit?.("leave-call", { roomId, userId: user?.id || null });
+    }
+    updateCallStatus("ended");
+    scheduleCallReset(450);
+  }
+
+  useEffect(() => {
+    callStateRef.current = callState;
+  }, [callState]);
+
+  useEffect(() => {
+    incomingCallRef.current = incomingCall;
+  }, [incomingCall]);
+
+  useEffect(() => {
+    selectedCallAudioInputIdRef.current = selectedCallAudioInputId;
+  }, [selectedCallAudioInputId]);
+
+  useEffect(() => {
+    selectedCallVideoInputIdRef.current = selectedCallVideoInputId;
+  }, [selectedCallVideoInputId]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices) return undefined;
+    void refreshCallDevices();
+    const handleDeviceChange = () => {
+      void refreshCallDevices();
+    };
+    navigator.mediaDevices.addEventListener?.("devicechange", handleDeviceChange);
+    return () => {
+      navigator.mediaDevices.removeEventListener?.("devicechange", handleDeviceChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (normalizeCallType(callState?.callType) !== "video") {
+      attachCallVideoElement(primaryCallVideoRef.current, null);
+      attachCallVideoElement(previewCallVideoRef.current, null);
+      attachCallVideoElement(miniCallVideoRef.current, null);
+      return;
+    }
+    const primaryStream =
+      callVideoFocus === "local" ? localStreamRef.current : remoteStreamRef.current;
+    const previewStream =
+      callVideoFocus === "local" ? remoteStreamRef.current : localStreamRef.current;
+    attachCallVideoElement(primaryCallVideoRef.current, primaryStream);
+    attachCallVideoElement(previewCallVideoRef.current, previewStream);
+    attachCallVideoElement(
+      miniCallVideoRef.current,
+      remoteStreamRef.current || localStreamRef.current,
+    );
+  }, [
+    callState?.roomId,
+    callState?.callType,
+    callMinimized,
+    callVideoFocus,
+    callVideoStreamsReady.local,
+    callVideoStreamsReady.remote,
+  ]);
+
+  useEffect(() => {
+    if (!callPreviewPosition || typeof window === "undefined") return undefined;
+    const clampPosition = () => {
+      const previewElement = previewCallVideoRef.current?.parentElement;
+      const previewRect = previewElement?.getBoundingClientRect?.();
+      if (!previewRect) return;
+      setCallPreviewPosition((prev) => {
+        if (!prev) return prev;
+        return clampCallPreviewPosition(
+          prev.x,
+          prev.y,
+          previewRect.width,
+          previewRect.height,
+        );
+      });
+    };
+    window.addEventListener("resize", clampPosition);
+    return () => window.removeEventListener("resize", clampPosition);
+  }, [callPreviewPosition]);
+
+  useEffect(() => {
+    clearCallControlsAutoHide();
+    if (!callState?.roomId || normalizeCallType(callState?.callType) !== "video") {
+      setCallControlsVisible(true);
+      return undefined;
+    }
+    setCallControlsVisible(true);
+    if (!callMinimized && !callDevicePanelOpen) {
+      scheduleCallControlsAutoHide();
+    }
+    return () => clearCallControlsAutoHide();
+  }, [callState?.roomId, callState?.callType, callMinimized, callDevicePanelOpen]);
+
+  useEffect(() => {
+    if (!callState?.roomId || typeof window === "undefined") {
+      setCallConnectionQuality(DEFAULT_CALL_QUALITY);
+      callStatsSnapshotRef.current = null;
+      return undefined;
+    }
+
+    let active = true;
+    const sampleQuality = async () => {
+      const peer = peerRef.current;
+      if (!active || !peer?.getStats) return;
+      try {
+        const stats = await peer.getStats();
+        let bytesReceived = 0;
+        let timestamp = 0;
+        let rttMs = null;
+        let packetsLost = 0;
+        let packetsReceived = 0;
+        const wantsVideoStats = normalizeCallType(callStateRef.current?.callType) === "video";
+
+        stats.forEach((report) => {
+          const kind = report.kind || report.mediaType || "";
+          if (
+            report.type === "inbound-rtp" &&
+            !report.isRemote &&
+            (kind === "audio" || kind === "video") &&
+            (!wantsVideoStats || kind === "video")
+          ) {
+            bytesReceived += Number(report.bytesReceived || 0);
+            timestamp = Math.max(timestamp, Number(report.timestamp || 0));
+            packetsLost += Math.max(0, Number(report.packetsLost || 0));
+            packetsReceived += Math.max(0, Number(report.packetsReceived || 0));
+          }
+          if (
+            report.type === "candidate-pair" &&
+            (report.selected || report.nominated) &&
+            (report.state === "succeeded" || report.writable)
+          ) {
+            const rtt = Number(report.currentRoundTripTime || 0);
+            if (rtt > 0) {
+              rttMs = Math.round(rtt * 1000);
+            }
+          }
+        });
+
+        const previous = callStatsSnapshotRef.current;
+        const bitrateKbps =
+          previous && timestamp > previous.timestamp
+            ? Math.max(
+                0,
+                Math.round(((bytesReceived - previous.bytesReceived) * 8) / (timestamp - previous.timestamp)),
+              )
+            : null;
+        callStatsSnapshotRef.current = { bytesReceived, timestamp };
+
+        const packetTotal = packetsReceived + packetsLost;
+        const lossRatio = packetTotal > 0 ? packetsLost / packetTotal : 0;
+        let level = "good";
+        let label = "Good";
+        if (
+          (rttMs !== null && rttMs > 650) ||
+          lossRatio > 0.08 ||
+          (wantsVideoStats && bitrateKbps !== null && bitrateKbps < 120)
+        ) {
+          level = "poor";
+          label = "Poor";
+        } else if (
+          (rttMs !== null && rttMs > 280) ||
+          lossRatio > 0.03 ||
+          (wantsVideoStats && bitrateKbps !== null && bitrateKbps < 350)
+        ) {
+          level = "fair";
+          label = "Fair";
+        }
+        if (bitrateKbps === null && rttMs === null) {
+          level = "checking";
+          label = "Checking";
+        }
+        if (active) {
+          setCallConnectionQuality({
+            level,
+            label,
+            bitrateKbps,
+            rttMs,
+          });
+        }
+      } catch {
+        if (active) {
+          setCallConnectionQuality(DEFAULT_CALL_QUALITY);
+        }
+      }
+    };
+
+    void sampleQuality();
+    const timer = window.setInterval(sampleQuality, 3000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [callState?.roomId, callState?.callType]);
+
+  useEffect(() => {
+    if (incomingCall) {
+      startIncomingRingtone();
+      void showIncomingCallNotification(incomingCall);
+      return () => stopIncomingRingtone();
+    }
+    stopIncomingRingtone();
+    return undefined;
+  }, [incomingCall?.roomId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const unlock = () => {
+      void unlockRingtoneAudio();
+    };
+    window.addEventListener("pointerdown", unlock, { passive: true });
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  useEffect(() => {
+    activeChatIdRef.current = activeChatId;
+  }, [activeChatId]);
+
+  useEffect(() => {
+    chatsRef.current = chats;
+    joinKnownCallRooms();
+  }, [chats]);
+
+  useEffect(() => {
+    if (!callState?.startedAt) {
+      setCallDurationSeconds(0);
+      return undefined;
+    }
+    const syncDuration = () => {
+      const startedAt = Number(callStateRef.current?.startedAt || 0);
+      if (!startedAt) {
+        setCallDurationSeconds(0);
+        return;
+      }
+      setCallDurationSeconds(
+        Math.max(0, Math.floor((Date.now() - startedAt) / 1000)),
+      );
+    };
+    syncDuration();
+    const timer = window.setInterval(syncDuration, 1000);
+    return () => window.clearInterval(timer);
+  }, [callState?.startedAt]);
 
   useEffect(() => {
     setReplyTarget(null);
@@ -357,6 +2019,176 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     setForwardMessageTarget(null);
     setForwardSavedChat(null);
   }, [activeChatId]);
+
+  useEffect(() => {
+    const socket = io(resolveSocketOrigin(), {
+      path: "/socket.io/",
+      transports: ["websocket", "polling"],
+      withCredentials: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      timeout: 10000,
+    });
+
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      joinedCallRoomsRef.current.clear();
+      joinKnownCallRooms(socket);
+      const activeRoomId = callStateRef.current?.roomId;
+      if (activeRoomId) {
+        socket.emit("resume-call", { roomId: activeRoomId });
+      }
+    });
+
+    socket.on("connect_error", (error) => {
+      console.warn("Call socket connection failed:", error?.message || error);
+      if (callStateRef.current) {
+        updateCallStatus("error", {
+          error: "Call service is not reachable.",
+        });
+      }
+    });
+
+    socket.on("incoming-call", (payload) => {
+      if (!payload?.roomId || payload?.callerSocketId === socket.id) return;
+      const activeRoomId = callStateRef.current?.roomId;
+      if (activeRoomId && activeRoomId !== payload.roomId) {
+        socket.emit("reject-call", { roomId: payload.roomId, userId: user?.id || null });
+        return;
+      }
+      if (activeRoomId === payload.roomId) return;
+      setSyncedIncomingCall({
+        ...payload,
+        chatId: Number(payload?.chatId || String(payload.roomId).replace(/^chat-/, "")) || null,
+        callType: normalizeCallType(payload?.callType),
+        status: "ringing",
+      });
+    });
+
+    socket.on("call-ended", (payload) => {
+      const roomId = payload?.roomId;
+      if (!roomId || callStateRef.current?.roomId === roomId) {
+        updateCallStatus("ended");
+        scheduleCallReset(900);
+      }
+      if (incomingCallRef.current?.roomId === roomId) {
+        stopIncomingRingtone();
+        setSyncedIncomingCall(null);
+      }
+    });
+
+    socket.on("call-rejected", (payload) => {
+      const roomId = payload?.roomId;
+      if (!roomId || callStateRef.current?.roomId === roomId) {
+        updateCallStatus("ended", { error: "Call was rejected." });
+        scheduleCallReset(1400);
+      }
+      if (incomingCallRef.current?.roomId === roomId) {
+        stopIncomingRingtone();
+        setSyncedIncomingCall(null);
+      }
+    });
+
+    socket.on("call-accepted", async (payload) => {
+      const roomId = payload?.roomId || callStateRef.current?.roomId;
+      if (!roomId || callStateRef.current?.roomId !== roomId) return;
+      if (!callStateRef.current?.isCaller) return;
+      try {
+        await prepareCallPeer(roomId, callStateRef.current?.callType);
+        await createAndSendOffer(roomId);
+        updateCallStatus("connecting", { startedAt: Date.now() });
+      } catch (error) {
+        console.error("Create offer failed:", error);
+        updateCallStatus("error", {
+          error: getCallErrorMessage(error, callStateRef.current?.callType),
+        });
+        scheduleCallReset(2600);
+      }
+    });
+
+    socket.on("offer", async (offer) => {
+      try {
+        await handleIncomingOffer(offer);
+      } catch (error) {
+        console.error("Offer handling failed:", error);
+        updateCallStatus("error", {
+          error: getCallErrorMessage(error, callStateRef.current?.callType),
+        });
+        scheduleCallReset(2600);
+      }
+    });
+
+    socket.on("answer", async (answer) => {
+      try {
+        await handleIncomingAnswer(answer);
+      } catch (error) {
+        console.error("Answer handling failed:", error);
+        updateCallStatus("error", {
+          error: getCallErrorMessage(error, callStateRef.current?.callType),
+        });
+        scheduleCallReset(2600);
+      }
+    });
+
+    socket.on("ice-candidate", async (candidate) => {
+      try {
+        await handleRemoteIceCandidate(candidate);
+      } catch (error) {
+        console.warn("ICE candidate failed:", error);
+      }
+    });
+
+    return () => {
+      socket.off("connect");
+      socket.off("connect_error");
+      socket.off("incoming-call");
+      socket.off("call-ended");
+      socket.off("call-rejected");
+      socket.off("call-accepted");
+      socket.off("offer");
+      socket.off("answer");
+      socket.off("ice-candidate");
+      socket.disconnect();
+      socketRef.current = null;
+      resetCallState();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeChatId) return;
+    joinCallRoom(`chat-${activeChatId}`);
+  }, [activeChatId]);
+
+  useEffect(() => {
+    if (!callState?.roomId) {
+      releaseCallWakeLock();
+      return undefined;
+    }
+
+    void requestCallWakeLock();
+    const restoreCallAudio = () => {
+      if (!callStateRef.current?.roomId) return;
+      void requestCallWakeLock();
+      replayRemoteAudio();
+      const roomId = callStateRef.current?.roomId;
+      if (roomId && socketRef.current?.connected) {
+        socketRef.current.emit("resume-call", { roomId });
+      }
+    };
+
+    window.addEventListener("focus", restoreCallAudio);
+    window.addEventListener("pageshow", restoreCallAudio);
+    document.addEventListener("visibilitychange", restoreCallAudio);
+    return () => {
+      window.removeEventListener("focus", restoreCallAudio);
+      window.removeEventListener("pageshow", restoreCallAudio);
+      document.removeEventListener("visibilitychange", restoreCallAudio);
+      if (!callStateRef.current?.roomId) {
+        releaseCallWakeLock();
+      }
+    };
+  }, [callState?.roomId]);
 
   useEffect(() => {
     if (lazyChunksPreloadedRef.current) return;
@@ -534,9 +2366,9 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   useEffect(() => {
     if (!isMobileViewport) return;
     if (activeChatId) {
-      window.dispatchEvent(new Event("songbird-hide-install-bar"));
+      window.dispatchEvent(new Event("birdx-hide-install-bar"));
     } else {
-      window.dispatchEvent(new Event("songbird-show-install-bar"));
+      window.dispatchEvent(new Event("birdx-show-install-bar"));
     }
   }, [activeChatId, isMobileViewport]);
   const [microphonePermission, setMicrophonePermission] = useState("unknown");
@@ -734,7 +2566,6 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
 
   const settingsMenuRef = useRef(null);
   const settingsButtonRef = useRef(null);
-  const activeChatIdRef = useRef(null);
   const activeChatTypeRef = useRef(null);
   const sseReconnectRef = useRef(null);
   const isMarkingReadRef = useRef(false);
@@ -1042,7 +2873,8 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       }
     }
     if (String(targetChat.type || "").toLowerCase() === "dm") {
-      const peer = (targetChat.members || []).find(
+      const targetMembers = Array.isArray(targetChat.members) ? targetChat.members : [];
+      const peer = targetMembers.find(
         (member) =>
           String(member?.username || "").toLowerCase() !==
           String(user?.username || "").toLowerCase(),
@@ -1220,6 +3052,9 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     setUserScrolledUp,
   });
 
+useEffect(() => {
+  activeChatIdRef.current = activeChatId;
+}, [activeChatId]);
 
   useEffect(() => {
     pendingUploadFilesRef.current = pendingUploadFiles;
@@ -1275,9 +3110,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       if (pendingVoiceMessageRef.current?.previewUrl) {
         URL.revokeObjectURL(pendingVoiceMessageRef.current.previewUrl);
       }
-      if (pendingGroupAvatarFile?.previewUrl) {
-        URL.revokeObjectURL(pendingGroupAvatarFile.previewUrl);
-      }
+      revokeObjectUrlSafe(pendingGroupAvatarFile?.previewUrl);
       messageBlobUrlsRef.current.forEach((url) => {
         try {
           URL.revokeObjectURL(url);
@@ -1311,10 +3144,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       if (!isActive || !idbCached) return;
       if (!Array.isArray(idbCached.chats) || idbCached.chats.length === 0)
         return;
-      const normalizedCached = idbCached.chats.map((chat) => ({
-        ...chat,
-        last_message: normalizeMessageBody(chat.last_message),
-      }));
+      const normalizedCached = idbCached.chats.map(normalizeChatSummary);
       setChats((prev) => (prev.length ? prev : normalizedCached));
       setLoadingChats(false);
     })();
@@ -1406,8 +3236,8 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
 
     document.title =
       totalUnreadCount > 0
-        ? `Songbird | ${totalUnread} new message${totalUnread === 1 ? "" : "s"}`
-        : "Songbird";
+        ? `BirdX | ${totalUnread} new message${totalUnread === 1 ? "" : "s"}`
+        : "BirdX";
     if (navigator?.setAppBadge) {
       if (totalUnreadCount > 0) {
         navigator.setAppBadge(totalUnreadCount).catch(() => null);
@@ -1470,12 +3300,75 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       let cached = readMessagesCacheMemory(messagesCacheRef.current, openedChatId) || null;
       // IDB async load below will hydrate if needed.
       const hasCachedMessages = Array.isArray(cached?.messages) && cached.messages.length > 0;
+      const fallbackLastMessage = (() => {
+        if (hasCachedMessages || !openedChat) return null;
+        const body = normalizeMessageBody(openedChat?.last_message).trim();
+        const messageId = Number(openedChat?.last_message_id || 0);
+        if (!body || !messageId) return null;
+        const members = Array.isArray(openedChat?.members) ? openedChat.members : [];
+        const senderUsername = String(openedChat?.last_sender_username || "").trim();
+        const sender = senderUsername
+          ? members.find(
+              (member) =>
+                String(member?.username || "").toLowerCase() ===
+                senderUsername.toLowerCase(),
+            )
+          : null;
+        const createdAt = openedChat?.last_time || new Date().toISOString();
+        const senderId =
+          Number(openedChat?.last_sender_id || sender?.id || 0) || null;
+        const isFromSelf =
+          senderId === Number(user.id || 0) ||
+          String(senderUsername || "").toLowerCase() ===
+            String(user.username || "").toLowerCase();
+        return {
+          id: messageId,
+          _serverId: messageId,
+          body,
+          edited: 0,
+          edited_body: null,
+          created_at: createdAt,
+          expiresAt: null,
+          files: Array.isArray(openedChat?.last_message_files)
+            ? openedChat.last_message_files
+            : [],
+          read_at: openedChat?.last_message_read_at || null,
+          read_by_user_id: openedChat?.last_message_read_by_user_id || null,
+          read_by_me: isFromSelf,
+          _readByMe: isFromSelf,
+          user_id: senderId,
+          username: senderUsername || sender?.username || "",
+          nickname:
+            openedChat?.last_sender_nickname ||
+            sender?.nickname ||
+            senderUsername ||
+            openedChat?.name ||
+            "",
+          avatar_url:
+            openedChat?.last_sender_avatar_url || sender?.avatar_url || "",
+          color: sender?.color || openedChat?.group_color || "#10b981",
+          replyTo: null,
+          reactions: [],
+          seenCount: 1,
+          _dayKey: formatDayKey(createdAt),
+          _dayLabel: formatDayLabel(createdAt),
+          _timeLabel: formatTime(createdAt),
+          _processingPending: false,
+          _systemEvent: null,
+        };
+      })();
       openingHadUnreadRef.current = Boolean((openedChat?.unread_count || 0) > 0);
       openingUnreadCountRef.current = Number(openedChat?.unread_count || 0);
       isAtBottomRef.current = true;
       setIsAtBottom(true);
       setLoadingMessages(!hasCachedMessages);
-      setMessages(hasCachedMessages ? normalizeMessagesForRender(cached.messages) : []);
+      setMessages(
+        hasCachedMessages
+          ? normalizeMessagesForRender(cached.messages)
+          : fallbackLastMessage
+            ? [fallbackLastMessage]
+            : [],
+      );
       setHasOlderMessages(Boolean(cached?.hasOlderMessages));
       setLoadingOlderMessages(false);
       lastMessageIdRef.current = Number(cached?.lastMessageId || 0) || null;
@@ -1706,6 +3599,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     unreadAnchorLockUntilRef,
     shouldAutoMarkReadRef,
     allowStartReachedRef,
+    formatDayKey,
     formatDayLabel,
     formatTime,
     parseServerDate,
@@ -2030,7 +3924,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     const text = String(value || "").trim();
     if (!text) return "";
     if (text.length <= maxChars) return text;
-    return `${text.slice(0, Math.max(1, maxChars - 1)).trimEnd()}…`;
+    return `${text.slice(0, Math.max(1, maxChars - 1)).trimEnd()}\u2026`;
   }, []);
   const typingIndicator = useMemo(() => {
     if (!activeTypingUsers.length) return null;
@@ -2232,19 +4126,16 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     (message) => {
       if (String(activeChat?.type || "").toLowerCase() === "saved") return false;
       const messageAuthor = String(message?.username || "").toLowerCase();
-      const currentUsername = String(user?.username || "").toLowerCase();
       if (!messageAuthor) return false;
-      if (messageAuthor === currentUsername) return true;
+      if (isMessageAuthoredByUser(message, user)) return true;
       return canCurrentUserEditGroup;
     },
-    [activeChat?.type, canCurrentUserEditGroup, user?.username],
+    [activeChat?.type, canCurrentUserEditGroup, user],
   );
 
   const canEditMessageFromContext = useCallback(
-    (message) =>
-      String(message?.username || "").toLowerCase() ===
-      String(user?.username || "").toLowerCase(),
-    [user?.username],
+    (message) => isMessageAuthoredByUser(message, user),
+    [user],
   );
 
   function handleDeleteMessageRequest(message, _options = {}) {
@@ -2431,7 +4322,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         if (Number(chat?.id) !== Number(activeChat?.id)) return chat;
         return {
           ...chat,
-          members: (chat.members || []).map((member) => {
+          members: (Array.isArray(chat.members) ? chat.members : []).map((member) => {
             const username = String(member?.username || "").toLowerCase();
             const snapshot = presenceStateRef.current.get(username);
             const nextStatus = snapshot
@@ -2812,10 +4703,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       }
       const chat = chats.find((conv) => Number(conv.id) === payloadChatId);
       if (chat?._muted) return;
+      const chatMembers = Array.isArray(chat?.members) ? chat.members : [];
       let title = "New message";
       if (chat) {
         if (chat.type === "dm") {
-          const other = (chat.members || []).find(
+          const other = chatMembers.find(
             (member) => member.username !== user?.username,
           );
           title = other?.nickname || other?.username || "Deleted account";
@@ -2823,7 +4715,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
           const groupName = chat.name || "Group";
           const senderLabel = senderName
             ? (() => {
-                const senderMember = (chat.members || []).find(
+                const senderMember = chatMembers.find(
                   (member) =>
                     String(member?.username || "").toLowerCase() ===
                     String(senderName || "").toLowerCase(),
@@ -3319,8 +5211,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             );
           }
           const createdAt = pendingMessage?._createdAt || new Date().toISOString();
-          const pendingDate = parseServerDate(createdAt);
-          const pendingDayKey = `${pendingDate.getFullYear()}-${pendingDate.getMonth()}-${pendingDate.getDate()}`;
+          const pendingDayKey = formatDayKey(createdAt);
           const pendingBody = String(pendingMessage?.body || "").trim();
           const messageFiles = files.map((file) => ({
             id: file.id,
@@ -3591,15 +5482,9 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       if (!res.ok) {
         throw new Error(data?.error || "Failed to load chats.");
       }
-      const list = (data.chats || []).map((conv) => ({
-        ...conv,
-        id: Number(conv.id),
-        last_message: normalizeMessageBody(conv.last_message),
-        members: (conv.members || []).map((member) => ({
-          ...member,
-          id: Number(member.id),
-        })),
-      }));
+      const list = (Array.isArray(data.chats) ? data.chats : []).map(
+        normalizeChatSummary,
+      );
       list.sort((a, b) => {
         const aTime = a.last_time ? parseServerDate(a.last_time).getTime() : 0;
         const bTime = b.last_time ? parseServerDate(b.last_time).getTime() : 0;
@@ -3612,7 +5497,8 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
           deduped.push(chat);
           return;
         }
-        const peer = (chat.members || []).find(
+        const members = Array.isArray(chat.members) ? chat.members : [];
+        const peer = members.find(
           (member) => member.username !== user.username,
         );
         const peerKey = (peer?.username || "").toLowerCase();
@@ -3739,7 +5625,8 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
 
       const pendingOpenChatId = Number(
         typeof window !== "undefined"
-          ? window.sessionStorage.getItem(OPEN_CHAT_ID_KEY)
+          ? window.sessionStorage.getItem(OPEN_CHAT_ID_KEY) ||
+              new URLSearchParams(window.location.search).get("openChatId")
           : 0,
       );
       if (pendingOpenChatId > 0) {
@@ -3749,8 +5636,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         if (pendingChat) {
           setActiveChatId(pendingOpenChatId);
           if (pendingChat.type === "dm") {
-            const nextOther = (pendingChat.members || []).find(
-              (member) => member.username !== user.username,
+            const pendingMembers = Array.isArray(pendingChat.members)
+              ? pendingChat.members
+              : [];
+            const nextOther = pendingMembers.find(
+              (member) => member.username !== user?.username,
             );
             setActivePeer(nextOther || null);
           } else {
@@ -3758,6 +5648,13 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
           }
           setMobileTab("chat");
           window.sessionStorage.removeItem(OPEN_CHAT_ID_KEY);
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has("openChatId")) {
+              url.searchParams.delete("openChatId");
+              window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+            }
+          }
         }
       }
     } catch (error) {
@@ -4265,8 +6162,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     const tempId = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const createdAt = new Date().toISOString();
     const queuedAt = Date.now();
-    const pendingDate = parseServerDate(createdAt);
-    const pendingDayKey = `${pendingDate.getFullYear()}-${pendingDate.getMonth()}-${pendingDate.getDate()}`;
+    const pendingDayKey = formatDayKey(createdAt);
     const pendingFiles = hasAnyPendingFiles
       ? [
           ...pendingUploadFiles.map((item) => {
@@ -4715,6 +6611,13 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
   const openNewGroupModal = () => {
     setEditingGroup(false);
     setGroupModalType("group");
+    setNewGroupForm((prev) => ({
+      ...prev,
+      remoteChannelEnabled: false,
+      remoteChannelSource: "",
+      remoteChannelStatus: null,
+      remoteChannelLoading: false,
+    }));
     setNewGroupOpen(true);
     setNewGroupError("");
   };
@@ -4722,6 +6625,16 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
   const openNewChannelModal = () => {
     setEditingGroup(false);
     setGroupModalType("channel");
+    setNewGroupForm((prev) => ({
+      ...prev,
+      remoteChannelEnabled: false,
+      remoteChannelProvider: "telegram",
+      remoteChannelSource: "",
+      remoteChannelSyncMetadata: false,
+      remoteChannelStreamMedia: false,
+      remoteChannelStatus: null,
+      remoteChannelLoading: false,
+    }));
     setNewGroupOpen(true);
     setNewGroupError("");
   };
@@ -4736,13 +6649,18 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       username: "",
       visibility: "public",
       allowMemberInvites: true,
+      remoteChannelEnabled: false,
+      remoteChannelProvider: "telegram",
+      remoteChannelSource: "",
+      remoteChannelSyncMetadata: false,
+      remoteChannelStreamMedia: false,
+      remoteChannelStatus: null,
+      remoteChannelLoading: false,
     });
     setNewGroupSearch("");
     setNewGroupSearchResults([]);
     setNewGroupMembers([]);
-    if (pendingGroupAvatarFile?.previewUrl) {
-      URL.revokeObjectURL(pendingGroupAvatarFile.previewUrl);
-    }
+    revokeObjectUrlSafe(pendingGroupAvatarFile?.previewUrl);
     setPendingGroupAvatarFile(null);
     setGroupAvatarPreview("");
     setGroupAvatarMarkedForRemoval(false);
@@ -4762,13 +6680,41 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       role: "",
     });
     setProfileInviteLink("");
+    setProfileCallLogs([]);
     setProfileModalOpen(true);
+  };
+
+  const loadProfileCallLogs = async (chatId) => {
+    const targetChatId = Number(chatId || 0);
+    if (!targetChatId || !user?.username) {
+      setProfileCallLogs([]);
+      return;
+    }
+    try {
+      setProfileCallLogsLoading(true);
+      const res = await fetchChatCallLogs({
+        chatId: targetChatId,
+        username: user.username,
+        limit: 12,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to load call history.");
+      }
+      setProfileCallLogs(Array.isArray(data?.calls) ? data.calls : []);
+    } catch {
+      setProfileCallLogs([]);
+    } finally {
+      setProfileCallLogsLoading(false);
+    }
   };
 
   const openActiveChatProfile = async () => {
     if (!activeChat) return;
     setProfileModalMember(null);
+    setProfileCallLogs([]);
     setProfileModalOpen(true);
+    void loadProfileCallLogs(activeChat.id);
     if (activeChat.type === "group" || activeChat.type === "channel") {
       try {
         const res = await getGroupInviteLink(activeChat.id);
@@ -4798,12 +6744,14 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       role: "",
     };
     setProfileModalMember(selected);
+    setProfileCallLogs([]);
     setProfileModalOpen(true);
   };
 
   const openMemberProfileFromList = (member) => {
     if (!member) return;
     setProfileModalMember(member);
+    setProfileCallLogs([]);
     setProfileModalOpen(true);
   };
 
@@ -4873,6 +6821,8 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     setProfileModalOpen(false);
     setProfileModalMember(null);
     setProfileInviteLink("");
+    setProfileCallLogs([]);
+    setProfileCallLogsLoading(false);
     setMentionProfile(null);
   };
 
@@ -4913,36 +6863,109 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     }
   };
 
-  const openEditGroupFromProfile = async () => {
-    if (!activeChat || !["group", "channel"].includes(activeChat.type)) return;
-    if (!canCurrentUserEditGroup) return;
-    setEditingGroup(true);
-    setGroupModalType(activeChat.type === "channel" ? "channel" : "group");
-    setProfileModalOpen(false);
-    setNewGroupForm({
-      nickname: activeChat.name || "",
-      username: activeChat.group_username || "",
-      visibility: activeChat.group_visibility || "public",
-      allowMemberInvites: Boolean(Number(activeChat.allow_member_invites || 0)),
-    });
-    setNewGroupMembers([]);
-    setNewGroupSearch("");
-    setGroupAvatarPreview(activeChat.group_avatar_url || "");
-    setGroupAvatarMarkedForRemoval(false);
-    if (pendingGroupAvatarFile?.previewUrl) {
-      URL.revokeObjectURL(pendingGroupAvatarFile.previewUrl);
-    }
-    setPendingGroupAvatarFile(null);
-    setEditGroupInviteLink("");
-    setNewGroupOpen(true);
+  const openEditGroupFromProfile = () => {
     try {
-      const res = await getGroupInviteLink(activeChat.id);
-      const data = await res.json();
-      if (res.ok) {
-        setEditGroupInviteLink(String(data?.inviteLink || ""));
+      const chatId = Number(activeChat?.id || 0);
+      const chatForEdit =
+        (chatId
+          ? chats.find((chat) => Number(chat?.id || 0) === chatId)
+          : null) ||
+        activeChat ||
+        null;
+      const chatType = String(chatForEdit?.type || "").toLowerCase();
+      if (!chatForEdit || !["group", "channel"].includes(chatType)) return;
+      if (!canCurrentUserEditGroup) return;
+
+      const nextForm = {
+        nickname: String(chatForEdit.name || ""),
+        username: String(chatForEdit.group_username || ""),
+        visibility: ["public", "private"].includes(
+          String(chatForEdit.group_visibility || "").toLowerCase(),
+        )
+          ? String(chatForEdit.group_visibility || "").toLowerCase()
+          : "public",
+        allowMemberInvites:
+          chatForEdit.allow_member_invites === true ||
+          chatForEdit.allow_member_invites === 1 ||
+          String(chatForEdit.allow_member_invites || "").toLowerCase() ===
+            "true",
+        remoteChannelEnabled: false,
+        remoteChannelProvider: "telegram",
+        remoteChannelSource: "",
+        remoteChannelSyncMetadata: false,
+        remoteChannelStreamMedia: false,
+        remoteChannelStatus: null,
+        remoteChannelLoading:
+          chatType === "channel" && Boolean(appInfo?.remoteChannels?.enabled),
+      };
+
+      revokeObjectUrlSafe(pendingGroupAvatarFile?.previewUrl);
+      setEditingGroup(true);
+      setGroupModalType(chatType === "channel" ? "channel" : "group");
+      setNewGroupForm(nextForm);
+      setNewGroupMembers([]);
+      setNewGroupSearch("");
+      setNewGroupSearchResults([]);
+      setNewGroupError("");
+      setGroupAvatarPreview(String(chatForEdit.group_avatar_url || ""));
+      setGroupAvatarMarkedForRemoval(false);
+      setPendingGroupAvatarFile(null);
+      setEditGroupInviteLink("");
+      setProfileModalOpen(false);
+      setNewGroupOpen(true);
+
+      if (chatId) {
+        void (async () => {
+          try {
+            const res = await getGroupInviteLink(chatId);
+            const data = await res.json();
+            if (res.ok) {
+              setEditGroupInviteLink(String(data?.inviteLink || ""));
+            }
+          } catch {
+            // Ignore invite fetch errors in edit modal.
+          }
+        })();
       }
-    } catch {
-      // ignore invite fetch errors in edit modal
+      if (chatId && chatType === "channel" && appInfo?.remoteChannels?.enabled) {
+        void (async () => {
+          try {
+            const res = await getRemoteChannelSettings({
+              chatId,
+              username: user.username,
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || "Unable to load Remote Channel.");
+            const source = data?.source || null;
+            setNewGroupForm((prev) => ({
+              ...prev,
+              remoteChannelEnabled: Boolean(source?.enabled),
+              remoteChannelProvider: source?.provider || "telegram",
+              remoteChannelSource:
+                source?.sourceRaw ||
+                (source?.sourceUsername ? `@${source.sourceUsername}` : "") ||
+                source?.sourceChatId ||
+                "",
+              remoteChannelSyncMetadata: Boolean(source?.syncMetadata),
+              remoteChannelStreamMedia: Boolean(source?.streamMedia),
+              remoteChannelStatus: data,
+              remoteChannelLoading: false,
+            }));
+          } catch (error) {
+            setNewGroupForm((prev) => ({
+              ...prev,
+              remoteChannelStatus: {
+                error: error?.message || "Unable to load Remote Channel settings.",
+              },
+              remoteChannelLoading: false,
+            }));
+          }
+        })();
+      }
+    } catch (error) {
+      console.error("Failed to open group/channel editor:", error);
+      setProfileError("Unable to open editor.");
+      setProfileModalOpen(false);
     }
   };
 
@@ -4969,9 +6992,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       return;
     }
     const previewUrl = URL.createObjectURL(file);
-    if (pendingGroupAvatarFile?.previewUrl) {
-      URL.revokeObjectURL(pendingGroupAvatarFile.previewUrl);
-    }
+    revokeObjectUrlSafe(pendingGroupAvatarFile?.previewUrl);
     setPendingGroupAvatarFile({ file, previewUrl });
     setGroupAvatarPreview(previewUrl);
     setGroupAvatarMarkedForRemoval(false);
@@ -4980,9 +7001,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
   };
 
   const handleGroupAvatarRemove = () => {
-    if (pendingGroupAvatarFile?.previewUrl) {
-      URL.revokeObjectURL(pendingGroupAvatarFile.previewUrl);
-    }
+    revokeObjectUrlSafe(pendingGroupAvatarFile?.previewUrl);
     const hadExistingAvatar = Boolean(
       editingGroup && String(activeChat?.group_avatar_url || "").trim(),
     );
@@ -5015,8 +7034,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
   async function handleCreateGroup() {
     const isChannel = groupModalType === "channel";
     const label = isChannel ? "Channel" : "Group";
-    const nickname = newGroupForm.nickname.trim();
-    const username = newGroupForm.username.trim().toLowerCase();
+    const nickname = String(newGroupForm?.nickname || "").trim();
+    const username = String(newGroupForm?.username || "").trim().toLowerCase();
+    const selectedMembers = Array.isArray(newGroupMembers)
+      ? newGroupMembers
+      : [];
     if (!nickname) {
       setNewGroupError(`${label} nickname is required.`);
       return;
@@ -5039,6 +7061,24 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       );
       return;
     }
+    const remoteChannelEnabled =
+      isChannel &&
+      appInfo?.remoteChannels?.enabled &&
+      Boolean(newGroupForm.remoteChannelEnabled);
+    const remoteChannelSource = String(
+      newGroupForm.remoteChannelSource || "",
+    ).trim();
+    const shouldSaveRemoteChannel =
+      isChannel &&
+      appInfo?.remoteChannels?.enabled &&
+      (remoteChannelEnabled ||
+        remoteChannelSource ||
+        Boolean(newGroupForm.remoteChannelSyncMetadata) ||
+        Boolean(newGroupForm.remoteChannelStreamMedia));
+    if (shouldSaveRemoteChannel && remoteChannelEnabled && !remoteChannelSource) {
+      setNewGroupError("Remote Channel source is required.");
+      return;
+    }
     try {
       setCreatingGroup(true);
       setNewGroupError("");
@@ -5046,24 +7086,32 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         creator: user.username,
         nickname,
         username,
-        visibility: newGroupForm.visibility,
-        allowMemberInvites: newGroupForm.allowMemberInvites !== false,
+        visibility: ["public", "private"].includes(
+          String(newGroupForm?.visibility || "").toLowerCase(),
+        )
+          ? String(newGroupForm?.visibility || "").toLowerCase()
+          : "public",
+        allowMemberInvites: newGroupForm?.allowMemberInvites !== false,
         members: editingGroup
           ? Array.from(
               new Set([
-                ...((activeChat?.members || [])
+                ...((Array.isArray(activeChat?.members)
+                  ? activeChat.members
+                  : [])
                   .map((member) => String(member?.username || "").toLowerCase())
                   .filter(
                     (memberUsername) =>
                       memberUsername &&
                       memberUsername !== String(user.username || "").toLowerCase(),
                   )),
-                ...newGroupMembers
+                ...selectedMembers
                   .map((member) => String(member?.username || "").toLowerCase())
                   .filter(Boolean),
               ]),
             )
-          : newGroupMembers.map((member) => member.username),
+          : selectedMembers
+              .map((member) => String(member?.username || "").toLowerCase())
+              .filter(Boolean),
       };
       const res = editingGroup && activeChat?.id
         ? await (isChannel ? updateChannelChat : updateGroupChat)(activeChat.id, {
@@ -5082,6 +7130,22 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       const nextChatId = Number(data?.id || activeChat?.id || 0);
       if (!nextChatId) {
         throw new Error("Server did not return a group id.");
+      }
+      if (shouldSaveRemoteChannel && editingGroup) {
+        const remoteRes = await updateRemoteChannelSettings(nextChatId, {
+          username: user.username,
+          enabled: remoteChannelEnabled,
+          provider: newGroupForm.remoteChannelProvider || "telegram",
+          source: remoteChannelSource,
+          syncMetadata:
+            remoteChannelEnabled && Boolean(newGroupForm.remoteChannelSyncMetadata),
+          streamMedia:
+            remoteChannelEnabled && Boolean(newGroupForm.remoteChannelStreamMedia),
+        });
+        const remoteData = await remoteRes.json();
+        if (!remoteRes.ok) {
+          throw new Error(remoteData?.error || "Unable to update Remote Channel.");
+        }
       }
       if (editingGroup && pendingGroupAvatarFile?.file) {
         const form = new FormData();
@@ -5128,7 +7192,8 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     try {
       const existingDm = chats.find((chat) => {
         if (chat?.type !== "dm") return false;
-        return (chat.members || []).some(
+        const members = Array.isArray(chat.members) ? chat.members : [];
+        return members.some(
           (chatMember) =>
             String(chatMember?.username || "").toLowerCase() === targetUsername,
         );
@@ -5156,7 +7221,10 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       await loadChats({ silent: true });
 
       const refreshedDm = chats.find((chat) => Number(chat.id) === nextChatId);
-      const nextPeer = (refreshedDm?.members || []).find(
+      const refreshedMembers = Array.isArray(refreshedDm?.members)
+        ? refreshedDm.members
+        : [];
+      const nextPeer = refreshedMembers.find(
         (chatMember) =>
           String(chatMember?.username || "").toLowerCase() === targetUsername,
       );
@@ -5202,7 +7270,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
   }
 
   async function handleRemoveGroupMember(member) {
-    if (!activeChat || !["group", "channel"].includes(activeChat.type) || !member?.username)
+    if (!activeChat || !["group", "channel"].includes(activeChat.type) || !member?.username || !user?.username)
       return;
     try {
       const res = await removeGroupMember(activeChat.id, {
@@ -5219,6 +7287,108 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     }
   }
 
+  async function handleChangeGroupMemberRole(member, role) {
+    if (!activeChat || !["group", "channel"].includes(activeChat.type) || !member?.username || !user?.username)
+      return;
+    const nextRole = String(role || "").trim().toLowerCase();
+    if (!["owner", "admin", "moderator", "member"].includes(nextRole)) return;
+    try {
+      const res = await updateGroupMemberRole(activeChat.id, {
+        username: user.username,
+        targetUsername: member.username,
+        role: nextRole,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to change member role.");
+      }
+      setChats((prev) =>
+        prev.map((chat) => {
+          if (Number(chat.id) !== Number(activeChat.id)) return chat;
+          const members = Array.isArray(chat.members) ? chat.members : [];
+          return {
+            ...chat,
+            members: members.map((item) =>
+              String(item.username || "").toLowerCase() ===
+              String(member.username || "").toLowerCase()
+                ? { ...item, role: nextRole }
+                : item,
+            ),
+          };
+        }),
+      );
+      await loadChats({ silent: true });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleReactMessage(message, reaction) {
+    const messageId = Number(message?._serverId || message?.id || 0);
+    const normalizedReaction = String(reaction || "").trim();
+    if (!messageId || !normalizedReaction) return;
+
+    const applyReactionsToMessage = (nextReactions) => {
+      const normalizedReactions = Array.isArray(nextReactions) ? nextReactions : [];
+      setMessages((prev) =>
+        prev.map((item) => {
+          const itemId = Number(item?._serverId || item?.id || 0);
+          return itemId === messageId
+            ? {
+                ...item,
+                reactions: normalizedReactions,
+              }
+            : item;
+        }),
+      );
+    };
+
+    const currentReactions = Array.isArray(message?.reactions)
+      ? message.reactions
+      : [];
+    const existingReaction = currentReactions.find(
+      (item) => String(item?.reaction || "") === normalizedReaction,
+    );
+    const optimisticReactions = existingReaction
+      ? currentReactions
+          .map((item) =>
+            String(item?.reaction || "") === normalizedReaction
+              ? { ...item, count: Math.max(0, Number(item?.count || 0) - 1) }
+              : item,
+          )
+          .filter((item) => Number(item?.count || 0) > 0)
+      : [
+          ...currentReactions,
+          {
+            reaction: normalizedReaction,
+            count: 1,
+          },
+        ];
+
+    applyReactionsToMessage(optimisticReactions);
+
+    try {
+      const res = await toggleMessageReaction({
+        messageId,
+        reaction: normalizedReaction,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to react to message.");
+      }
+      const nextReactions = Array.isArray(data?.reactions) ? data.reactions : [];
+      applyReactionsToMessage(nextReactions);
+      scheduleMessageRefresh(activeChatIdRef.current || activeChatId, {
+        preserveHistory: true,
+      });
+    } catch (error) {
+      console.warn("Message reaction failed:", error);
+      scheduleMessageRefresh(activeChatIdRef.current || activeChatId, {
+        preserveHistory: true,
+      });
+    }
+  }
+
   const { contextMenu, closeContextMenu, openContextMenu } = useAppContextMenu({
     activeChatId,
     chats,
@@ -5229,6 +7399,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     onReplyToMessage: handleStartReply,
     onEditMessage: handleStartEdit,
     onDeleteMessage: handleDeleteMessageRequest,
+    onReactMessage: handleReactMessage,
     onForwardMessage: handleOpenForwardModal,
     onSaveMessageFiles: handleSaveMessageFiles,
     onOpenOrCreateDm: openOrCreateDmFromMember,
@@ -5340,6 +7511,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       }, 0);
     }
   };
+  
   const handleUserScrollIntent = () => {
     cancelSmoothScroll?.();
     allowStartReachedRef.current = true;
@@ -5403,6 +7575,98 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       microphone: readPermissionDismissed("microphone"),
     });
   }, [isAppActive, notificationPermission, microphonePermission]);
+
+  const canStartVoiceCall = Boolean(
+    activeChatId &&
+      !isActiveGroupChat &&
+      !isActiveChannelChat &&
+      !isActiveSavedChat &&
+      !activeHeaderAvatar?.isDeleted,
+  );
+  const callIsVideo = normalizeCallType(callState?.callType) === "video";
+  const activeCallStatusLabels = callIsVideo
+    ? VIDEO_CALL_STATUS_LABELS
+    : CALL_STATUS_LABELS;
+  const callStatusLabel =
+    activeCallStatusLabels[callState?.status] || activeCallStatusLabels.connecting;
+  const callPeerName = callState?.peerName || activeFallbackTitle || "Contact";
+  const callDurationLabel = formatCallDuration(callDurationSeconds);
+  const callIsConnected =
+    callState?.status === "connected" || callState?.status === "reconnecting";
+  const primaryCallVideoKind = callVideoFocus === "local" ? "local" : "remote";
+  const previewCallVideoKind = primaryCallVideoKind === "local" ? "remote" : "local";
+  const primaryCallVideoReady =
+    primaryCallVideoKind === "local"
+      ? callVideoStreamsReady.local
+      : callVideoStreamsReady.remote;
+  const previewCallVideoReady =
+    previewCallVideoKind === "local"
+      ? callVideoStreamsReady.local
+      : callVideoStreamsReady.remote;
+  const callPreviewPositionStyle = callPreviewPosition
+    ? {
+        left: `${callPreviewPosition.x}px`,
+        top: `${callPreviewPosition.y}px`,
+      }
+    : {
+        right: "1rem",
+        top: "1rem",
+      };
+  const callQualityClass =
+    callConnectionQuality.level === "good"
+      ? "bg-emerald-400"
+      : callConnectionQuality.level === "fair"
+        ? "bg-amber-300"
+        : callConnectionQuality.level === "poor"
+          ? "bg-rose-400"
+          : "bg-slate-400";
+  const callQualityDetails = [
+    Number.isFinite(callConnectionQuality.bitrateKbps)
+      ? `${callConnectionQuality.bitrateKbps} kbps`
+      : "",
+    Number.isFinite(callConnectionQuality.rttMs)
+      ? `${callConnectionQuality.rttMs} ms`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" / ");
+  const callAudioInputOptions = Array.isArray(callDevices.audioInputs)
+    ? callDevices.audioInputs
+    : [];
+  const callVideoInputOptions = Array.isArray(callDevices.videoInputs)
+    ? callDevices.videoInputs
+    : [];
+  const callControlsVisibilityClass = callControlsVisible
+    ? "pointer-events-auto translate-y-0 opacity-100"
+    : "pointer-events-none translate-y-3 opacity-0";
+  const callTopControlsVisibilityClass = callControlsVisible
+    ? "pointer-events-auto opacity-100"
+    : "pointer-events-none opacity-0";
+  const videoCallButtonBase =
+    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-white shadow-lg shadow-black/20 transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300";
+  const videoCallButtonIdle =
+    "border-white/15 bg-white/10 hover:border-emerald-300/70 hover:bg-emerald-400/20";
+  const videoCallButtonActive =
+    "border-emerald-300/70 bg-emerald-400/20 text-emerald-100";
+  const videoCallButtonWarn =
+    "border-amber-300/70 bg-amber-400/20 text-amber-100";
+  const safeNewGroupForm = {
+    nickname: String(newGroupForm?.nickname || ""),
+    username: String(newGroupForm?.username || ""),
+    visibility: String(newGroupForm?.visibility || "public"),
+    allowMemberInvites: newGroupForm?.allowMemberInvites !== false,
+  };
+  const safeNewGroupMembers = Array.isArray(newGroupMembers)
+    ? newGroupMembers
+    : [];
+  const safeNewGroupSearchResults = Array.isArray(newGroupSearchResults)
+    ? newGroupSearchResults
+    : [];
+  const handleOpenAdminPanel = () => {
+    if (typeof window === "undefined") return;
+    window.history.pushState({}, "", "/admin");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
 
   return (
     <div
@@ -5497,6 +7761,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         testNotificationSent={testNotificationSent}
         notificationsDebugLine={notificationsDebugLine}
         onOpenSavedMessages={openSavedMessages}
+        onOpenAdmin={handleOpenAdminPanel}
         onClearCache={handleClearCache}
         dataCacheStats={dataCacheStats}
         onDeleteAccount={handleDeleteAccount}
@@ -5522,6 +7787,8 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         activeFallbackTitle={activeFallbackTitle}
         peerStatusLabel={resolvedHeaderSubtitle}
         typingIndicator={typingIndicator}
+        onStartCall={canStartVoiceCall ? () => startOutgoingCall("voice") : null}
+        onStartVideoCall={canStartVoiceCall ? () => startOutgoingCall("video") : null}
         isGroupChat={isActiveGroupChat}
         isChannelChat={isActiveChannelChat}
         isSavedChat={isActiveSavedChat}
@@ -5708,16 +7975,20 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       ) : null}
 
       {newGroupOpen ? (
-        <Suspense fallback={null}>
+        <ModalErrorBoundary
+          resetKey={`${newGroupOpen ? "open" : "closed"}:${activeChat?.id || "new"}:${groupModalType}`}
+          title={`Unable to open ${groupModalType === "channel" ? "channel" : "group"} editor`}
+          onClose={closeNewGroupModal}
+        >
           <NewGroupModal
             open={newGroupOpen}
-            groupForm={newGroupForm}
+            groupForm={safeNewGroupForm}
             setGroupForm={setNewGroupForm}
             groupSearchQuery={newGroupSearch}
             setGroupSearchQuery={setNewGroupSearch}
-            groupSearchResults={newGroupSearchResults}
+            groupSearchResults={safeNewGroupSearchResults}
             groupSearchLoading={newGroupSearchLoading}
-            selectedGroupMembers={newGroupMembers}
+            selectedGroupMembers={safeNewGroupMembers}
             setSelectedGroupMembers={setNewGroupMembers}
             groupError={newGroupError}
             setGroupError={setNewGroupError}
@@ -5733,8 +8004,8 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             avatarPreview={groupAvatarPreview}
             avatarColor={editingGroup ? activeChat?.group_color || "#10b981" : "#10b981"}
             avatarName={
-              newGroupForm.nickname ||
-              newGroupForm.username ||
+              safeNewGroupForm.nickname ||
+              safeNewGroupForm.username ||
               (groupModalType === "channel" ? "Channel" : "Group")
             }
             onAvatarChange={handleGroupAvatarChange}
@@ -5743,13 +8014,17 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             hideSelectedMemberChips={false}
             fileUploadEnabled={CHAT_PAGE_CONFIG.fileUploadEnabled}
             showInviteManagement={editingGroup}
+            showRemoteChannelSettings={Boolean(
+              editingGroup && groupModalType === "channel",
+            )}
+            remoteChannelAvailable={Boolean(appInfo?.remoteChannels?.enabled)}
             currentInviteLink={editGroupInviteLink}
             regeneratingInviteLink={regeneratingGroupInviteLink}
             onRegenerateInvite={handleRegenerateGroupInvite}
             entityLabel={groupModalType === "channel" ? "Channel" : "Group"}
             onDeleteChat={editingGroup ? handleDeleteActiveGroup : null}
           />
-        </Suspense>
+        </ModalErrorBoundary>
       ) : null}
 
       {groupInviteOpen ? (
@@ -5763,7 +8038,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       ) : null}
 
       {profileModalOpen ? (
-        <Suspense fallback={null}>
+        <ModalErrorBoundary
+          resetKey={`profile:${profileModalOpen ? "open" : "closed"}:${mentionProfile?.chatId || activeChat?.id || profileModalMember?.username || "self"}`}
+          title="Unable to open chat profile"
+          onClose={closeProfileModal}
+        >
           <ChatProfileModal
             open={profileModalOpen}
             chat={
@@ -5777,6 +8056,8 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             muted={activeChatMuted}
             inviteLink={profileInviteLink}
             canViewInvite={canCurrentUserViewInvite}
+            callLogs={profileCallLogs}
+            callLogsLoading={profileCallLogsLoading}
             readOnly={Boolean(
               isMentionProfileReadOnly,
             )}
@@ -5794,11 +8075,12 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             }
             onOpenMember={openMemberProfileFromList}
             onRemoveMember={handleRemoveGroupMember}
+            onChangeMemberRole={handleChangeGroupMemberRole}
             onOpenUserContextMenu={openContextMenu}
             onEditGroup={openEditGroupFromProfile}
             onEditSelfProfile={openSelfProfileEditor}
           />
-        </Suspense>
+        </ModalErrorBoundary>
       ) : null}
 
       {notificationsModalOpen ? (
@@ -5851,17 +8133,502 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       ) : null}
 
       {whatsNewOpen ? (
-        <Suspense fallback={null}>
-          <WhatsNewModal
-            open={whatsNewOpen}
-            version={appInfo?.version || ""}
-            changelog={appInfo?.currentChangelog || appInfo?.changelog || ""}
-            changelogSections={appInfo?.changelogSections || []}
-            onClose={() => dismissWhatsNew(true)}
-          />
-        </Suspense>
-      ) : null}
+  <Suspense fallback={null}>
+    <WhatsNewModal
+      open={whatsNewOpen}
+      version={appInfo?.version || ""}
+      changelog={appInfo?.currentChangelog || appInfo?.changelog || ""}
+      changelogSections={appInfo?.changelogSections || []}
+      onClose={() => dismissWhatsNew(true)}
+    />
+  </Suspense>
+) : null}
 
+{callState && !callMinimized ? (
+  callIsVideo ? (
+    <div
+      className="fixed inset-0 z-[300] bg-slate-950 text-white"
+      onPointerDown={revealCallControls}
+    >
+      <div
+        ref={callVideoStageRef}
+        className="relative h-full w-full overflow-hidden bg-slate-950"
+      >
+        <video
+          ref={primaryCallVideoRef}
+          autoPlay
+          playsInline
+          muted
+          className={`absolute inset-0 h-full w-full bg-slate-950 object-cover transition-opacity duration-200 ${
+            primaryCallVideoReady ? "opacity-100" : "opacity-0"
+          }`}
+          style={primaryCallVideoKind === "local" ? { transform: "scaleX(-1)" } : undefined}
+        />
+        {!primaryCallVideoReady ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 text-center">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-emerald-400/30 bg-emerald-500/15 text-3xl font-bold text-emerald-100 shadow-2xl shadow-emerald-500/20">
+              {primaryCallVideoKind === "local" ? (
+                <Video size={34} strokeWidth={2.2} />
+              ) : (
+                getAvatarInitials(callPeerName || "C")
+              )}
+            </div>
+            <p className="mt-4 text-sm font-semibold text-slate-200">
+              {primaryCallVideoKind === "local" ? "Camera starting..." : "Waiting for video..."}
+            </p>
+          </div>
+        ) : null}
+
+        <div
+          className={`pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/70 via-black/25 to-transparent px-4 pb-10 pt-4 transition-opacity duration-300 ${callTopControlsVisibilityClass}`}
+        >
+          <h2 className="max-w-[70vw] truncate text-lg font-bold" title={callPeerName}>
+            {callPeerName}
+          </h2>
+          <div className="mt-1 flex items-center gap-2 text-xs font-semibold text-slate-200">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                callState.status === "connected"
+                  ? "bg-emerald-400"
+                  : callState.status === "error" || callState.status === "ended"
+                    ? "bg-rose-400"
+                    : "animate-pulse bg-amber-300"
+              }`}
+            />
+            <span>{callStatusLabel}</span>
+            {callIsConnected ? <span>{callDurationLabel}</span> : null}
+            <span className={`ml-1 h-2 w-2 rounded-full ${callQualityClass}`} />
+            <span>{callConnectionQuality.label}</span>
+            {callQualityDetails ? <span>{callQualityDetails}</span> : null}
+          </div>
+        </div>
+
+        <div
+          className={`absolute right-4 top-4 z-30 flex items-center gap-2 transition-opacity duration-300 ${callTopControlsVisibilityClass}`}
+        >
+          <button
+            type="button"
+            onClick={() =>
+              runCallAction(
+                () => restartCallIce(callState.roomId),
+                "Unable to restart the call connection.",
+              )
+            }
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur transition hover:bg-black/50"
+            aria-label="Reconnect call"
+            title="Reconnect"
+          >
+            <Refresh size={17} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setCallMinimized(true)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur transition hover:bg-black/50"
+            aria-label="Minimize call"
+            title="Minimize"
+          >
+            <Minimize2 size={17} />
+          </button>
+        </div>
+
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Video preview"
+          title="Preview"
+          onPointerDown={handleCallPreviewPointerDown}
+          onPointerMove={handleCallPreviewPointerMove}
+          onPointerUp={handleCallPreviewPointerEnd}
+          onPointerCancel={handleCallPreviewPointerEnd}
+          onDoubleClick={toggleCallVideoFocus}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              toggleCallVideoFocus();
+            }
+          }}
+          className="absolute z-30 h-36 w-24 cursor-grab overflow-hidden rounded-2xl border border-white/30 bg-slate-900 shadow-2xl shadow-black/40 outline-none ring-0 transition-transform active:cursor-grabbing active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-emerald-300 sm:h-44 sm:w-32"
+          style={{ ...callPreviewPositionStyle, touchAction: "none" }}
+        >
+          <video
+            ref={previewCallVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`h-full w-full bg-slate-900 object-cover transition-opacity duration-200 ${
+              previewCallVideoReady ? "opacity-100" : "opacity-0"
+            }`}
+            style={previewCallVideoKind === "local" ? { transform: "scaleX(-1)" } : undefined}
+          />
+          {!previewCallVideoReady ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-900 text-sm font-bold text-slate-200">
+              {previewCallVideoKind === "local" ? (
+                <Video size={22} strokeWidth={2.2} />
+              ) : (
+                getAvatarInitials(callPeerName || "C")
+              )}
+            </div>
+          ) : null}
+          <span className="pointer-events-none absolute inset-x-2 bottom-2 truncate rounded-full bg-black/50 px-2 py-1 text-center text-[10px] font-semibold text-white backdrop-blur">
+            {previewCallVideoKind === "local" ? "You" : callPeerName}
+          </span>
+        </div>
+
+        {callState.error ? (
+          <p className="absolute left-4 right-4 top-24 z-20 rounded-2xl border border-amber-200/60 bg-amber-50/95 px-3 py-2 text-center text-xs font-semibold text-amber-800 shadow-lg dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-100">
+            {callState.error}
+          </p>
+        ) : null}
+
+        {callDevicePanelOpen && callControlsVisible ? (
+          <div className="absolute bottom-36 left-4 right-4 z-30 rounded-2xl border border-white/15 bg-black/70 p-3 text-xs text-white shadow-2xl shadow-black/40 backdrop-blur">
+            <label className="block">
+              <span className="font-semibold text-slate-200">Microphone</span>
+              <select
+                value={selectedCallAudioInputId}
+                onChange={(event) =>
+                  runCallAction(
+                    () => replaceLocalAudioTrack(event.target.value),
+                    "Unable to change microphone.",
+                  )
+                }
+                className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-emerald-300"
+              >
+                <option value="">Default microphone</option>
+                {callAudioInputOptions.map((device, index) => (
+                  <option key={device.deviceId || `audio-${index}`} value={device.deviceId}>
+                    {device.label || `Microphone ${index + 1}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="mt-3 block">
+              <span className="font-semibold text-slate-200">Camera</span>
+              <select
+                value={selectedCallVideoInputId}
+                onChange={(event) =>
+                  runCallAction(
+                    () => replaceCallVideoInput(event.target.value),
+                    "Unable to change camera.",
+                  )
+                }
+                className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-emerald-300"
+              >
+                <option value="">Default camera</option>
+                {callVideoInputOptions.map((device, index) => (
+                  <option key={device.deviceId || `video-${index}`} value={device.deviceId}>
+                    {device.label || `Camera ${index + 1}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
+
+        <div
+          className={`absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-14 transition-all duration-300 ${callControlsVisibilityClass}`}
+        >
+          <div className="mx-auto flex w-fit max-w-[calc(100vw-1.5rem)] items-center gap-2 overflow-x-auto rounded-full border border-white/15 bg-black/50 p-2 shadow-2xl shadow-black/30 backdrop-blur">
+            <button
+              type="button"
+              onClick={toggleCallMute}
+              className={`${videoCallButtonBase} ${callMuted ? videoCallButtonWarn : videoCallButtonIdle}`}
+              aria-label={callMuted ? "Unmute microphone" : "Mute microphone"}
+              title={callMuted ? "Unmute" : "Mute"}
+            >
+              {callMuted ? <MicOff size={18} /> : <Mic size={18} />}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                runCallAction(toggleCallCamera, "Unable to toggle camera.")
+              }
+              className={`${videoCallButtonBase} ${callCameraEnabled ? videoCallButtonIdle : videoCallButtonWarn}`}
+              aria-label={callCameraEnabled ? "Turn camera off" : "Turn camera on"}
+              title={callCameraEnabled ? "Camera off" : "Camera on"}
+            >
+              {callCameraEnabled ? <Camera size={18} /> : <CameraOff size={18} />}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                runCallAction(switchCallCamera, "Unable to switch camera.")
+              }
+              className={`${videoCallButtonBase} ${videoCallButtonIdle}`}
+              aria-label="Switch camera"
+              title="Switch camera"
+            >
+              <Refresh size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                runCallAction(toggleCallScreenShare, "Unable to share screen.")
+              }
+              className={`hidden md:inline-flex ${videoCallButtonBase} ${callScreenSharing ? videoCallButtonActive : videoCallButtonIdle}`}
+              aria-label={callScreenSharing ? "Stop screen sharing" : "Share screen"}
+              title={callScreenSharing ? "Stop sharing" : "Share screen"}
+            >
+              {callScreenSharing ? <ScreenShareOff size={18} /> : <ScreenShare size={18} />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCallDevicePanelOpen((prev) => !prev)}
+              className={`${videoCallButtonBase} ${callDevicePanelOpen ? videoCallButtonActive : videoCallButtonIdle}`}
+              aria-label="Call devices"
+              title="Devices"
+            >
+              <Settings size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={endActiveCall}
+              className={`${videoCallButtonBase} border-rose-300/80 bg-rose-500 text-white hover:bg-rose-600`}
+              aria-label="End call"
+              title="End call"
+            >
+              <PhoneOff size={18} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-sm overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl dark:bg-slate-950">
+        <div className="relative px-6 pb-6 pt-7 text-center text-slate-900 dark:text-white">
+          <div className="absolute inset-x-0 top-0 h-28 bg-emerald-500/15 dark:bg-emerald-400/10" />
+          <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                runCallAction(
+                  () => restartCallIce(callState.roomId),
+                  "Unable to restart the call connection.",
+                )
+              }
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-slate-950/70 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+              aria-label="Reconnect call"
+              title="Reconnect"
+            >
+              <Refresh size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setCallMinimized(true)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-slate-950/70 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+              aria-label="Minimize call"
+              title="Minimize"
+            >
+              <Minimize2 size={16} />
+            </button>
+          </div>
+          <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-2xl font-bold text-emerald-700 shadow-lg shadow-emerald-500/20 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100">
+            {getAvatarInitials(callPeerName || "C")}
+          </div>
+          <h2 className="relative mt-4 truncate text-xl font-bold" title={callPeerName}>
+            {callPeerName}
+          </h2>
+          <div className="relative mt-2 flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                callState.status === "connected"
+                  ? "bg-emerald-500"
+                  : callState.status === "error" || callState.status === "ended"
+                    ? "bg-rose-500"
+                    : "animate-pulse bg-amber-400"
+              }`}
+            />
+            <span>{callStatusLabel}</span>
+            {callIsConnected ? <span>{callDurationLabel}</span> : null}
+            <span className={`ml-1 h-2 w-2 rounded-full ${callQualityClass}`} />
+            <span>{callConnectionQuality.label}</span>
+          </div>
+          {callState.error ? (
+            <p className="relative mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+              {callState.error}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 border-y border-slate-200 bg-slate-50 px-5 py-4 dark:border-white/10 dark:bg-slate-900/80">
+          <button
+            type="button"
+            onClick={toggleCallMute}
+            className={`flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border text-xs font-semibold transition ${
+              callMuted
+                ? "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-100"
+                : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-emerald-500/40 dark:hover:text-emerald-100"
+            }`}
+          >
+            {callMuted ? <MicOff size={18} /> : <Mic size={18} />}
+            {callMuted ? "Muted" : "Mic"}
+          </button>
+          <button
+            type="button"
+            onClick={() => remoteAudioRef.current?.play?.().catch(() => null)}
+            className="flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-emerald-500/40 dark:hover:text-emerald-100"
+          >
+            <Volume2 size={18} />
+            Audio
+          </button>
+          <button
+            type="button"
+            onClick={endActiveCall}
+            className="flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-rose-300 bg-rose-500 text-xs font-semibold text-white shadow-lg shadow-rose-500/25 transition hover:bg-rose-600"
+          >
+            <PhoneOff size={18} />
+            End
+          </button>
+        </div>
+
+        <div className="px-6 py-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400">
+          {CALL_ICE_SERVERS.some((server) => String([].concat(server.urls || []).join(" ")).includes("turn:"))
+            ? "Relay ready for strict mobile networks"
+            : "Add a TURN server for the most reliable mobile audio"}
+          <span className="mt-1 block">
+            Keep this screen open during calls; BirdX will try to keep the display awake.
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+) : null}
+
+{callState && callMinimized ? (
+  <div
+    className="fixed z-[320] w-[20rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-emerald-200/70 bg-white shadow-2xl shadow-black/20 dark:border-emerald-500/30 dark:bg-slate-950 select-none touch-none"
+    style={
+      callMinimizedPosition
+        ? { left: `${callMinimizedPosition.x}px`, top: `${callMinimizedPosition.y}px` }
+        : { bottom: "calc(env(safe-area-inset-bottom) + 5rem)", right: "1rem" }
+    }
+    onPointerDown={handleMinimizedCallPointerDown}
+    onPointerMove={handleMinimizedCallPointerMove}
+    onPointerUp={handleMinimizedCallPointerEnd}
+    onPointerCancel={handleMinimizedCallPointerEnd}
+  >
+    {callIsVideo ? (
+      <div className="relative aspect-video bg-slate-950">
+        <video
+          ref={miniCallVideoRef}
+          autoPlay
+          playsInline
+          muted
+          className={`h-full w-full object-cover transition-opacity duration-200 ${
+            callVideoStreamsReady.remote || callVideoStreamsReady.local
+              ? "opacity-100"
+              : "opacity-0"
+          }`}
+        />
+        {!(callVideoStreamsReady.remote || callVideoStreamsReady.local) ? (
+          <div className="absolute inset-0 flex items-center justify-center text-xl font-bold text-emerald-100">
+            {getAvatarInitials(callPeerName || "C")}
+          </div>
+        ) : null}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 text-white">
+          <p className="truncate text-sm font-bold" title={callPeerName}>
+            {callPeerName}
+          </p>
+          <p className="mt-0.5 text-xs font-semibold text-slate-200">
+            {callStatusLabel}
+            {callIsConnected ? ` / ${callDurationLabel}` : ""}
+          </p>
+        </div>
+      </div>
+    ) : (
+      <div className="flex items-center gap-3 p-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-base font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100">
+          {getAvatarInitials(callPeerName || "C")}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-slate-900 dark:text-white" title={callPeerName}>
+            {callPeerName}
+          </p>
+          <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            {callStatusLabel}
+            {callIsConnected ? ` / ${callDurationLabel}` : ""}
+          </p>
+        </div>
+      </div>
+    )}
+    <div className="grid grid-cols-3 gap-2 border-t border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-slate-900/80" onPointerDown={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => { setCallMinimized(false); setCallMinimizedPosition(null); }}
+        className="flex h-10 items-center justify-center rounded-xl border border-emerald-200 bg-white text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+        aria-label="Maximize call"
+        title="Maximize"
+      >
+        <Maximize2 size={16} />
+      </button>
+      <button
+        type="button"
+        onClick={toggleCallMute}
+        className={`flex h-10 items-center justify-center rounded-xl border transition ${
+          callMuted
+            ? "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-100"
+            : "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+        }`}
+        aria-label={callMuted ? "Unmute microphone" : "Mute microphone"}
+        title={callMuted ? "Unmute" : "Mute"}
+      >
+        {callMuted ? <MicOff size={16} /> : <Mic size={16} />}
+      </button>
+      <button
+        type="button"
+        onClick={endActiveCall}
+        className="flex h-10 items-center justify-center rounded-xl border border-rose-300 bg-rose-500 text-white shadow-lg shadow-rose-500/20 transition hover:bg-rose-600"
+        aria-label="End call"
+        title="End"
+      >
+        <PhoneOff size={16} />
+      </button>
+    </div>
+  </div>
+) : null}
+
+{incomingCall ? (
+  <div className="fixed inset-0 z-[310] flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-sm">
+    <div className="w-full max-w-sm rounded-[2rem] border border-white/10 bg-white p-6 text-center shadow-2xl dark:bg-slate-950">
+      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-2xl font-bold text-emerald-700 shadow-lg shadow-emerald-500/20 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100">
+        {getAvatarInitials(incomingCall.callerName || "C")}
+      </div>
+
+      <h2 className="mt-4 text-xl font-bold text-slate-900 dark:text-white">
+        Incoming {normalizeCallType(incomingCall.callType) === "video" ? "Video" : "Voice"} Call
+      </h2>
+
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+        {incomingCall.callerName || "Someone"} is calling...
+      </p>
+
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={rejectIncomingCall}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-500/25 transition hover:bg-rose-600"
+        >
+          <PhoneOff size={17} strokeWidth={2.4} />
+          Reject
+        </button>
+
+        <button
+          type="button"
+          onClick={acceptIncomingCall}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-600"
+        >
+          {normalizeCallType(incomingCall.callType) === "video" ? (
+            <Video size={17} strokeWidth={2.4} />
+          ) : (
+            <Phone size={17} strokeWidth={2.4} />
+          )}
+          Accept
+        </button>
+      </div>
+    </div>
+  </div>
+) : null}
       <AppContextMenu menu={contextMenu} onClose={closeContextMenu} />
     </div>
   );

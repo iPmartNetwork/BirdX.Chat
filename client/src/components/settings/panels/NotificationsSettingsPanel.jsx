@@ -1,4 +1,5 @@
 import { Bell, BellOff } from "../../../icons/lucide.js";
+import { useLanguage } from "../../../i18n/LanguageContext.jsx";
 
 export function NotificationsSettingsPanel({
   notificationsActive,
@@ -10,8 +11,9 @@ export function NotificationsSettingsPanel({
   notificationsEnabled,
   debugLine = "",
 }) {
+  const { t } = useLanguage();
   const buttonBase =
-    "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition";
+    "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-start text-sm font-semibold transition";
   const buttonHover =
     "hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_18px_rgba(16,185,129,0.18)] dark:hover:bg-emerald-500/10";
   const buttonTheme =
@@ -44,7 +46,7 @@ export function NotificationsSettingsPanel({
           ) : (
             <BellOff size={18} className="icon-anim-sway" />
           )}
-          Enable notifications
+          {t("settings.notifications.enable")}
         </span>
         <span
           className={`relative inline-flex h-6 w-11 items-center rounded-full p-0.5 transition ${
@@ -74,7 +76,7 @@ export function NotificationsSettingsPanel({
             : buttonHover
         }`}
       >
-        <span>Test notification</span>
+        <span>{t("settings.notifications.testNotification")}</span>
         <button
           type="button"
           onClick={onTestPush}
@@ -91,7 +93,9 @@ export function NotificationsSettingsPanel({
                 : `${testButtonBase} bg-emerald-500 text-white hover:bg-emerald-400`
           }
         >
-          {testNotificationSent ? "Sent" : "Test"}
+          {testNotificationSent
+            ? t("settings.notifications.sent")
+            : t("settings.notifications.test")}
         </button>
       </div>
     </>

@@ -43,26 +43,26 @@ export function useActiveChatState({
   }, [chats, chatsSearchQuery, user?.username]);
 
   const activeChat =
-    visibleChats.find((conv) => conv.id === activeId) ||
-    chats.find((conv) => conv.id === activeId);
+    visibleChats.find((conv) => Number(conv?.id || 0) === activeId) ||
+    chats.find((conv) => Number(conv?.id || 0) === activeId);
 
   useEffect(() => {
     activeChatTypeRef.current = activeChat?.type || null;
   }, [activeChat?.type, activeChatTypeRef]);
 
   const activeMembers = useMemo(
-    () => activeChat?.members || [],
+    () => (Array.isArray(activeChat?.members) ? activeChat.members : []),
     [activeChat?.members],
   );
   const isActiveGroupChat = activeChat?.type === "group";
   const isActiveChannelChat = activeChat?.type === "channel";
   const isActiveSavedChat = activeChat?.type === "saved";
-  const isActiveOwner = activeMembers.some(
+  const isActiveManager = activeMembers.some(
     (member) =>
       Number(member.id) === Number(user?.id || 0) &&
-      String(member.role || "").toLowerCase() === "owner",
+      ["owner", "admin", "moderator"].includes(String(member.role || "").toLowerCase()),
   );
-  const canSendInActiveChat = !isActiveChannelChat || isActiveOwner;
+  const canSendInActiveChat = !isActiveChannelChat || isActiveManager;
   const activeGroupMemberUsernames = useMemo(() => {
     if (!isActiveGroupChat && !isActiveChannelChat) return [];
     return (activeMembers || [])
@@ -73,7 +73,7 @@ export function useActiveChatState({
   const activeGroupMemberUsernamesKey = activeGroupMemberUsernames.join("|");
   const activeDmMember =
     activeChat?.type === "dm"
-      ? activeMembers.find((member) => member.username !== user.username)
+      ? activeMembers.find((member) => member.username !== user?.username)
       : null;
   const isDeletedDm = activeChat?.type === "dm" && !activeDmMember;
   const deletedDmPeer = isDeletedDm

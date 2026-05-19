@@ -1,12 +1,16 @@
 {
   "name": "BirdX",
   "short_name": "BirdX",
+  "id": "/?app=birdx",
   "description": "BirdX - Secure chat & file sharing platform",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "background_color": "#020617",
   "theme_color": "#10b981",
+  "categories": ["social", "productivity"],
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/icons/icon-192.png",

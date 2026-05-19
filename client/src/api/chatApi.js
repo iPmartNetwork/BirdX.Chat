@@ -56,6 +56,125 @@ export const sendPushTest = ({ username }) =>
     body: JSON.stringify({ username }),
   });
 
+export const fetchAdminMe = () => apiFetch(`${API_BASE}/api/admin/me`);
+
+export const fetchAdminOverview = () => apiFetch(`${API_BASE}/api/admin/overview`);
+
+export const fetchAdminSystemHealth = () => apiFetch(`${API_BASE}/api/admin/system-health`);
+
+export const fetchAdminSecuritySummary = () => apiFetch(`${API_BASE}/api/admin/security-summary`);
+
+const buildAdminQuery = (params = {}) => {
+  const search = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    search.set(key, String(value));
+  });
+  const query = search.toString();
+  return query ? `?${query}` : "";
+};
+
+export const fetchAdminUsers = (params = {}) =>
+  apiFetch(`${API_BASE}/api/admin/users${buildAdminQuery(params)}`);
+
+export const fetchAdminUserDetail = (userId) =>
+  apiFetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}`);
+
+const adminJsonOptions = (method, payload = {}) => ({
+  method,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(payload || {}),
+});
+
+export const updateAdminUser = (userId, payload) =>
+  apiFetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}`, adminJsonOptions("PATCH", payload));
+
+export const resetAdminUserPassword = (userId, payload) => {
+  const body = typeof payload === "string" ? { password: payload } : payload;
+  return apiFetch(
+    `${API_BASE}/api/admin/users/${encodeURIComponent(userId)}/reset-password`,
+    adminJsonOptions("POST", body),
+  );
+};
+
+export const deleteAdminUser = (userId, payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}`, adminJsonOptions("DELETE", payload));
+
+export const deleteAdminUserSession = (userId, sessionId, payload = {}) =>
+  apiFetch(
+    `${API_BASE}/api/admin/users/${encodeURIComponent(userId)}/sessions/${encodeURIComponent(
+      sessionId,
+    )}`,
+    adminJsonOptions("DELETE", payload),
+  );
+
+export const deleteAdminUserSessions = (userId, payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}/sessions`, adminJsonOptions("DELETE", payload));
+
+export const fetchAdminChats = (params = {}) =>
+  apiFetch(`${API_BASE}/api/admin/chats${buildAdminQuery(params)}`);
+
+export const fetchAdminChatDetail = (chatId) =>
+  apiFetch(`${API_BASE}/api/admin/chats/${encodeURIComponent(chatId)}/detail`);
+
+export const updateAdminChatSettings = (chatId, payload = {}) =>
+  apiFetch(
+    `${API_BASE}/api/admin/chats/${encodeURIComponent(chatId)}/settings`,
+    adminJsonOptions("PATCH", payload),
+  );
+
+export const addAdminChatMember = (chatId, payload = {}) =>
+  apiFetch(
+    `${API_BASE}/api/admin/chats/${encodeURIComponent(chatId)}/members`,
+    adminJsonOptions("POST", payload),
+  );
+
+export const updateAdminChatMember = (chatId, userId, payload = {}) =>
+  apiFetch(
+    `${API_BASE}/api/admin/chats/${encodeURIComponent(chatId)}/members/${encodeURIComponent(userId)}`,
+    adminJsonOptions("PATCH", payload),
+  );
+
+export const deleteAdminChatMember = (chatId, userId, payload = {}) =>
+  apiFetch(
+    `${API_BASE}/api/admin/chats/${encodeURIComponent(chatId)}/members/${encodeURIComponent(userId)}`,
+    adminJsonOptions("DELETE", payload),
+  );
+
+export const deleteAdminChat = (chatId, payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/chats/${encodeURIComponent(chatId)}`, adminJsonOptions("DELETE", payload));
+
+export const fetchAdminFiles = (params = {}) =>
+  apiFetch(`${API_BASE}/api/admin/files${buildAdminQuery(params)}`);
+
+export const deleteAdminFile = (fileId, payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/files/${encodeURIComponent(fileId)}`, adminJsonOptions("DELETE", payload));
+
+export const fetchAdminAuditLogs = (params = {}) =>
+  apiFetch(`${API_BASE}/api/admin/audit-logs${buildAdminQuery(params)}`);
+
+export const fetchAdminSettings = () => apiFetch(`${API_BASE}/api/admin/settings`);
+
+export const fetchAdminRequiredChannels = () =>
+  apiFetch(`${API_BASE}/api/admin/required-channels`);
+
+export const updateAdminRequiredChannels = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/required-channels`, adminJsonOptions("PUT", payload));
+
+export const applyAdminRequiredChannels = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/required-channels/apply`, adminJsonOptions("POST", payload));
+
+export const fetchAdminBackups = () => apiFetch(`${API_BASE}/api/admin/backups`);
+
+export const createAdminBackup = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/backups`, adminJsonOptions("POST", payload));
+
+export const deleteAdminBackup = (name, payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/backups/${encodeURIComponent(name)}`, adminJsonOptions("DELETE", payload));
+
+export const getAdminBackupDownloadUrl = (name) =>
+  `${API_BASE}/api/admin/backups/${encodeURIComponent(name)}/download`;
+
 export const discoverUsersAndGroups = ({ username, query }) =>
   apiFetch(
     `${API_BASE}/api/discover?username=${encodeURIComponent(
@@ -190,6 +309,13 @@ export const removeGroupMember = (chatId, payload) =>
     body: JSON.stringify(payload),
   });
 
+export const updateGroupMemberRole = (chatId, payload) =>
+  apiFetch(`${API_BASE}/api/chats/group/${encodeURIComponent(chatId)}/member-role`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
 export const updateGroupChat = (chatId, payload) =>
   apiFetch(`${API_BASE}/api/chats/group/${encodeURIComponent(chatId)}`, {
     method: "PUT",
@@ -225,6 +351,13 @@ export const getChatPreview = ({ chatId, username }) =>
     )}`,
   );
 
+export const fetchChatCallLogs = ({ chatId, username, limit = 30 }) =>
+  apiFetch(
+    `${API_BASE}/api/chats/${encodeURIComponent(chatId)}/calls?username=${encodeURIComponent(
+      username,
+    )}&limit=${encodeURIComponent(limit)}`,
+  );
+
 export const uploadGroupAvatar = (chatId, payload) =>
   apiFetch(`${API_BASE}/api/chats/group/${encodeURIComponent(chatId)}/avatar`, {
     method: "POST",
@@ -234,6 +367,20 @@ export const uploadGroupAvatar = (chatId, payload) =>
 export const removeGroupAvatar = (chatId, payload) =>
   apiFetch(`${API_BASE}/api/chats/group/${encodeURIComponent(chatId)}/avatar`, {
     method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+export const getRemoteChannelSettings = ({ chatId, username }) =>
+  apiFetch(
+    `${API_BASE}/api/chats/${encodeURIComponent(chatId)}/remote-channel?username=${encodeURIComponent(
+      username,
+    )}`,
+  );
+
+export const updateRemoteChannelSettings = (chatId, payload) =>
+  apiFetch(`${API_BASE}/api/chats/${encodeURIComponent(chatId)}/remote-channel`, {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -285,6 +432,13 @@ export const editMessage = (payload) =>
 
 export const deleteMessage = (payload) =>
   apiFetch(`${API_BASE}/api/messages/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+export const toggleMessageReaction = (payload) =>
+  apiFetch(`${API_BASE}/api/messages/react`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
