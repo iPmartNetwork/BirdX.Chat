@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Close, SendHorizontal } from "../../icons/lucide.js";
 import ForwardChatGridItem from "../forward/ForwardChatGridItem.jsx";
 import {
@@ -47,9 +47,9 @@ export default function ForwardMessageModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-      <div className="flex w-full max-w-md flex-col overflow-hidden rounded-3xl border border-emerald-100/70 bg-white px-6 py-5 shadow-xl dark:border-emerald-500/30 dark:bg-slate-950">
+      <div className="flex w-full max-w-md flex-col overflow-hidden rounded-3xl border border-indigo-100/70 bg-white px-6 py-5 shadow-xl dark:border-indigo-500/30 dark:bg-slate-950">
         <div className="flex items-center justify-between pb-1">
-          <h3 className="text-base font-semibold text-emerald-800 dark:text-emerald-200">
+          <h3 className="text-base font-semibold text-indigo-800 dark:text-indigo-200">
             Send to...
           </h3>
           <button
@@ -93,7 +93,7 @@ export default function ForwardMessageModal({
             type="button"
             disabled={!selectedChatIds.length}
             onClick={() => onSubmit?.(selectedChatIds)}
-            className="inline-flex h-10 items-center gap-2 rounded-full bg-emerald-500 px-5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-10 items-center gap-2 rounded-full bg-indigo-500 px-5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-indigo-500/40 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <SendHorizontal size={16} className="icon-anim-slide" />
             Send

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+﻿import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Close,
@@ -35,7 +35,7 @@ export default function NewGroupModal({
   title = "New group",
   submitLabel = "Create",
   avatarPreview = "",
-  avatarColor = "#10b981",
+  avatarColor = "#6366f1",
   avatarName = "Group",
   onAvatarChange,
   onAvatarRemove,
@@ -96,9 +96,9 @@ export default function NewGroupModal({
   return createPortal(
     <>
       <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/40 px-6">
-        <div className="app-scroll max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-emerald-100/70 bg-white p-6 shadow-xl dark:border-emerald-500/30 dark:bg-slate-950">
+        <div className="app-scroll max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-indigo-100/70 bg-white p-6 shadow-xl dark:border-indigo-500/30 dark:bg-slate-950">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-emerald-700 dark:text-emerald-200">
+            <h3 className="text-lg font-semibold text-indigo-700 dark:text-indigo-200">
               {title}
             </h3>
             <button
@@ -112,7 +112,7 @@ export default function NewGroupModal({
 
           <div className="mt-4 space-y-3">
             {showAvatarField ? (
-              <div className="rounded-2xl border border-emerald-200 p-3 dark:border-emerald-500/30">
+              <div className="rounded-2xl border border-indigo-200 p-3 dark:border-indigo-500/30">
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                   {safeEntityLabel} photo
                 </p>
@@ -126,7 +126,7 @@ export default function NewGroupModal({
                   ) : (
                     <div
                       className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full text-lg font-bold ${hasPersian(getAvatarInitials(safeAvatarName || "G")) ? "font-fa" : ""}`}
-                      style={getAvatarStyle(avatarColor || "#10b981")}
+                      style={getAvatarStyle(avatarColor || "#6366f1")}
                     >
                       {getAvatarInitials(safeAvatarName || "G")}
                     </div>
@@ -136,7 +136,7 @@ export default function NewGroupModal({
                       htmlFor="groupPhotoInput"
                       className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-xs font-semibold transition ${
                         fileUploadEnabled
-                          ? "cursor-pointer border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:shadow-md dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20 dark:hover:shadow-md"
+                          ? "cursor-pointer border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:shadow-md dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200 dark:hover:bg-indigo-500/20 dark:hover:shadow-md"
                           : "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500"
                       }`}
                     >
@@ -189,7 +189,7 @@ export default function NewGroupModal({
                   placeholder={`My ${safeEntityLabel.toLowerCase()}`}
                   lang={nicknameHasPersian ? "fa" : "en"}
                   dir={nicknameHasPersian ? "rtl" : "ltr"}
-                  className={`w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
+                  className={`w-full rounded-2xl border border-indigo-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-300/60 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-slate-100 ${
                     nicknameHasPersian ? "font-fa text-right" : "text-left"
                   }`}
                   style={{ unicodeBidi: "plaintext" }}
@@ -218,7 +218,7 @@ export default function NewGroupModal({
                   placeholder={`my${safeEntityLabel.toLowerCase()}`}
                   lang={usernameHasPersian ? "fa" : "en"}
                   dir={usernameHasPersian ? "rtl" : "ltr"}
-                  className={`w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
+                  className={`w-full rounded-2xl border border-indigo-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-300/60 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-slate-100 ${
                     usernameHasPersian ? "font-fa text-right" : "text-left"
                   }`}
                   style={{ unicodeBidi: "plaintext" }}
@@ -233,7 +233,7 @@ export default function NewGroupModal({
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                 Visibility
               </p>
-              <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-emerald-200 p-1 dark:border-emerald-500/30">
+              <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-indigo-200 p-1 dark:border-indigo-500/30">
                 <button
                   type="button"
                   onClick={() =>
@@ -241,8 +241,8 @@ export default function NewGroupModal({
                   }
                   className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
                     safeGroupForm.visibility === "public"
-                      ? "bg-emerald-500 text-white"
-                      : "text-slate-700 hover:bg-emerald-50 dark:text-slate-200 dark:hover:bg-emerald-500/10"
+                      ? "bg-indigo-500 text-white"
+                      : "text-slate-700 hover:bg-indigo-50 dark:text-slate-200 dark:hover:bg-indigo-500/10"
                   }`}
                 >
                   <span className="inline-flex items-center gap-1.5">
@@ -257,8 +257,8 @@ export default function NewGroupModal({
                   }
                   className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
                     safeGroupForm.visibility === "private"
-                      ? "bg-emerald-500 text-white"
-                      : "text-slate-700 hover:bg-emerald-50 dark:text-slate-200 dark:hover:bg-emerald-500/10"
+                      ? "bg-indigo-500 text-white"
+                      : "text-slate-700 hover:bg-indigo-50 dark:text-slate-200 dark:hover:bg-indigo-500/10"
                   }`}
                 >
                   <span className="inline-flex items-center gap-1.5">
@@ -283,7 +283,7 @@ export default function NewGroupModal({
                         allowMemberInvites: event.target.checked,
                       }))
                     }
-                    className="h-4 w-4 rounded-full border border-emerald-300 bg-white accent-emerald-500 focus:ring-2 focus:ring-emerald-300 dark:border-emerald-500/40 dark:bg-slate-900 dark:accent-emerald-400"
+                    className="h-4 w-4 rounded-full border border-indigo-300 bg-white accent-indigo-500 focus:ring-2 focus:ring-indigo-300 dark:border-indigo-500/40 dark:bg-slate-900 dark:accent-indigo-400"
                   />
                   Allow members to invite others
                 </label>
@@ -291,14 +291,14 @@ export default function NewGroupModal({
             </div>
 
             {showInviteManagement ? (
-              <div className="rounded-2xl border border-emerald-200 p-3 dark:border-emerald-500/30">
+              <div className="rounded-2xl border border-indigo-200 p-3 dark:border-indigo-500/30">
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                   Invite link
                 </p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   Regenerating creates a new link and expires the previous one.
                 </p>
-                <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                <div className="mt-2 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 text-xs text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
                   <span className="break-all">
                     {currentInviteLink || "No invite link available."}
                   </span>
@@ -320,7 +320,7 @@ export default function NewGroupModal({
                         1400,
                       );
                     }}
-                    className="inline-flex h-8 items-center gap-1 rounded-full border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+                    className="inline-flex h-8 items-center gap-1 rounded-full border border-indigo-200 bg-white px-3 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
                   >
                     <Copy size={12} className="icon-anim-pop" />
                     {copiedRegenerateLink ? "Copied" : "Copy"}
@@ -329,7 +329,7 @@ export default function NewGroupModal({
                     type="button"
                     onClick={onRegenerateInvite}
                     disabled={regeneratingInviteLink}
-                    className="inline-flex h-8 items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] disabled:opacity-60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+                    className="inline-flex h-8 items-center gap-2 rounded-full border border-indigo-200 bg-white px-3 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] disabled:opacity-60 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
                   >
                     {regeneratingInviteLink ? (
                       <LoaderCircle size={12} className="animate-spin" />
@@ -341,7 +341,7 @@ export default function NewGroupModal({
             ) : null}
 
             {showRemoteChannelSettings ? (
-              <div className="rounded-2xl border border-emerald-200 p-3 dark:border-emerald-500/30">
+              <div className="rounded-2xl border border-indigo-200 p-3 dark:border-indigo-500/30">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -365,7 +365,7 @@ export default function NewGroupModal({
                     }
                     className={`h-7 w-12 rounded-full p-1 transition ${
                       safeGroupForm.remoteChannelEnabled && remoteChannelAvailable
-                        ? "bg-emerald-500"
+                        ? "bg-indigo-500"
                         : "bg-slate-300 dark:bg-slate-700"
                     } ${remoteChannelAvailable ? "" : "opacity-60"}`}
                   >
@@ -411,13 +411,13 @@ export default function NewGroupModal({
                         placeholder="@channel or https://t.me/channel"
                         lang={remoteSourceHasPersian ? "fa" : "en"}
                         dir={remoteSourceHasPersian ? "rtl" : "ltr"}
-                        className={`mt-2 w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
+                        className={`mt-2 w-full rounded-2xl border border-indigo-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-300/60 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-slate-100 ${
                           remoteSourceHasPersian ? "font-fa text-right" : "text-left"
                         }`}
                         style={{ unicodeBidi: "plaintext" }}
                       />
                     </div>
-                    <label className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-slate-200">
+                    <label className="flex items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-indigo-50/60 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-slate-200">
                       <span>Sync Telegram title when saving</span>
                       <input
                         type="checkbox"
@@ -428,10 +428,10 @@ export default function NewGroupModal({
                             remoteChannelSyncMetadata: event.target.checked,
                           }))
                         }
-                        className="h-4 w-4 rounded border-emerald-300 accent-emerald-500"
+                        className="h-4 w-4 rounded border-indigo-300 accent-indigo-500"
                       />
                     </label>
-                    <label className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-slate-200">
+                    <label className="flex items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-indigo-50/60 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-slate-200">
                       <span>Allow media streaming when supported</span>
                       <input
                         type="checkbox"
@@ -442,7 +442,7 @@ export default function NewGroupModal({
                             remoteChannelStreamMedia: event.target.checked,
                           }))
                         }
-                        className="h-4 w-4 rounded border-emerald-300 accent-emerald-500"
+                        className="h-4 w-4 rounded border-indigo-300 accent-indigo-500"
                       />
                     </label>
                     {Object.keys(remoteQueue).length ? (
@@ -455,7 +455,7 @@ export default function NewGroupModal({
               </div>
             ) : null}
 
-            <div className="rounded-2xl border border-emerald-200 p-3 dark:border-emerald-500/30">
+            <div className="rounded-2xl border border-indigo-200 p-3 dark:border-indigo-500/30">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                   Members
@@ -472,7 +472,7 @@ export default function NewGroupModal({
                   placeholder="username"
                   lang={groupSearchHasPersian ? "fa" : "en"}
                   dir={groupSearchHasPersian ? "rtl" : "ltr"}
-                  className={`w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 pr-14 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
+                  className={`w-full rounded-2xl border border-indigo-200 bg-white px-4 py-3 pr-14 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-300/60 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-slate-100 ${
                     groupSearchHasPersian ? "font-fa text-right" : "text-left"
                   }`}
                   style={{ unicodeBidi: "plaintext" }}
@@ -522,15 +522,15 @@ export default function NewGroupModal({
                           }}
                           className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-medium transition ${
                             selected
-                              ? "border-emerald-500 border-2 bg-emerald-50 text-emerald-900 shadow-md dark:border-emerald-400 dark:bg-emerald-500/20 dark:text-emerald-100"
-                              : "border-emerald-100/70 bg-white/80 text-slate-700 hover:border-emerald-300 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900/50"
+                              ? "border-indigo-500 border-2 bg-indigo-50 text-indigo-900 shadow-md dark:border-indigo-400 dark:bg-indigo-500/20 dark:text-indigo-100"
+                              : "border-indigo-100/70 bg-white/80 text-slate-700 hover:border-indigo-300 dark:border-indigo-500/30 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900/50"
                           }`}
                         >
                           <Avatar
                             src={result.avatar_url}
                             alt={label}
                             name={label}
-                            color={result.color || "#10b981"}
+                            color={result.color || "#6366f1"}
                             initials={avatarInitials}
                             className="h-8 w-8"
                           />
@@ -581,13 +581,13 @@ export default function NewGroupModal({
                             ),
                           )
                         }
-                        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200"
                       >
                         <Avatar
                           src={member.avatar_url}
                           alt={label}
                           name={label}
-                          color={member.color || "#10b981"}
+                          color={member.color || "#6366f1"}
                           initials={initials}
                           className="h-4 w-4 text-[9px]"
                         />
@@ -640,7 +640,7 @@ export default function NewGroupModal({
               type="button"
               onClick={onCreate}
               disabled={creatingGroup}
-              className="inline-flex min-w-[88px] items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-70"
+              className="inline-flex min-w-[88px] items-center justify-center gap-2 rounded-full bg-indigo-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-70"
             >
               {creatingGroup ? (
                 <>

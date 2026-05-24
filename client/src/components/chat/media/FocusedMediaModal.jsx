@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ClockFading,
   Download,
@@ -376,7 +376,7 @@ export function FocusedMediaModal({
           <button
             type="button"
             onClick={handleMobileSave}
-            className="pointer-events-auto relative z-50 group inline-flex h-9 items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400 hover:shadow-[0_0_22px_rgba(16,185,129,0.45)]"
+            className="pointer-events-auto relative z-50 group inline-flex h-9 items-center gap-2 rounded-full bg-indigo-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-[0_0_22px_rgba(16,185,129,0.45)]"
           >
             <Download size={15} className="icon-anim-drop" />
             Save
@@ -411,7 +411,7 @@ export function FocusedMediaModal({
             <a
               href={focusedMedia.downloadUrl || focusedMedia.url}
               download={focusedMedia.name || "media"}
-              className="pointer-events-auto relative z-50 group inline-flex h-9 items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400 hover:shadow-[0_0_22px_rgba(16,185,129,0.45)]"
+              className="pointer-events-auto relative z-50 group inline-flex h-9 items-center gap-2 rounded-full bg-indigo-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-[0_0_22px_rgba(16,185,129,0.45)]"
             >
               <Download size={15} className="icon-anim-drop" />
               Save
@@ -624,7 +624,7 @@ export function FocusedMediaModal({
                 disabled={
                   Boolean(focusedMedia.processing) || !focusedMediaLoaded
                 }
-                className="h-1.5 flex-1 accent-emerald-400"
+                className="h-1.5 flex-1 accent-indigo-400"
                 aria-label="Seek video"
               />
               <span className="w-20 text-right text-[11px]">

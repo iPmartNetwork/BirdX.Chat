@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const BOTTOM_STRETCH_MAX_PX = 84;
 const BOTTOM_STRETCH_GAIN = 0.2;
@@ -185,7 +185,7 @@ export function MessageTimeline({
               <div
                 className={`animate-pulse rounded-2xl ${
                   own
-                    ? "h-12 w-40 bg-emerald-300/70 dark:bg-emerald-700/60"
+                    ? "h-12 w-40 bg-indigo-300/70 dark:bg-indigo-700/60"
                     : "h-14 w-52 bg-white/80 dark:bg-slate-800/80"
                 }`}
               />
@@ -222,7 +222,7 @@ export function MessageTimeline({
                   <button
                     type="button"
                     onClick={() => handleGroupChipClick(row.dayKey)}
-                    className="inline-flex w-max items-center justify-center rounded-full border border-emerald-200/60 bg-white/90 px-3 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:shadow-md dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200"
+                    className="inline-flex w-max items-center justify-center rounded-full border border-indigo-200/60 bg-white/90 px-3 py-1 text-[11px] font-semibold text-indigo-700 shadow-sm transition hover:border-indigo-300 hover:shadow-md dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
                   >
                     <span
                       data-day-chip={row.dayLabel || ""}
@@ -254,7 +254,7 @@ export function MessageTimeline({
       onScroll={handleTimelineScroll}
       style={chatScrollStyle}
     >
-      <div className="rounded-full border border-emerald-200 bg-white/80 px-4 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200">
+      <div className="rounded-full border border-indigo-200 bg-white/80 px-4 py-2 text-sm font-semibold text-indigo-700 dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200">
         Say something to start
       </div>
     </div>

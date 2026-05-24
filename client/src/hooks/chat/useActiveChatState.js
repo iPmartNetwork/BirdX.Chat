@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+﻿import { useEffect, useMemo } from "react";
 
 export function useActiveChatState({
   chats,
@@ -100,14 +100,14 @@ export function useActiveChatState({
       : activeHeaderPeer;
   const activeGroupAvatarColor =
     isActiveGroupChat || isActiveChannelChat
-      ? activeChat?.group_color || "#10b981"
+      ? activeChat?.group_color || "#6366f1"
       : null;
   const activeGroupAvatarUrl =
     isActiveGroupChat || isActiveChannelChat
       ? activeChat?.group_avatar_url || ""
       : "";
   const headerAvatarColor = isActiveSavedChat
-    ? "#10b981"
+    ? "#6366f1"
     : activeGroupAvatarColor;
 
   return {

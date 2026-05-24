@@ -1,4 +1,4 @@
-import {
+﻿import {
   Bell,
   Bookmark,
   Database,
@@ -35,7 +35,7 @@ export function SettingsMenuActions({
     ? "flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-start text-base font-medium"
     : "flex w-full items-center gap-2 rounded-xl border border-transparent px-3 py-2 text-start text-sm";
   const accentHover =
-    "text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-emerald-200 dark:hover:border-emerald-500/30 dark:hover:bg-emerald-500/10";
+    "text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-indigo-200 dark:hover:border-indigo-500/30 dark:hover:bg-indigo-500/10";
 
   return (
     <>

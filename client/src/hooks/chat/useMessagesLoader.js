@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 
 const SILENT_FETCH_TRACK_MAX_CHATS = 40;
 
@@ -210,7 +210,7 @@ export function useMessagesLoader({
             "",
           avatar_url:
             summaryChat?.last_sender_avatar_url || sender?.avatar_url || "",
-          color: sender?.color || summaryChat?.group_color || "#10b981",
+          color: sender?.color || summaryChat?.group_color || "#6366f1",
           replyTo: null,
           reactions: [],
           _readByMe:

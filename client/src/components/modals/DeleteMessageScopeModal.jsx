@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { createPortal } from "react-dom";
 
 export default function DeleteMessageScopeModal({
@@ -29,13 +29,13 @@ export default function DeleteMessageScopeModal({
             onClick={() => setDeleteForEveryone((prev) => !prev)}
             role="switch"
             aria-checked={deleteForEveryone}
-            className="mt-4 flex w-full items-center justify-between rounded-2xl border border-emerald-200/70 bg-white/90 px-4 py-3 text-left text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_18px_rgba(16,185,129,0.18)] dark:border-emerald-500/30 dark:bg-slate-900/50 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+            className="mt-4 flex w-full items-center justify-between rounded-2xl border border-indigo-200/70 bg-white/90 px-4 py-3 text-left text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_18px_rgba(16,185,129,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
           >
             <span>Delete for everyone</span>
             <span
               className={`relative inline-flex h-6 w-11 items-center rounded-full p-0.5 transition ${
                 deleteForEveryone
-                  ? "justify-end bg-emerald-500"
+                  ? "justify-end bg-indigo-500"
                   : "justify-start bg-slate-300 dark:bg-slate-700"
               }`}
             >
@@ -50,7 +50,7 @@ export default function DeleteMessageScopeModal({
               setDeleteForEveryone(false);
               onClose?.();
             }}
-            className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200"
+            className="rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
           >
             Cancel
           </button>

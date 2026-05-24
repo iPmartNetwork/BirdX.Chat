@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+﻿import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import ContextMenuSurface from "../context-menu/ContextMenuSurface.jsx";
 import {
@@ -90,10 +90,10 @@ function ChatProfileModal({
         : targetUser?.avatar_url || null;
   const profileColor =
     isGroup || isChannel
-      ? chat?.group_color || "#10b981"
+      ? chat?.group_color || "#6366f1"
       : isSaved
-        ? "#10b981"
-        : targetUser?.color || "#10b981";
+        ? "#6366f1"
+        : targetUser?.color || "#6366f1";
   const initials = getAvatarInitials(profileName);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const members = Array.isArray(chat?.members) ? chat.members : [];
@@ -175,13 +175,13 @@ function ChatProfileModal({
 
   return createPortal(
     <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-5">
-      <div className="app-scroll max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-3xl border border-emerald-100/70 bg-white p-5 shadow-xl dark:border-emerald-500/30 dark:bg-slate-950">
+      <div className="app-scroll max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-3xl border border-indigo-100/70 bg-white p-5 shadow-xl dark:border-indigo-500/30 dark:bg-slate-950">
         <div className="mb-3 flex items-center justify-between">
           {!isReadOnly && (isGroup || isChannel) && isOwner ? (
             <button
               type="button"
               onClick={onEditGroup}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-white text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
               aria-label={isChannel ? "Edit channel" : "Edit group"}
             >
               <Pencil size={16} className="icon-anim-sway" />
@@ -190,7 +190,7 @@ function ChatProfileModal({
             <button
               type="button"
               onClick={onEditSelfProfile}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-white text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
               aria-label="Edit profile"
             >
               <Pencil size={16} className="icon-anim-sway" />
@@ -252,7 +252,7 @@ function ChatProfileModal({
             <button
               type="button"
               onClick={onJoinChat}
-              className="group col-start-2 rounded-2xl border border-emerald-200 bg-white px-2 py-3 text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+              className="group col-start-2 rounded-2xl border border-indigo-200 bg-white px-2 py-3 text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
             >
               <div className="mx-auto inline-flex h-11 w-11 items-center justify-center rounded-full">
                 <LogIn size={24} className="icon-anim-bob" />
@@ -271,7 +271,7 @@ function ChatProfileModal({
             <button
               type="button"
               onClick={onOpenChat}
-              className="group rounded-2xl border border-emerald-200 bg-white px-2 py-3 text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+              className="group rounded-2xl border border-indigo-200 bg-white px-2 py-3 text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
             >
               <div className="mx-auto inline-flex h-11 w-11 items-center justify-center rounded-full">
                 <Chat size={24} className="icon-anim-bob" />
@@ -281,7 +281,7 @@ function ChatProfileModal({
             <button
               type="button"
               onClick={onToggleMute}
-              className="group rounded-2xl border border-emerald-200 bg-white px-2 py-3 text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+              className="group rounded-2xl border border-indigo-200 bg-white px-2 py-3 text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
             >
               <div className="mx-auto inline-flex h-11 w-11 items-center justify-center rounded-full">
                 {muted ? (
@@ -310,9 +310,9 @@ function ChatProfileModal({
         ) : null}
 
         {!isReadOnly && (isGroup || isChannel) && canViewInvite ? (
-          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+          <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-3 dark:border-indigo-500/30 dark:bg-indigo-500/10">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-200">
+              <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-200">
                 Invite link
               </p>
               <button
@@ -328,7 +328,7 @@ function ChatProfileModal({
                     // ignore clipboard errors
                   }
                 }}
-                className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+                className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
               >
                 <Copy size={12} className="icon-anim-pop" />
                 {copiedInviteLink ? "Copied" : "Copy"}
@@ -341,9 +341,9 @@ function ChatProfileModal({
         ) : null}
 
         {!isReadOnly && !isSaved ? (
-          <div className="mt-4 rounded-2xl border border-emerald-200/80 p-3 dark:border-emerald-500/30">
+          <div className="mt-4 rounded-2xl border border-indigo-200/80 p-3 dark:border-indigo-500/30">
             <div className="flex items-center justify-between gap-2">
-              <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-200">
+              <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-200">
                 <PhoneCall size={13} className="icon-anim-bob" />
                 Call history
               </p>
@@ -365,7 +365,7 @@ function ChatProfileModal({
                   return (
                     <div
                       key={`call-log-${call?.id}`}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100/80 bg-white/80 px-3 py-2 text-xs dark:border-emerald-500/20 dark:bg-slate-900/70"
+                      className="flex items-center justify-between gap-3 rounded-xl border border-indigo-100/80 bg-white/80 px-3 py-2 text-xs dark:border-indigo-500/20 dark:bg-slate-900/70"
                     >
                       <div className="min-w-0">
                         <p
@@ -387,7 +387,7 @@ function ChatProfileModal({
                   );
                 })
               ) : (
-                <p className="rounded-xl border border-dashed border-emerald-200 px-3 py-2 text-xs text-slate-500 dark:border-emerald-500/30 dark:text-slate-400">
+                <p className="rounded-xl border border-dashed border-indigo-200 px-3 py-2 text-xs text-slate-500 dark:border-indigo-500/30 dark:text-slate-400">
                   No calls yet.
                 </p>
               )}
@@ -396,7 +396,7 @@ function ChatProfileModal({
         ) : null}
 
         {canSeeMembers ? (
-          <div className="mt-4 rounded-2xl border border-emerald-200/80 p-3 dark:border-emerald-500/30">
+          <div className="mt-4 rounded-2xl border border-indigo-200/80 p-3 dark:border-indigo-500/30">
             <div className="relative">
               <input
                 value={memberQuery}
@@ -407,7 +407,7 @@ function ChatProfileModal({
                 placeholder="Search members"
                 lang={memberQueryHasPersian ? "fa" : "en"}
                 dir={memberQueryHasPersian ? "rtl" : "ltr"}
-                className={`w-full rounded-2xl border border-emerald-200 bg-white px-4 py-2.5 pr-14 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
+                className={`w-full rounded-2xl border border-indigo-200 bg-white px-4 py-2.5 pr-14 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-300/60 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-slate-100 ${
                   memberQueryHasPersian ? "font-fa text-right" : "text-left"
                 }`}
                 style={{ unicodeBidi: "plaintext" }}
@@ -441,7 +441,7 @@ function ChatProfileModal({
                   <ContextMenuSurface
                     as="div"
                     key={`member-row-${member.id}`}
-                    className="flex items-center gap-2 rounded-xl border border-emerald-100/80 bg-white/80 px-2 py-2 transition hover:border-emerald-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.18)] dark:border-emerald-500/20 dark:bg-slate-900/70 dark:hover:border-emerald-500/35 dark:hover:shadow-[0_0_18px_rgba(16,185,129,0.12)]"
+                    className="flex items-center gap-2 rounded-xl border border-indigo-100/80 bg-white/80 px-2 py-2 transition hover:border-indigo-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.18)] dark:border-indigo-500/20 dark:bg-slate-900/70 dark:hover:border-indigo-500/35 dark:hover:shadow-[0_0_18px_rgba(16,185,129,0.12)]"
                     contextMenu={{
                       isMobile:
                         typeof window !== "undefined" &&
@@ -470,7 +470,7 @@ function ChatProfileModal({
                         src={member.avatar_url}
                         alt={label}
                         name={label}
-                        color={member.color || "#10b981"}
+                        color={member.color || "#6366f1"}
                         initials={memberInitials}
                         className="h-8 w-8 text-xs"
                       />
@@ -487,7 +487,7 @@ function ChatProfileModal({
                             className={`h-1.5 w-1.5 rounded-full ${
                               String(member.status || "").toLowerCase() ===
                               "online"
-                                ? "bg-emerald-400"
+                                ? "bg-indigo-400"
                                 : "bg-slate-400"
                             }`}
                           />
@@ -499,7 +499,7 @@ function ChatProfileModal({
                       </div>
                     </button>
                     {isOwner ? (
-                      <label className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                      <label className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
                         <ShieldCheck size={11} />
                         <select
                           value={memberRole}
@@ -515,7 +515,7 @@ function ChatProfileModal({
                         </select>
                       </label>
                     ) : (
-                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold capitalize text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                      <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold capitalize text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
                         {memberRole}
                       </span>
                     )}
@@ -547,7 +547,7 @@ function ChatProfileModal({
                     }
                   }, 0);
                 }}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+                className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
               >
                 <ArrowDown size={12} className="icon-anim-pop" />
                 Show more

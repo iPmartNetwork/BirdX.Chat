@@ -8,15 +8,21 @@ All notable changes to BirdX are documented in this file.
 
 - Added End-to-End Encryption (E2EE) foundation for DM chats using X3DH key agreement and AES-256-GCM symmetric encryption.
 - Added E2EE key generation, upload, and bundle fetch API endpoints (`/api/e2ee/keys/*`).
-- Added database migration `031-e2ee-keys` for identity keys, signed prekeys, one-time prekeys, and session storage.
+- Added database migration `032-e2ee-keys` for identity keys, signed prekeys, one-time prekeys, and session storage.
 - Added client-side E2EE crypto module with ECDH P-256 key exchange, HKDF key derivation, and AES-256-GCM message encryption.
 - Added client-side E2EE key store using a dedicated IndexedDB database (`birdx-e2ee-keys`).
 - Added `useE2ee` hook for automatic session establishment, message encryption/decryption, and prekey replenishment.
 - Added green lock indicator in the chat header when E2EE is active between both DM participants.
 - Added automatic E2EE message decryption for incoming messages via SSE events.
+- Added per-user upload policy with database migration `031-user-upload-policy`.
+- Added admin controls to disable file uploads or set max upload size per user.
 
 ### Changed
 
+- Redesigned the entire color palette from emerald/green to indigo/violet to match the new BirdX brand identity.
+- Updated dark mode backgrounds to deeper navy-black tones (`#0a0e1a`).
+- Updated manifest theme-color and PWA branding to indigo.
+- Updated scrollbar, selection, typing indicator, and code block accent colors to indigo.
 - Messages in E2EE-enabled DM chats are encrypted client-side before sending; the server only stores ciphertext.
 - Bumped service-worker cache version to `v2.5.3-rc2`.
 

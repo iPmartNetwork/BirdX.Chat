@@ -1,4 +1,4 @@
-import { Moon, Sun } from "../../icons/lucide.js";
+﻿import { Moon, Sun } from "../../icons/lucide.js";
 
 export default function AuthHeader({
   isLogin,
@@ -9,7 +9,7 @@ export default function AuthHeader({
   return (
     <div className="relative text-center">
       {/* Brand */}
-      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-300 sm:text-sm">
+      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-indigo-600 dark:text-indigo-300 sm:text-sm">
         BirdX
       </p>
 
@@ -29,7 +29,7 @@ export default function AuthHeader({
       <button
         type="button"
         onClick={onToggleTheme}
-        className="absolute right-0 top-0 flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-emerald-700 transition dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 sm:h-10 sm:w-10"
+        className="absolute right-0 top-0 flex h-8 w-8 items-center justify-center rounded-full border border-indigo-200 bg-white/80 text-indigo-700 transition dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200 sm:h-10 sm:w-10"
         aria-label="Toggle dark mode"
       >
         {isDark ? (
