@@ -95,11 +95,11 @@ export function MobileSettingsPanel({
     <>
       {!settingsPanel ? (
         <div className="space-y-4 md:hidden">
-          <div className="rounded-2xl border border-slate-300/80 bg-white/90 p-4 text-slate-700 dark:border-primary-500/20 dark:bg-slate-950/60 dark:text-slate-200">
+          <div className="rounded-2xl border border-slate-300/80 bg-white/90 p-4 text-slate-700 dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-slate-200">
             <button
               type="button"
               onClick={onOpenOwnProfile}
-              className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-1 py-1 text-start transition hover:border-primary-300 hover:bg-primary-50/50 hover:shadow-[0_0_16px_rgba(59,130,246,0.18)] dark:hover:border-primary-500/30 dark:hover:bg-primary-500/10"
+              className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-1 py-1 text-start transition hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-[0_0_16px_rgba(59,130,246,0.18)] dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10"
             >
               <Avatar
                 src={user.avatarUrl}
@@ -107,11 +107,11 @@ export function MobileSettingsPanel({
                 name={displayName}
                 color={resolvedUserColor}
                 initials={displayInitials}
-                className="h-10 w-10 transition group-hover:ring-2 group-hover:ring-primary-300"
+                className="h-10 w-10 transition group-hover:ring-2 group-hover:ring-blue-300"
               />
               <div className="min-w-0">
                 <p
-                  className={`truncate text-sm font-semibold text-primary-700 dark:text-primary-200 ${hasPersian(displayName) ? "font-fa" : ""}`}
+                  className={`truncate text-sm font-semibold text-blue-700 dark:text-blue-200 ${hasPersian(displayName) ? "font-fa" : ""}`}
                   dir="auto"
                   style={{ unicodeBidi: "plaintext" }}
                   title={displayName}
@@ -125,7 +125,7 @@ export function MobileSettingsPanel({
               </div>
             </button>
           </div>
-          <div className="rounded-2xl border border-slate-300/80 bg-white/90 p-2 text-sm shadow-sm dark:border-primary-500/20 dark:bg-slate-950/60">
+          <div className="rounded-2xl border border-slate-300/80 bg-white/90 p-2 text-sm shadow-sm dark:border-blue-500/20 dark:bg-slate-950/60">
             <SettingsMenuActions
               variant="mobile"
               setSettingsPanel={setSettingsPanel}
@@ -149,16 +149,16 @@ export function MobileSettingsPanel({
 
       {settingsPanel === "profile" ? (
         <div className="md:hidden">
-          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-primary-100/70 bg-white/80 p-4 dark:border-primary-500/30 dark:bg-slate-950/60">
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-blue-100/70 bg-white/80 p-4 dark:border-blue-500/30 dark:bg-slate-950/60">
             <button
               type="button"
               onClick={() => setSettingsPanel(null)}
-              className="inline-flex items-center justify-center rounded-full border border-primary-200 p-2 text-primary-700 transition hover:bg-primary-50 dark:border-primary-500/30 dark:text-primary-200 dark:hover:bg-primary-500/10"
+              className="inline-flex items-center justify-center rounded-full border border-blue-200 p-2 text-blue-700 transition hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-200 dark:hover:bg-blue-500/10"
               aria-label={t("settings.back")}
             >
               <ArrowLeft size={18} />
             </button>
-            <h4 className="text-sm font-semibold text-primary-700 dark:text-primary-200">
+            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-200">
               {t("settings.profile")}
             </h4>
           </div>
@@ -181,7 +181,7 @@ export function MobileSettingsPanel({
                     htmlFor="profilePhotoInput2"
                     className={`inline-flex items-center justify-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition ${
                       fileUploadEnabled
-                        ? "cursor-pointer border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 hover:shadow-md dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-200 dark:hover:bg-primary-500/20"
+                        ? "cursor-pointer border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:shadow-md dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:bg-blue-500/20"
                         : "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500"
                     }`}
                   >
@@ -231,7 +231,7 @@ export function MobileSettingsPanel({
                   maxLength={NICKNAME_MAX}
                   lang={nicknameHasPersian ? "fa" : "en"}
                   dir={nicknameHasPersian ? "rtl" : "ltr"}
-                  className={`w-full rounded-xl border border-primary-200 bg-white px-3 py-2 pr-14 text-xs text-slate-700 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-300/60 dark:border-primary-500/30 dark:bg-slate-900 dark:text-slate-100 ${
+                  className={`w-full rounded-xl border border-blue-200 bg-white px-3 py-2 pr-14 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-300/60 dark:border-blue-500/30 dark:bg-slate-900 dark:text-slate-100 ${
                     nicknameHasPersian ? "font-fa text-right" : "text-left"
                   }`}
                   style={{ unicodeBidi: "plaintext" }}
@@ -260,7 +260,7 @@ export function MobileSettingsPanel({
                   autoCapitalize="none"
                   lang={usernameHasPersian ? "fa" : "en"}
                   dir={usernameHasPersian ? "rtl" : "ltr"}
-                  className={`w-full rounded-xl border border-primary-200 bg-white px-3 py-2 pr-14 text-xs text-slate-700 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-300/60 dark:border-primary-500/30 dark:bg-slate-900 dark:text-slate-100 ${
+                  className={`w-full rounded-xl border border-blue-200 bg-white px-3 py-2 pr-14 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-300/60 dark:border-blue-500/30 dark:bg-slate-900 dark:text-slate-100 ${
                     usernameHasPersian ? "font-fa text-right" : "text-left"
                   }`}
                   style={{ unicodeBidi: "plaintext" }}
@@ -282,12 +282,12 @@ export function MobileSettingsPanel({
                     onClick={() => setStatusSelection(value)}
                     className={`flex items-center gap-1 rounded-xl border border-2 px-2 py-1 text-xs font-medium transition duration-200 ${
                       statusSelection === value
-                        ? "border-primary-500 bg-primary-100/50 text-primary-700 shadow-md dark:border-primary-400 dark:bg-primary-500/20 dark:text-primary-200"
-                        : "border-primary-100/70 bg-white/80 text-slate-700 hover:bg-primary-50/30 dark:border-primary-500/30 dark:bg-slate-950/50 dark:text-slate-100 dark:hover:bg-slate-900/50"
+                        ? "border-blue-500 bg-blue-100/50 text-blue-700 shadow-md dark:border-blue-400 dark:bg-blue-500/20 dark:text-blue-200"
+                        : "border-blue-100/70 bg-white/80 text-slate-700 hover:bg-blue-50/30 dark:border-blue-500/30 dark:bg-slate-950/50 dark:text-slate-100 dark:hover:bg-slate-900/50"
                     }`}
                   >
                     <span
-                      className={`h-2 w-2 rounded-full ${value === "online" ? "bg-primary-400" : "bg-slate-400"}`}
+                      className={`h-2 w-2 rounded-full ${value === "online" ? "bg-blue-400" : "bg-slate-400"}`}
                     />
                     <span>
                       {value.charAt(0).toUpperCase() + value.slice(1)}
@@ -311,7 +311,7 @@ export function MobileSettingsPanel({
             ) : null}
             <button
               type="submit"
-              className="w-full rounded-xl bg-primary-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-primary-500/30 transition hover:bg-primary-400 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]"
+              className="w-full rounded-xl bg-blue-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-400 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]"
             >
               Save profile
             </button>
@@ -322,16 +322,16 @@ export function MobileSettingsPanel({
 
       {settingsPanel === "security" ? (
         <div className="md:hidden">
-          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-primary-100/70 bg-white/80 p-4 dark:border-primary-500/30 dark:bg-slate-950/60">
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-blue-100/70 bg-white/80 p-4 dark:border-blue-500/30 dark:bg-slate-950/60">
             <button
               type="button"
               onClick={() => setSettingsPanel(null)}
-              className="inline-flex items-center justify-center rounded-full border border-primary-200 p-2 text-primary-700 transition hover:bg-primary-50 dark:border-primary-500/30 dark:text-primary-200 dark:hover:bg-primary-500/10"
+              className="inline-flex items-center justify-center rounded-full border border-blue-200 p-2 text-blue-700 transition hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-200 dark:hover:bg-blue-500/10"
               aria-label={t("settings.back")}
             >
               <ArrowLeft size={18} />
             </button>
-            <h4 className="text-sm font-semibold text-primary-700 dark:text-primary-200">
+            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-200">
               {t("settings.security")}
             </h4>
           </div>
@@ -351,12 +351,12 @@ export function MobileSettingsPanel({
                     }))
                   }
                   placeholder={showCurrentPassword ? "12345678" : "********"}
-                  className="w-full rounded-xl border border-primary-200 bg-white px-3 py-2 pr-16 text-xs text-slate-700 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-300/60 dark:border-primary-500/30 dark:bg-slate-900 dark:text-slate-100"
+                  className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 pr-16 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-300/60 dark:border-blue-500/30 dark:bg-slate-900 dark:text-slate-100"
                 />
                 <button
                   type="button"
                   onClick={() => setShowCurrentPassword((prev) => !prev)}
-                  className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-primary-700 transition hover:bg-primary-100 hover:shadow-[0_0_18px_rgba(59,130,246,0.22)] dark:text-primary-200 dark:hover:bg-primary-500/10"
+                  className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-blue-700 transition hover:bg-blue-100 hover:shadow-[0_0_18px_rgba(59,130,246,0.22)] dark:text-blue-200 dark:hover:bg-blue-500/10"
                   aria-label={
                     showCurrentPassword
                       ? "Hide current password"
@@ -386,12 +386,12 @@ export function MobileSettingsPanel({
                     }))
                   }
                   placeholder={showNewPassword ? "12345678" : "********"}
-                  className="w-full rounded-xl border border-primary-200 bg-white px-3 py-2 pr-16 text-xs text-slate-700 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-300/60 dark:border-primary-500/30 dark:bg-slate-900 dark:text-slate-100"
+                  className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 pr-16 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-300/60 dark:border-blue-500/30 dark:bg-slate-900 dark:text-slate-100"
                 />
                 <button
                   type="button"
                   onClick={() => setShowNewPassword((prev) => !prev)}
-                  className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-primary-700 transition hover:bg-primary-100 hover:shadow-[0_0_18px_rgba(59,130,246,0.22)] dark:text-primary-200 dark:hover:bg-primary-500/10"
+                  className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-blue-700 transition hover:bg-blue-100 hover:shadow-[0_0_18px_rgba(59,130,246,0.22)] dark:text-blue-200 dark:hover:bg-blue-500/10"
                   aria-label={
                     showNewPassword ? "Hide new password" : "Show new password"
                   }
@@ -419,12 +419,12 @@ export function MobileSettingsPanel({
                     }))
                   }
                   placeholder={showConfirmPassword ? "12345678" : "********"}
-                  className="w-full rounded-xl border border-primary-200 bg-white px-3 py-2 pr-16 text-xs text-slate-700 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-300/60 dark:border-primary-500/30 dark:bg-slate-900 dark:text-slate-100"
+                  className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 pr-16 text-xs text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-300/60 dark:border-blue-500/30 dark:bg-slate-900 dark:text-slate-100"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-primary-700 transition hover:bg-primary-100 hover:shadow-[0_0_18px_rgba(59,130,246,0.22)] dark:text-primary-200 dark:hover:bg-primary-500/10"
+                  className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-blue-700 transition hover:bg-blue-100 hover:shadow-[0_0_18px_rgba(59,130,246,0.22)] dark:text-blue-200 dark:hover:bg-blue-500/10"
                   aria-label={
                     showConfirmPassword
                       ? "Hide confirm password"
@@ -441,7 +441,7 @@ export function MobileSettingsPanel({
             </label>
             <button
               type="submit"
-              className="w-full rounded-xl bg-primary-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-primary-500/30 transition hover:bg-primary-400 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]"
+              className="w-full rounded-xl bg-blue-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-400 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]"
             >
               Update password
             </button>
@@ -452,16 +452,16 @@ export function MobileSettingsPanel({
 
       {settingsPanel === "data" ? (
         <div className="md:hidden">
-          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-primary-100/70 bg-white/80 p-4 dark:border-primary-500/30 dark:bg-slate-950/60">
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-blue-100/70 bg-white/80 p-4 dark:border-blue-500/30 dark:bg-slate-950/60">
             <button
               type="button"
               onClick={() => setSettingsPanel(null)}
-              className="inline-flex items-center justify-center rounded-full border border-primary-200 p-2 text-primary-700 transition hover:bg-primary-50 dark:border-primary-500/30 dark:text-primary-200 dark:hover:bg-primary-500/10"
+              className="inline-flex items-center justify-center rounded-full border border-blue-200 p-2 text-blue-700 transition hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-200 dark:hover:bg-blue-500/10"
               aria-label={t("settings.back")}
             >
               <ArrowLeft size={18} />
             </button>
-            <h4 className="text-sm font-semibold text-primary-700 dark:text-primary-200">
+            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-200">
               {t("settings.data")}
             </h4>
           </div>
@@ -479,16 +479,16 @@ export function MobileSettingsPanel({
 
       {settingsPanel === "language" ? (
         <div className="md:hidden">
-          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-primary-100/70 bg-white/80 p-4 dark:border-primary-500/30 dark:bg-slate-950/60">
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-blue-100/70 bg-white/80 p-4 dark:border-blue-500/30 dark:bg-slate-950/60">
             <button
               type="button"
               onClick={() => setSettingsPanel(null)}
-              className="inline-flex items-center justify-center rounded-full border border-primary-200 p-2 text-primary-700 transition hover:bg-primary-50 dark:border-primary-500/30 dark:text-primary-200 dark:hover:bg-primary-500/10"
+              className="inline-flex items-center justify-center rounded-full border border-blue-200 p-2 text-blue-700 transition hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-200 dark:hover:bg-blue-500/10"
               aria-label={t("settings.back")}
             >
               <ArrowLeft size={18} />
             </button>
-            <h4 className="text-sm font-semibold text-primary-700 dark:text-primary-200">
+            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-200">
               {t("settings.language")}
             </h4>
           </div>
@@ -498,16 +498,16 @@ export function MobileSettingsPanel({
 
       {settingsPanel === "notifications" ? (
         <div className="md:hidden">
-          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-primary-100/70 bg-white/80 p-4 dark:border-primary-500/30 dark:bg-slate-950/60">
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-blue-100/70 bg-white/80 p-4 dark:border-blue-500/30 dark:bg-slate-950/60">
             <button
               type="button"
               onClick={() => setSettingsPanel(null)}
-              className="inline-flex items-center justify-center rounded-full border border-primary-200 p-2 text-primary-700 transition hover:bg-primary-50 dark:border-primary-500/30 dark:text-primary-200 dark:hover:bg-primary-500/10"
+              className="inline-flex items-center justify-center rounded-full border border-blue-200 p-2 text-blue-700 transition hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-200 dark:hover:bg-blue-500/10"
               aria-label="Back"
             >
               <ArrowLeft size={18} />
             </button>
-            <h4 className="text-sm font-semibold text-primary-700 dark:text-primary-200">
+            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-200">
               {t("settings.notifications")}
             </h4>
           </div>
@@ -525,7 +525,7 @@ export function MobileSettingsPanel({
             <button
               type="button"
               onClick={handleClosePanel}
-              className="rounded-full bg-primary-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-400"
+              className="rounded-full bg-blue-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-400"
             >
               {t("settings.done")}
             </button>
@@ -535,16 +535,16 @@ export function MobileSettingsPanel({
 
       {settingsPanel === "about" ? (
         <div className="md:hidden">
-          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-primary-100/70 bg-white/80 p-4 dark:border-primary-500/30 dark:bg-slate-950/60">
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-blue-100/70 bg-white/80 p-4 dark:border-blue-500/30 dark:bg-slate-950/60">
             <button
               type="button"
               onClick={() => setSettingsPanel(null)}
-              className="inline-flex items-center justify-center rounded-full border border-primary-200 p-2 text-primary-700 transition hover:bg-primary-50 dark:border-primary-500/30 dark:text-primary-200 dark:hover:bg-primary-500/10"
+              className="inline-flex items-center justify-center rounded-full border border-blue-200 p-2 text-blue-700 transition hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-200 dark:hover:bg-blue-500/10"
               aria-label="Back"
             >
               <ArrowLeft size={18} />
             </button>
-            <h4 className="text-sm font-semibold text-primary-700 dark:text-primary-200">
+            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-200">
               {t("settings.about")}
             </h4>
           </div>

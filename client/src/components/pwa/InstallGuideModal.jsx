@@ -11,9 +11,9 @@ export default function InstallGuideModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6">
-      <div className="w-full max-w-md rounded-2xl border border-primary-200 bg-white p-6 shadow-2xl dark:border-primary-500/30 dark:bg-slate-950">
+      <div className="w-full max-w-md rounded-2xl border border-blue-200 bg-white p-6 shadow-2xl dark:border-blue-500/30 dark:bg-slate-950">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-primary-700 dark:text-primary-200">
+          <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-200">
             Install BirdX
           </h3>
           <button
@@ -27,7 +27,7 @@ export default function InstallGuideModal({
         </div>
         <div className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
           <div className="flex items-start gap-3">
-            <span className="relative -top-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200">
+            <span className="relative -top-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200">
               <svg
                 viewBox="0 0 24 24"
                 className="h-3.5 w-3.5"
@@ -49,7 +49,7 @@ export default function InstallGuideModal({
             </span>
           </div>
           <div className="flex items-start gap-3">
-            <span className="relative -top-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200">
+            <span className="relative -top-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200">
               <svg
                 viewBox="0 0 24 24"
                 className="h-3.5 w-3.5"
@@ -73,7 +73,7 @@ export default function InstallGuideModal({
             </span>
           </div>
           <div className="flex items-start gap-3">
-            <span className="relative -top-0.5 inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200">
+            <span className="relative -top-0.5 inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200">
               <img
                 src={iconSrc}
                 alt=""
@@ -87,7 +87,7 @@ export default function InstallGuideModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full bg-primary-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-primary-500/30 transition hover:bg-primary-400 hover:shadow-primary-500/40"
+            className="rounded-full bg-blue-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-400 hover:shadow-blue-500/40"
           >
             Done
           </button>

@@ -3829,7 +3829,7 @@ useEffect(() => {
     statusValue === "invisible"
       ? "bg-slate-400"
       : statusValue === "online"
-        ? "bg-primary-400"
+        ? "bg-blue-400"
         : "";
 
   const parsePresenceDate = (value) => {
@@ -7678,7 +7678,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       };
   const callQualityClass =
     callConnectionQuality.level === "good"
-      ? "bg-primary-400"
+      ? "bg-blue-400"
       : callConnectionQuality.level === "fair"
         ? "bg-amber-300"
         : callConnectionQuality.level === "poor"
@@ -7707,11 +7707,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     ? "pointer-events-auto opacity-100"
     : "pointer-events-none opacity-0";
   const videoCallButtonBase =
-    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-white shadow-lg shadow-black/20 transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300";
+    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-white shadow-lg shadow-black/20 transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300";
   const videoCallButtonIdle =
-    "border-white/15 bg-white/10 hover:border-primary-300/70 hover:bg-primary-400/20";
+    "border-white/15 bg-white/10 hover:border-blue-300/70 hover:bg-blue-400/20";
   const videoCallButtonActive =
-    "border-primary-300/70 bg-primary-400/20 text-primary-100";
+    "border-blue-300/70 bg-blue-400/20 text-blue-100";
   const videoCallButtonWarn =
     "border-amber-300/70 bg-amber-400/20 text-amber-100";
   const safeNewGroupForm = {
@@ -8231,7 +8231,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         />
         {!primaryCallVideoReady ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 text-center">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-primary-400/30 bg-primary-500/15 text-3xl font-bold text-primary-100 shadow-2xl shadow-primary-500/20">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-blue-400/30 bg-blue-500/15 text-3xl font-bold text-blue-100 shadow-2xl shadow-blue-500/20">
               {primaryCallVideoKind === "local" ? (
                 <Video size={34} strokeWidth={2.2} />
               ) : (
@@ -8254,7 +8254,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             <span
               className={`h-2.5 w-2.5 rounded-full ${
                 callState.status === "connected"
-                  ? "bg-primary-400"
+                  ? "bg-blue-400"
                   : callState.status === "error" || callState.status === "ended"
                     ? "bg-rose-400"
                     : "animate-pulse bg-amber-300"
@@ -8312,7 +8312,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
               toggleCallVideoFocus();
             }
           }}
-          className="absolute z-30 h-36 w-24 cursor-grab overflow-hidden rounded-2xl border border-white/30 bg-slate-900 shadow-2xl shadow-black/40 outline-none ring-0 transition-transform active:cursor-grabbing active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary-300 sm:h-44 sm:w-32"
+          className="absolute z-30 h-36 w-24 cursor-grab overflow-hidden rounded-2xl border border-white/30 bg-slate-900 shadow-2xl shadow-black/40 outline-none ring-0 transition-transform active:cursor-grabbing active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-blue-300 sm:h-44 sm:w-32"
           style={{ ...callPreviewPositionStyle, touchAction: "none" }}
         >
           <video
@@ -8357,7 +8357,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
                     "Unable to change microphone.",
                   )
                 }
-                className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-primary-300"
+                className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-blue-300"
               >
                 <option value="">Default microphone</option>
                 {callAudioInputOptions.map((device, index) => (
@@ -8377,7 +8377,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
                     "Unable to change camera.",
                   )
                 }
-                className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-primary-300"
+                className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-blue-300"
               >
                 <option value="">Default camera</option>
                 {callVideoInputOptions.map((device, index) => (
@@ -8462,7 +8462,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-sm">
       <div className="w-full max-w-sm overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl dark:bg-slate-950">
         <div className="relative px-6 pb-6 pt-7 text-center text-slate-900 dark:text-white">
-          <div className="absolute inset-x-0 top-0 h-28 bg-primary-500/15 dark:bg-primary-400/10" />
+          <div className="absolute inset-x-0 top-0 h-28 bg-blue-500/15 dark:bg-blue-400/10" />
           <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
             <button
               type="button"
@@ -8472,7 +8472,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
                   "Unable to restart the call connection.",
                 )
               }
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary-200 bg-white/80 text-primary-700 transition hover:bg-primary-50 dark:border-primary-500/30 dark:bg-slate-950/70 dark:text-primary-200 dark:hover:bg-primary-500/10"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 bg-white/80 text-blue-700 transition hover:bg-blue-50 dark:border-blue-500/30 dark:bg-slate-950/70 dark:text-blue-200 dark:hover:bg-blue-500/10"
               aria-label="Reconnect call"
               title="Reconnect"
             >
@@ -8481,14 +8481,14 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             <button
               type="button"
               onClick={() => setCallMinimized(true)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary-200 bg-white/80 text-primary-700 transition hover:bg-primary-50 dark:border-primary-500/30 dark:bg-slate-950/70 dark:text-primary-200 dark:hover:bg-primary-500/10"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 bg-white/80 text-blue-700 transition hover:bg-blue-50 dark:border-blue-500/30 dark:bg-slate-950/70 dark:text-blue-200 dark:hover:bg-blue-500/10"
               aria-label="Minimize call"
               title="Minimize"
             >
               <Minimize2 size={16} />
             </button>
           </div>
-          <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-primary-200 bg-primary-50 text-2xl font-bold text-primary-700 shadow-lg shadow-primary-500/20 dark:border-primary-500/30 dark:bg-primary-500/15 dark:text-primary-100">
+          <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-2xl font-bold text-blue-700 shadow-lg shadow-blue-500/20 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-100">
             {getAvatarInitials(callPeerName || "C")}
           </div>
           <h2 className="relative mt-4 truncate text-xl font-bold" title={callPeerName}>
@@ -8498,7 +8498,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             <span
               className={`h-2.5 w-2.5 rounded-full ${
                 callState.status === "connected"
-                  ? "bg-primary-500"
+                  ? "bg-blue-500"
                   : callState.status === "error" || callState.status === "ended"
                     ? "bg-rose-500"
                     : "animate-pulse bg-amber-400"
@@ -8523,7 +8523,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             className={`flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border text-xs font-semibold transition ${
               callMuted
                 ? "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-100"
-                : "border-slate-200 bg-white text-slate-700 hover:border-primary-300 hover:text-primary-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-primary-500/40 dark:hover:text-primary-100"
+                : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:text-blue-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-blue-500/40 dark:hover:text-blue-100"
             }`}
           >
             {callMuted ? <MicOff size={18} /> : <Mic size={18} />}
@@ -8532,7 +8532,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
           <button
             type="button"
             onClick={() => remoteAudioRef.current?.play?.().catch(() => null)}
-            className="flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 transition hover:border-primary-300 hover:text-primary-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-primary-500/40 dark:hover:text-primary-100"
+            className="flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-blue-500/40 dark:hover:text-blue-100"
           >
             <Volume2 size={18} />
             Audio
@@ -8562,7 +8562,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
 
 {callState && callMinimized ? (
   <div
-    className="fixed z-[320] w-[20rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-primary-200/70 bg-white shadow-2xl shadow-black/20 dark:border-primary-500/30 dark:bg-slate-950 select-none touch-none"
+    className="fixed z-[320] w-[20rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-blue-200/70 bg-white shadow-2xl shadow-black/20 dark:border-blue-500/30 dark:bg-slate-950 select-none touch-none"
     style={
       callMinimizedPosition
         ? { left: `${callMinimizedPosition.x}px`, top: `${callMinimizedPosition.y}px` }
@@ -8587,7 +8587,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
           }`}
         />
         {!(callVideoStreamsReady.remote || callVideoStreamsReady.local) ? (
-          <div className="absolute inset-0 flex items-center justify-center text-xl font-bold text-primary-100">
+          <div className="absolute inset-0 flex items-center justify-center text-xl font-bold text-blue-100">
             {getAvatarInitials(callPeerName || "C")}
           </div>
         ) : null}
@@ -8603,7 +8603,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       </div>
     ) : (
       <div className="flex items-center gap-3 p-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary-200 bg-primary-50 text-base font-bold text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/15 dark:text-primary-100">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-base font-bold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-100">
           {getAvatarInitials(callPeerName || "C")}
         </div>
         <div className="min-w-0 flex-1">
@@ -8621,7 +8621,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       <button
         type="button"
         onClick={() => { setCallMinimized(false); setCallMinimizedPosition(null); }}
-        className="flex h-10 items-center justify-center rounded-xl border border-primary-200 bg-white text-primary-700 transition hover:bg-primary-50 dark:border-primary-500/30 dark:bg-slate-950 dark:text-primary-200 dark:hover:bg-primary-500/10"
+        className="flex h-10 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition hover:bg-blue-50 dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-500/10"
         aria-label="Maximize call"
         title="Maximize"
       >
@@ -8633,7 +8633,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         className={`flex h-10 items-center justify-center rounded-xl border transition ${
           callMuted
             ? "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-100"
-            : "border-primary-200 bg-white text-primary-700 hover:bg-primary-50 dark:border-primary-500/30 dark:bg-slate-950 dark:text-primary-200 dark:hover:bg-primary-500/10"
+            : "border-blue-200 bg-white text-blue-700 hover:bg-blue-50 dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-500/10"
         }`}
         aria-label={callMuted ? "Unmute microphone" : "Mute microphone"}
         title={callMuted ? "Unmute" : "Mute"}
@@ -8656,7 +8656,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
 {incomingCall ? (
   <div className="fixed inset-0 z-[310] flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-sm">
     <div className="w-full max-w-sm rounded-[2rem] border border-white/10 bg-white p-6 text-center shadow-2xl dark:bg-slate-950">
-      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-primary-200 bg-primary-50 text-2xl font-bold text-primary-700 shadow-lg shadow-primary-500/20 dark:border-primary-500/30 dark:bg-primary-500/15 dark:text-primary-100">
+      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-2xl font-bold text-blue-700 shadow-lg shadow-blue-500/20 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-100">
         {getAvatarInitials(incomingCall.callerName || "C")}
       </div>
 
@@ -8681,7 +8681,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         <button
           type="button"
           onClick={acceptIncomingCall}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-primary-500/25 transition hover:bg-primary-600"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-600"
         >
           {normalizeCallType(incomingCall.callType) === "video" ? (
             <Video size={17} strokeWidth={2.4} />

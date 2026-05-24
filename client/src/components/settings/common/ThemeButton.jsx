@@ -32,7 +32,7 @@ export function ThemeButton({ isDark, toggleTheme, setIsDark, thick = false }) {
           setThemeToggleAnimating(false);
         }, 520);
       }}
-      className={`mt-1 flex w-full items-center gap-2 rounded-xl border border-transparent px-3 text-start text-primary-700 transition hover:border-primary-300 hover:bg-primary-100 hover:shadow-[0_0_18px_rgba(59,130,246,0.22)] dark:text-primary-200 dark:hover:border-primary-500/30 dark:hover:bg-primary-500/10 ${
+      className={`mt-1 flex w-full items-center gap-2 rounded-xl border border-transparent px-3 text-start text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 hover:shadow-[0_0_18px_rgba(59,130,246,0.22)] dark:text-blue-200 dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10 ${
         thick ? "py-3 text-base font-medium" : "py-2 text-sm"
       }`}
     >

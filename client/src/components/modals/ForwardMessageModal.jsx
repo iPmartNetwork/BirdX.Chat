@@ -47,9 +47,9 @@ export default function ForwardMessageModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-      <div className="flex w-full max-w-md flex-col overflow-hidden rounded-3xl border border-primary-100/70 bg-white px-6 py-5 shadow-xl dark:border-primary-500/30 dark:bg-slate-950">
+      <div className="flex w-full max-w-md flex-col overflow-hidden rounded-3xl border border-blue-100/70 bg-white px-6 py-5 shadow-xl dark:border-blue-500/30 dark:bg-slate-950">
         <div className="flex items-center justify-between pb-1">
-          <h3 className="text-base font-semibold text-primary-800 dark:text-primary-200">
+          <h3 className="text-base font-semibold text-blue-800 dark:text-blue-200">
             Send to...
           </h3>
           <button
@@ -93,7 +93,7 @@ export default function ForwardMessageModal({
             type="button"
             disabled={!selectedChatIds.length}
             onClick={() => onSubmit?.(selectedChatIds)}
-            className="inline-flex h-10 items-center gap-2 rounded-full bg-primary-500 px-5 text-sm font-semibold text-white shadow-lg shadow-primary-500/30 transition hover:bg-primary-400 hover:shadow-primary-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-10 items-center gap-2 rounded-full bg-blue-500 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-400 hover:shadow-blue-500/40 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <SendHorizontal size={16} className="icon-anim-slide" />
             Send

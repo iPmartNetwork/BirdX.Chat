@@ -192,7 +192,7 @@ export default function ChatsListPanel({
           Array.isArray(discoverUsers) &&
           discoverUsers.length > 0 ? (
             <div className="space-y-2">
-              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-200">
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">
                 Users
               </p>
               {discoverUsers.map((member) => {
@@ -228,8 +228,8 @@ export default function ChatsListPanel({
                     }}
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                       isActive
-                        ? "border-primary-400 bg-primary-100 text-primary-900 dark:border-primary-400/60 dark:bg-primary-500/20 dark:text-primary-100"
-                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-primary-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-primary-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-primary-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                        ? "border-blue-400 bg-blue-100 text-blue-900 dark:border-blue-400/60 dark:bg-blue-500/20 dark:text-blue-100"
+                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-blue-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-slate-200"
                     }`}
                   >
                     <Avatar
@@ -265,7 +265,7 @@ export default function ChatsListPanel({
           Array.isArray(discoverGroups) &&
           discoverGroups.length > 0 ? (
             <div className="space-y-2">
-              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-200">
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">
                 Groups
               </p>
               {discoverGroups.map((group) => {
@@ -280,8 +280,8 @@ export default function ChatsListPanel({
                     onClick={() => onOpenDiscoveredGroup?.(group)}
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                       isActive
-                        ? "border-primary-400 bg-primary-100 text-primary-900 dark:border-primary-400/60 dark:bg-primary-500/20 dark:text-primary-100"
-                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-primary-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-primary-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-primary-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                        ? "border-blue-400 bg-blue-100 text-blue-900 dark:border-blue-400/60 dark:bg-blue-500/20 dark:text-blue-100"
+                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-blue-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-slate-200"
                     }`}
                   >
                     {group.avatarUrl ? (
@@ -319,7 +319,7 @@ export default function ChatsListPanel({
                       </p>
                     </div>
                     {group.isMember ? (
-                      <span className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-semibold text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-200">
+                      <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
                         Joined
                       </span>
                     ) : null}
@@ -332,7 +332,7 @@ export default function ChatsListPanel({
           Array.isArray(discoverChannels) &&
           discoverChannels.length > 0 ? (
             <div className="space-y-2">
-              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-200">
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">
                 Channels
               </p>
               {discoverChannels.map((channel) => {
@@ -347,8 +347,8 @@ export default function ChatsListPanel({
                     onClick={() => onOpenDiscoveredGroup?.(channel)}
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                       isActive
-                        ? "border-primary-400 bg-primary-100 text-primary-900 dark:border-primary-400/60 dark:bg-primary-500/20 dark:text-primary-100"
-                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-primary-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-primary-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-primary-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                        ? "border-blue-400 bg-blue-100 text-blue-900 dark:border-blue-400/60 dark:bg-blue-500/20 dark:text-blue-100"
+                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-blue-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-slate-200"
                     }`}
                   >
                     {channel.avatarUrl ? (
@@ -386,7 +386,7 @@ export default function ChatsListPanel({
                       </p>
                     </div>
                     {channel.isMember ? (
-                      <span className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-semibold text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-200">
+                      <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
                         Joined
                       </span>
                     ) : null}
@@ -397,7 +397,7 @@ export default function ChatsListPanel({
           ) : null}
           {!showSearchEmptyState && discoverSaved ? (
             <div className="space-y-2">
-              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-200">
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">
                 Saved Messages
               </p>
               <ContextMenuSurface
@@ -410,8 +410,8 @@ export default function ChatsListPanel({
                 }}
                 className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                   isSavedChatActive
-                    ? "border-primary-400 bg-primary-100 text-primary-900 dark:border-primary-400/60 dark:bg-primary-500/20 dark:text-primary-100"
-                    : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-primary-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-primary-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-primary-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                    ? "border-blue-400 bg-blue-100 text-blue-900 dark:border-blue-400/60 dark:bg-blue-500/20 dark:text-blue-100"
+                    : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-blue-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-slate-200"
                 }`}
               >
                 <div
@@ -445,13 +445,13 @@ export default function ChatsListPanel({
         Array.from({ length: 6 }).map((_, index) => (
           <div
             key={`chat-skeleton-${index}`}
-            className="w-full animate-pulse rounded-2xl border border-slate-300/80 bg-white/70 px-3 py-3 dark:border-primary-500/20 dark:bg-slate-950/50"
+            className="w-full animate-pulse rounded-2xl border border-slate-300/80 bg-white/70 px-3 py-3 dark:border-blue-500/20 dark:bg-slate-950/50"
           >
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-primary-100 dark:bg-primary-900/40" />
+              <div className="h-9 w-9 rounded-full bg-blue-100 dark:bg-blue-900/40" />
               <div className="flex-1 space-y-2">
-                <div className="h-3 w-1/2 rounded bg-primary-100 dark:bg-primary-900/40" />
-                <div className="h-2 w-3/4 rounded bg-primary-100/80 dark:bg-primary-900/30" />
+                <div className="h-3 w-1/2 rounded bg-blue-100 dark:bg-blue-900/40" />
+                <div className="h-2 w-3/4 rounded bg-blue-100/80 dark:bg-blue-900/30" />
               </div>
             </div>
           </div>
@@ -515,8 +515,8 @@ export default function ChatsListPanel({
             <div
               className={`w-full min-h-[72px] rounded-2xl border px-3 py-3 text-left text-sm transition ${
                   Number(activeChatId || 0) === Number(conv.id || 0)
-                  ? "border-primary-400 bg-primary-100 text-primary-900 dark:border-primary-400/60 dark:bg-primary-500/20 dark:text-primary-100"
-                  : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-primary-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] dark:border-primary-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                  ? "border-blue-400 bg-blue-100 text-blue-900 dark:border-blue-400/60 dark:bg-blue-500/20 dark:text-blue-100"
+                  : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-slate-200"
               } ${editMode ? "animate-chat-wiggle-ios shadow-[0_0_0_1px_rgba(59,130,246,0.35),0_0_16px_rgba(59,130,246,0.22)]" : ""}`}
               style={wiggleStyle}
             >
@@ -547,10 +547,10 @@ export default function ChatsListPanel({
                     {isChannel ? (
                       <Megaphone
                         size={14}
-                        className="shrink-0 text-primary-500"
+                        className="shrink-0 text-blue-500"
                       />
                     ) : isGroup ? (
-                      <Users size={14} className="shrink-0 text-primary-500" />
+                      <Users size={14} className="shrink-0 text-blue-500" />
                     ) : null}
                     <span
                       className={`min-w-0 max-w-full truncate ${hasPersian(name) ? "font-fa" : ""} ${isDeletedDm ? "text-slate-500" : ""}`}
@@ -690,7 +690,7 @@ export default function ChatsListPanel({
                       <span
                         className={`inline-flex items-center ${
                           isOwnLastMessagePending
-                            ? "text-primary-900/80 dark:text-primary-50/80"
+                            ? "text-blue-900/80 dark:text-blue-50/80"
                             : isOwnLastMessageSeen
                               ? "text-sky-400"
                               : "text-slate-500 dark:text-slate-400"
@@ -729,7 +729,7 @@ export default function ChatsListPanel({
                       className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-2 text-[10px] font-bold text-white ${
                         conv._muted
                           ? "bg-slate-400 dark:bg-slate-500"
-                          : "bg-primary-500"
+                          : "bg-blue-500"
                       }`}
                     >
                       {unreadCount}
@@ -804,8 +804,8 @@ export default function ChatsListPanel({
                   }}
                   className={`inline-flex h-8 w-8 items-center justify-center rounded-full border ${
                     selectedChats.includes(conv.id)
-                      ? "border-primary-500 bg-primary-500 text-white"
-                      : "border-primary-200 text-primary-600 dark:border-primary-500/30 dark:text-primary-200"
+                      ? "border-blue-500 bg-blue-500 text-white"
+                      : "border-blue-200 text-blue-600 dark:border-blue-500/30 dark:text-blue-200"
                   }`}
                   aria-label="Select chat"
                 >

@@ -26,11 +26,11 @@ export const DataSettingsPanel = memo(function DataSettingsPanel({
   const sizeText = isMobile ? "text-[10px]" : "text-xs";
   const buttonBase = `flex w-full items-center justify-between rounded-2xl border ${listPadding} text-start ${labelSize} font-semibold transition-colors duration-150`;
   const buttonHover =
-    "hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-500/10";
+    "hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10";
   const buttonTheme =
-    "border-primary-200/70 bg-white/90 text-primary-700 dark:border-primary-500/30 dark:bg-slate-900/50 dark:text-primary-200";
+    "border-blue-200/70 bg-white/90 text-blue-700 dark:border-blue-500/30 dark:bg-slate-900/50 dark:text-blue-200";
   const disabledTheme =
-    "cursor-default opacity-70 hover:border-primary-200/70 hover:bg-white/90 dark:hover:bg-slate-900/50";
+    "cursor-default opacity-70 hover:border-blue-200/70 hover:bg-white/90 dark:hover:bg-slate-900/50";
 
   const totalCacheBytes = dataCacheStats?.totalBytes || 0;
 
@@ -40,12 +40,12 @@ export const DataSettingsPanel = memo(function DataSettingsPanel({
     <div
       className={`${isMobile ? "space-y-3" : "space-y-4"} text-slate-600 dark:text-slate-300`}
     >
-      <div className="rounded-2xl border border-primary-200/70 bg-white/90 px-6 py-5 text-center dark:border-primary-500/30 dark:bg-slate-900/50">
-        <p className="text-[10px] uppercase tracking-[0.25em] text-primary-500/80">
+      <div className="rounded-2xl border border-blue-200/70 bg-white/90 px-6 py-5 text-center dark:border-blue-500/30 dark:bg-slate-900/50">
+        <p className="text-[10px] uppercase tracking-[0.25em] text-blue-500/80">
           {t("settings.data.cachedSize")}
         </p>
         <p
-          className={`${isMobile ? "text-2xl" : "text-3xl"} mt-2 font-bold text-primary-700 dark:text-primary-200`}
+          className={`${isMobile ? "text-2xl" : "text-3xl"} mt-2 font-bold text-blue-700 dark:text-blue-200`}
         >
           {dataCacheStats?.totalLabel || "0 B"}
         </p>
@@ -131,7 +131,7 @@ export const DataSettingsPanel = memo(function DataSettingsPanel({
           onClick={() => {
             onClose?.();
           }}
-          className="rounded-full bg-primary-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-400"
+          className="rounded-full bg-blue-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-400"
         >
           {t("settings.done")}
         </button>
@@ -150,7 +150,7 @@ export const DataSettingsPanel = memo(function DataSettingsPanel({
               <button
                 type="button"
                 onClick={() => setConfirmClearOpen(false)}
-                className="rounded-full border border-primary-200 bg-white px-4 py-2 text-xs font-semibold text-primary-700 transition hover:border-primary-300 hover:shadow-[0_0_14px_rgba(59,130,246,0.2)] dark:border-primary-500/30 dark:bg-slate-950 dark:text-primary-200"
+                className="rounded-full border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-700 transition hover:border-blue-300 hover:shadow-[0_0_14px_rgba(59,130,246,0.2)] dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200"
               >
                 {t("settings.cancel")}
               </button>

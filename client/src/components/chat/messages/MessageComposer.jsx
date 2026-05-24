@@ -594,7 +594,7 @@ export function MessageComposer({
   return (
     <form
       ref={composerRef}
-      className="sticky bottom-0 z-30 flex shrink-0 flex-col gap-3 border-t border-slate-300/80 bg-white px-4 py-3 dark:border-primary-500/20 dark:bg-slate-900 sm:px-6 md:static md:mt-auto"
+      className="sticky bottom-0 z-30 flex shrink-0 flex-col gap-3 border-t border-slate-300/80 bg-white px-4 py-3 dark:border-blue-500/20 dark:bg-slate-900 sm:px-6 md:static md:mt-auto"
       style={{
         bottom: isDesktop
           ? undefined
@@ -637,14 +637,14 @@ export function MessageComposer({
       }}
     >
       {editTarget ? (
-        <div className="rounded-2xl border border-primary-200/80 bg-primary-50/70 p-2 dark:border-primary-500/30 dark:bg-slate-950/70">
+        <div className="rounded-2xl border border-blue-200/80 bg-blue-50/70 p-2 dark:border-blue-500/30 dark:bg-slate-950/70">
           <div className="flex items-start gap-3 px-1">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200">
               <Pencil size={20} className="icon-anim-sway" />
             </div>
             <div className="flex min-w-0 flex-1 flex-col">
               <span
-                className={`truncate text-[11px] font-semibold text-primary-700 dark:text-primary-200 ${
+                className={`truncate text-[11px] font-semibold text-blue-700 dark:text-blue-200 ${
                   hasPersian(
                     "Edit Message",
                   )
@@ -685,14 +685,14 @@ export function MessageComposer({
           </div>
         </div>
       ) : replyTarget ? (
-        <div className="rounded-2xl border border-primary-200/80 bg-primary-50/70 p-2 dark:border-primary-500/30 dark:bg-slate-950/70">
+        <div className="rounded-2xl border border-blue-200/80 bg-blue-50/70 p-2 dark:border-blue-500/30 dark:bg-slate-950/70">
           <div className="flex items-start gap-3 px-1">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200">
               <Reply size={20} className="icon-anim-sway" />
             </div>
             <div className="flex min-w-0 flex-1 flex-col">
               <span
-                className={`truncate text-[11px] font-semibold text-primary-700 dark:text-primary-200 ${
+                className={`truncate text-[11px] font-semibold text-blue-700 dark:text-blue-200 ${
                   hasPersian(
                     replyTarget.displayName || replyTarget.username || "message",
                   )
@@ -765,13 +765,13 @@ export function MessageComposer({
         </div>
       ) : null}
       {pendingVoiceMessage ? (
-        <div className="rounded-2xl border border-primary-200/80 bg-primary-50/70 p-2 dark:border-primary-500/30 dark:bg-slate-950/70">
+        <div className="rounded-2xl border border-blue-200/80 bg-blue-50/70 p-2 dark:border-blue-500/30 dark:bg-slate-950/70">
           <div className="flex items-start gap-3 px-1">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200">
               <Mic size={20} className="icon-anim-sway" />
             </div>
             <div className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-[11px] font-semibold text-primary-700 dark:text-primary-200">
+              <span className="truncate text-[11px] font-semibold text-blue-700 dark:text-blue-200">
                 Voice message
               </span>
               <span className="mt-1 text-xs text-slate-600 dark:text-slate-300">
@@ -797,8 +797,8 @@ export function MessageComposer({
         </div>
       ) : null}
       {pendingUploadFiles?.length ? (
-        <div className="rounded-2xl border border-primary-200/80 bg-primary-50/70 p-2 dark:border-primary-500/30 dark:bg-slate-950/70">
-          <div className="mb-2 flex items-center justify-between px-1 text-[11px] font-semibold text-primary-700 dark:text-primary-200">
+        <div className="rounded-2xl border border-blue-200/80 bg-blue-50/70 p-2 dark:border-blue-500/30 dark:bg-slate-950/70">
+          <div className="mb-2 flex items-center justify-between px-1 text-[11px] font-semibold text-blue-700 dark:text-blue-200">
             <span>
               {pendingUploadType === "media" ? "Photo or Video" : "Document"} (
               {pendingUploadFiles.length})
@@ -822,7 +822,7 @@ export function MessageComposer({
                 }}
                 className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 transition ${
                   fileUploadEnabled
-                    ? "border-primary-200/70 text-primary-700 hover:border-primary-300 hover:bg-primary-100 dark:border-primary-500/30 dark:text-primary-200 dark:hover:bg-primary-500/10"
+                    ? "border-blue-200/70 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-500/30 dark:text-blue-200 dark:hover:bg-blue-500/10"
                     : "cursor-not-allowed border-slate-300 text-slate-400 dark:border-slate-700 dark:text-slate-500"
                 }`}
               >
@@ -856,7 +856,7 @@ export function MessageComposer({
               return (
                 <div
                   key={item.id}
-                  className="relative overflow-hidden rounded-xl border border-primary-200/70 bg-white/90 p-2 text-[11px] dark:border-primary-500/30 dark:bg-slate-900/70"
+                  className="relative overflow-hidden rounded-xl border border-blue-200/70 bg-white/90 p-2 text-[11px] dark:border-blue-500/30 dark:bg-slate-900/70"
                 >
                   <button
                     type="button"
@@ -900,7 +900,7 @@ export function MessageComposer({
                       </span>
                     </div>
                   ) : (
-                    <div className="mb-1 flex h-24 w-full items-center justify-center rounded-md bg-slate-100 text-primary-700 dark:bg-slate-800 dark:text-primary-200">
+                    <div className="mb-1 flex h-24 w-full items-center justify-center rounded-md bg-slate-100 text-blue-700 dark:bg-slate-800 dark:text-blue-200">
                       <File size={16} />
                     </div>
                   )}
@@ -919,14 +919,14 @@ export function MessageComposer({
         </p>
       ) : null}
       {activeUploadProgress !== null ? (
-        <div className="rounded-xl border border-primary-200/70 bg-primary-50/60 px-3 py-2 dark:border-primary-500/30 dark:bg-slate-950/70">
-          <div className="mb-1 flex items-center justify-between text-[11px] font-semibold text-primary-700 dark:text-primary-200">
+        <div className="rounded-xl border border-blue-200/70 bg-blue-50/60 px-3 py-2 dark:border-blue-500/30 dark:bg-slate-950/70">
+          <div className="mb-1 flex items-center justify-between text-[11px] font-semibold text-blue-700 dark:text-blue-200">
             <span>Uploading files...</span>
             <span>{Math.round(activeUploadProgress)}%</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-primary-100 dark:bg-slate-800">
+          <div className="h-2 overflow-hidden rounded-full bg-blue-100 dark:bg-slate-800">
             <div
-              className="h-full rounded-full bg-primary-500 transition-[width] duration-150"
+              className="h-full rounded-full bg-blue-500 transition-[width] duration-150"
               style={{ width: `${activeUploadProgress}%` }}
             />
           </div>
@@ -950,7 +950,7 @@ export function MessageComposer({
                 }}
                 className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-transparent bg-transparent transition ${
                   !uploadBusy
-                    ? "text-primary-700 hover:border-primary-300 hover:bg-primary-100 hover:shadow-[0_0_16px_rgba(59,130,246,0.22)] dark:text-primary-200 dark:hover:border-primary-500/30 dark:hover:bg-primary-500/10"
+                    ? "text-blue-700 hover:border-blue-300 hover:bg-blue-100 hover:shadow-[0_0_16px_rgba(59,130,246,0.22)] dark:text-blue-200 dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10"
                     : "cursor-not-allowed text-slate-400 dark:text-slate-500"
                 }`}
                 aria-label="Attach file"
@@ -958,7 +958,7 @@ export function MessageComposer({
                 <Paperclip size={18} className="icon-anim-sway" />
               </button>
               {showUploadMenu && !uploadBusy ? (
-                <div className="absolute bottom-12 left-0 z-40 w-44 rounded-xl border border-primary-200/80 bg-white p-1.5 shadow-lg dark:border-primary-500/30 dark:bg-slate-950">
+                <div className="absolute bottom-12 left-0 z-40 w-44 rounded-xl border border-blue-200/80 bg-white p-1.5 shadow-lg dark:border-blue-500/30 dark:bg-slate-950">
                   <button
                     type="button"
                     onPointerDown={(event) => {
@@ -969,7 +969,7 @@ export function MessageComposer({
                       openFilePicker(mediaInputRef);
                       setShowUploadMenu(false);
                     }}
-                    className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2 py-2 text-left text-xs text-primary-700 transition hover:border-primary-300 hover:bg-primary-100 dark:text-primary-200 dark:hover:border-primary-500/30 dark:hover:bg-primary-500/10"
+                    className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2 py-2 text-left text-xs text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 dark:text-blue-200 dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10"
                   >
                     <ImageIcon size={15} className="icon-anim-sway" />
                     Photo or Video
@@ -984,7 +984,7 @@ export function MessageComposer({
                       openFilePicker(documentInputRef);
                       setShowUploadMenu(false);
                     }}
-                    className="mt-1 flex w-full items-center gap-2 rounded-lg border border-transparent px-2 py-2 text-left text-xs text-primary-700 transition hover:border-primary-300 hover:bg-primary-100 dark:text-primary-200 dark:hover:border-primary-500/30 dark:hover:bg-primary-500/10"
+                    className="mt-1 flex w-full items-center gap-2 rounded-lg border border-transparent px-2 py-2 text-left text-xs text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 dark:text-blue-200 dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10"
                   >
                     <File size={15} className="icon-anim-lift" />
                     Document
@@ -1066,7 +1066,7 @@ export function MessageComposer({
                 event.preventDefault();
                 event.currentTarget.form?.requestSubmit();
               }}
-              className={`chat-scroll min-w-0 flex-1 resize-none rounded-2xl border border-primary-200 bg-white px-4 py-2 text-base text-slate-700 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-300/60 dark:border-primary-500/30 dark:bg-slate-900 dark:text-slate-100 ${
+              className={`chat-scroll min-w-0 flex-1 resize-none rounded-2xl border border-blue-200 bg-white px-4 py-2 text-base text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-300/60 dark:border-blue-500/30 dark:bg-slate-900 dark:text-slate-100 ${
                 composerHasPersian ? "font-fa" : ""
               }`}
               style={{
@@ -1082,7 +1082,7 @@ export function MessageComposer({
             />
           </>
         ) : (
-          <div className="flex min-w-0 flex-1 items-center justify-between rounded-2xl border border-primary-200 bg-white px-4 py-2 text-sm text-primary-700 dark:border-primary-500/30 dark:bg-slate-900 dark:text-primary-200">
+          <div className="flex min-w-0 flex-1 items-center justify-between rounded-2xl border border-blue-200 bg-white px-4 py-2 text-sm text-blue-700 dark:border-blue-500/30 dark:bg-slate-900 dark:text-blue-200">
             <span className="text-xs font-semibold uppercase tracking-wide">
               Recording
             </span>
@@ -1115,7 +1115,7 @@ export function MessageComposer({
           className={`inline-flex h-11 items-center justify-center rounded-2xl px-4 py-2 text-sm font-semibold text-white shadow-lg transition disabled:cursor-not-allowed disabled:opacity-70 ${
             isRecording
               ? "bg-rose-500 shadow-rose-500/30 hover:bg-rose-400 hover:shadow-rose-500/40"
-              : "bg-primary-500 shadow-primary-500/30 hover:bg-primary-400 hover:shadow-primary-500/40"
+              : "bg-blue-500 shadow-blue-500/30 hover:bg-blue-400 hover:shadow-blue-500/40"
           }`}
         >
           {micMode || isRecording ? (

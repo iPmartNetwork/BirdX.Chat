@@ -34,9 +34,9 @@ export default function NewChatModal({
         paddingRight: "max(1.5rem, env(safe-area-inset-right))",
       }}
     >
-      <div className="w-full max-w-sm rounded-2xl border border-primary-100/70 bg-white p-6 shadow-xl dark:border-primary-500/30 dark:bg-slate-950">
+      <div className="w-full max-w-sm rounded-2xl border border-blue-100/70 bg-white p-6 shadow-xl dark:border-blue-500/30 dark:bg-slate-950">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-primary-700 dark:text-primary-200">
+          <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-200">
             New DM
           </h3>
           <button
@@ -62,7 +62,7 @@ export default function NewChatModal({
               placeholder="username"
               lang={dmSearchHasPersian ? "fa" : "en"}
               dir={dmSearchHasPersian ? "rtl" : "ltr"}
-              className={`w-full rounded-2xl border border-primary-200 bg-white px-4 py-3 pr-14 text-sm text-slate-700 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-300/60 dark:border-primary-500/30 dark:bg-slate-900 dark:text-slate-100 ${
+              className={`w-full rounded-2xl border border-blue-200 bg-white px-4 py-3 pr-14 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-300/60 dark:border-blue-500/30 dark:bg-slate-900 dark:text-slate-100 ${
                 dmSearchHasPersian ? "font-fa text-right" : "text-left"
               }`}
               style={{ unicodeBidi: "plaintext" }}
@@ -99,8 +99,8 @@ export default function NewChatModal({
                     }}
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-medium transition ${
                       newChatSelection?.username === result.username
-                        ? "border-primary-500 border-2 bg-primary-50 text-primary-900 shadow-md dark:border-primary-400 dark:bg-primary-500/20 dark:text-primary-100"
-                        : "border-primary-100/70 bg-white/80 text-slate-700 hover:border-primary-300 dark:border-primary-500/30 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900/50"
+                        ? "border-blue-500 border-2 bg-blue-50 text-blue-900 shadow-md dark:border-blue-400 dark:bg-blue-500/20 dark:text-blue-100"
+                        : "border-blue-100/70 bg-white/80 text-slate-700 hover:border-blue-300 dark:border-blue-500/30 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900/50"
                     }`}
                   >
                     <Avatar
@@ -161,7 +161,7 @@ export default function NewChatModal({
           type="button"
           onClick={startDirectMessage}
           disabled={!canStartChat}
-          className="mt-4 w-full rounded-2xl bg-primary-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-primary-500/30 transition hover:bg-primary-400 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-4 w-full rounded-2xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-400 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] disabled:cursor-not-allowed disabled:opacity-60"
         >
           Start chat
         </button>
