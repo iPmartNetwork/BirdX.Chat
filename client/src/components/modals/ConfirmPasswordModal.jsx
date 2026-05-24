@@ -63,7 +63,7 @@ export default function ConfirmPasswordModal({
             <button
               type="button"
               onClick={() => onClose?.()}
-              className="rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_14px_rgba(99,102,241,0.2)] dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
+              className="rounded-full border border-primary-200 bg-white px-4 py-2 text-xs font-semibold text-primary-700 transition hover:border-primary-300 hover:shadow-[0_0_14px_rgba(59,130,246,0.2)] dark:border-primary-500/30 dark:bg-slate-950 dark:text-primary-200"
             >
               Cancel
             </button>
@@ -90,12 +90,12 @@ export default function ConfirmPasswordModal({
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder={showPassword ? "12345678" : "********"}
                   autoComplete="current-password"
-                  className="w-full rounded-2xl border border-indigo-200 bg-white px-4 py-3 pr-20 text-sm text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-300/60 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-slate-100"
+                  className="w-full rounded-2xl border border-primary-200 bg-white px-4 py-3 pr-20 text-sm text-slate-700 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-300/60 dark:border-primary-500/30 dark:bg-slate-900 dark:text-slate-100"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(99,102,241,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+                  className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-primary-700 transition hover:bg-primary-100 hover:shadow-[0_0_18px_rgba(59,130,246,0.22)] dark:text-primary-200 dark:hover:bg-primary-500/10"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -117,7 +117,7 @@ export default function ConfirmPasswordModal({
               <button
                 type="button"
                 onClick={() => onClose?.()}
-                className="rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_14px_rgba(99,102,241,0.2)] dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
+                className="rounded-full border border-primary-200 bg-white px-4 py-2 text-xs font-semibold text-primary-700 transition hover:border-primary-300 hover:shadow-[0_0_14px_rgba(59,130,246,0.2)] dark:border-primary-500/30 dark:bg-slate-950 dark:text-primary-200"
                 disabled={loading}
               >
                 Cancel

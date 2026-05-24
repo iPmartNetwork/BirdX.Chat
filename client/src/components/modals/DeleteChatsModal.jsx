@@ -28,7 +28,7 @@ export default function DeleteChatsModal({
           <button
             type="button"
             onClick={() => setConfirmDeleteOpen(false)}
-            className="rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_14px_rgba(99,102,241,0.2)] dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
+            className="rounded-full border border-primary-200 bg-white px-4 py-2 text-xs font-semibold text-primary-700 transition hover:border-primary-300 hover:shadow-[0_0_14px_rgba(59,130,246,0.2)] dark:border-primary-500/30 dark:bg-slate-950 dark:text-primary-200"
           >
             Cancel
           </button>

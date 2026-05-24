@@ -192,7 +192,7 @@ export default function ChatsListPanel({
           Array.isArray(discoverUsers) &&
           discoverUsers.length > 0 ? (
             <div className="space-y-2">
-              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-200">
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-200">
                 Users
               </p>
               {discoverUsers.map((member) => {
@@ -228,15 +228,15 @@ export default function ChatsListPanel({
                     }}
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                       isActive
-                        ? "border-indigo-400 bg-indigo-100 text-indigo-900 dark:border-indigo-400/60 dark:bg-indigo-500/20 dark:text-indigo-100"
-                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-indigo-300 hover:shadow-[0_0_20px_rgba(99,102,241,0.18)] focus-visible:border-indigo-300 focus-visible:shadow-[0_0_20px_rgba(99,102,241,0.18)] focus-visible:outline-none dark:border-indigo-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                        ? "border-primary-400 bg-primary-100 text-primary-900 dark:border-primary-400/60 dark:bg-primary-500/20 dark:text-primary-100"
+                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-primary-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-primary-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-primary-500/20 dark:bg-slate-950/60 dark:text-slate-200"
                     }`}
                   >
                     <Avatar
                       src={member.avatar_url}
                       alt={label}
                       name={label}
-                      color={member.color || "#6366f1"}
+                      color={member.color || "#3b82f6"}
                       initials={initials}
                       className="h-9 w-9 text-xs"
                     />
@@ -265,7 +265,7 @@ export default function ChatsListPanel({
           Array.isArray(discoverGroups) &&
           discoverGroups.length > 0 ? (
             <div className="space-y-2">
-              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-200">
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-200">
                 Groups
               </p>
               {discoverGroups.map((group) => {
@@ -280,8 +280,8 @@ export default function ChatsListPanel({
                     onClick={() => onOpenDiscoveredGroup?.(group)}
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                       isActive
-                        ? "border-indigo-400 bg-indigo-100 text-indigo-900 dark:border-indigo-400/60 dark:bg-indigo-500/20 dark:text-indigo-100"
-                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-indigo-300 hover:shadow-[0_0_20px_rgba(99,102,241,0.18)] focus-visible:border-indigo-300 focus-visible:shadow-[0_0_20px_rgba(99,102,241,0.18)] focus-visible:outline-none dark:border-indigo-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                        ? "border-primary-400 bg-primary-100 text-primary-900 dark:border-primary-400/60 dark:bg-primary-500/20 dark:text-primary-100"
+                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-primary-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-primary-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-primary-500/20 dark:bg-slate-950/60 dark:text-slate-200"
                     }`}
                   >
                     {group.avatarUrl ? (
@@ -293,7 +293,7 @@ export default function ChatsListPanel({
                     ) : (
                       <div
                         className={`flex h-9 w-9 items-center justify-center rounded-full text-xs ${hasPersian(initials) ? "font-fa" : ""}`}
-                        style={getAvatarStyle(group.color || "#6366f1")}
+                        style={getAvatarStyle(group.color || "#3b82f6")}
                       >
                         {initials}
                       </div>
@@ -319,7 +319,7 @@ export default function ChatsListPanel({
                       </p>
                     </div>
                     {group.isMember ? (
-                      <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
+                      <span className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-semibold text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-200">
                         Joined
                       </span>
                     ) : null}
@@ -332,7 +332,7 @@ export default function ChatsListPanel({
           Array.isArray(discoverChannels) &&
           discoverChannels.length > 0 ? (
             <div className="space-y-2">
-              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-200">
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-200">
                 Channels
               </p>
               {discoverChannels.map((channel) => {
@@ -347,8 +347,8 @@ export default function ChatsListPanel({
                     onClick={() => onOpenDiscoveredGroup?.(channel)}
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                       isActive
-                        ? "border-indigo-400 bg-indigo-100 text-indigo-900 dark:border-indigo-400/60 dark:bg-indigo-500/20 dark:text-indigo-100"
-                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-indigo-300 hover:shadow-[0_0_20px_rgba(99,102,241,0.18)] focus-visible:border-indigo-300 focus-visible:shadow-[0_0_20px_rgba(99,102,241,0.18)] focus-visible:outline-none dark:border-indigo-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                        ? "border-primary-400 bg-primary-100 text-primary-900 dark:border-primary-400/60 dark:bg-primary-500/20 dark:text-primary-100"
+                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-primary-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-primary-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-primary-500/20 dark:bg-slate-950/60 dark:text-slate-200"
                     }`}
                   >
                     {channel.avatarUrl ? (
@@ -360,7 +360,7 @@ export default function ChatsListPanel({
                     ) : (
                       <div
                         className={`flex h-9 w-9 items-center justify-center rounded-full text-xs ${hasPersian(initials) ? "font-fa" : ""}`}
-                        style={getAvatarStyle(channel.color || "#6366f1")}
+                        style={getAvatarStyle(channel.color || "#3b82f6")}
                       >
                         {initials}
                       </div>
@@ -386,7 +386,7 @@ export default function ChatsListPanel({
                       </p>
                     </div>
                     {channel.isMember ? (
-                      <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
+                      <span className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-semibold text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-200">
                         Joined
                       </span>
                     ) : null}
@@ -397,7 +397,7 @@ export default function ChatsListPanel({
           ) : null}
           {!showSearchEmptyState && discoverSaved ? (
             <div className="space-y-2">
-              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-200">
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-200">
                 Saved Messages
               </p>
               <ContextMenuSurface
@@ -410,13 +410,13 @@ export default function ChatsListPanel({
                 }}
                 className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                   isSavedChatActive
-                    ? "border-indigo-400 bg-indigo-100 text-indigo-900 dark:border-indigo-400/60 dark:bg-indigo-500/20 dark:text-indigo-100"
-                    : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-indigo-300 hover:shadow-[0_0_20px_rgba(99,102,241,0.18)] focus-visible:border-indigo-300 focus-visible:shadow-[0_0_20px_rgba(99,102,241,0.18)] focus-visible:outline-none dark:border-indigo-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                    ? "border-primary-400 bg-primary-100 text-primary-900 dark:border-primary-400/60 dark:bg-primary-500/20 dark:text-primary-100"
+                    : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-primary-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-primary-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-primary-500/20 dark:bg-slate-950/60 dark:text-slate-200"
                 }`}
               >
                 <div
                   className="flex h-9 w-9 items-center justify-center rounded-full"
-                  style={getAvatarStyle("#6366f1")}
+                  style={getAvatarStyle("#3b82f6")}
                 >
                   <Bookmark size={16} className="text-white" />
                 </div>
@@ -445,13 +445,13 @@ export default function ChatsListPanel({
         Array.from({ length: 6 }).map((_, index) => (
           <div
             key={`chat-skeleton-${index}`}
-            className="w-full animate-pulse rounded-2xl border border-slate-300/80 bg-white/70 px-3 py-3 dark:border-indigo-500/20 dark:bg-slate-950/50"
+            className="w-full animate-pulse rounded-2xl border border-slate-300/80 bg-white/70 px-3 py-3 dark:border-primary-500/20 dark:bg-slate-950/50"
           >
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-indigo-100 dark:bg-indigo-900/40" />
+              <div className="h-9 w-9 rounded-full bg-primary-100 dark:bg-primary-900/40" />
               <div className="flex-1 space-y-2">
-                <div className="h-3 w-1/2 rounded bg-indigo-100 dark:bg-indigo-900/40" />
-                <div className="h-2 w-3/4 rounded bg-indigo-100/80 dark:bg-indigo-900/30" />
+                <div className="h-3 w-1/2 rounded bg-primary-100 dark:bg-primary-900/40" />
+                <div className="h-2 w-3/4 rounded bg-primary-100/80 dark:bg-primary-900/30" />
               </div>
             </div>
           </div>
@@ -484,12 +484,12 @@ export default function ChatsListPanel({
                 : conv.name || "Chat";
           const avatarColor =
             isGroup || isChannel
-              ? conv.group_color || "#6366f1"
+              ? conv.group_color || "#3b82f6"
               : isSaved
-                ? "#6366f1"
+                ? "#3b82f6"
                 : isDeletedDm
                   ? "#94a3b8"
-                  : other?.color || "#6366f1";
+                  : other?.color || "#3b82f6";
           const avatarInitials = getAvatarInitials(name);
           const wiggleStyle = editMode
             ? {
@@ -515,9 +515,9 @@ export default function ChatsListPanel({
             <div
               className={`w-full min-h-[72px] rounded-2xl border px-3 py-3 text-left text-sm transition ${
                   Number(activeChatId || 0) === Number(conv.id || 0)
-                  ? "border-indigo-400 bg-indigo-100 text-indigo-900 dark:border-indigo-400/60 dark:bg-indigo-500/20 dark:text-indigo-100"
-                  : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-indigo-300 hover:shadow-[0_0_20px_rgba(99,102,241,0.18)] dark:border-indigo-500/20 dark:bg-slate-950/60 dark:text-slate-200"
-              } ${editMode ? "animate-chat-wiggle-ios shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_0_16px_rgba(99,102,241,0.22)]" : ""}`}
+                  ? "border-primary-400 bg-primary-100 text-primary-900 dark:border-primary-400/60 dark:bg-primary-500/20 dark:text-primary-100"
+                  : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-primary-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] dark:border-primary-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+              } ${editMode ? "animate-chat-wiggle-ios shadow-[0_0_0_1px_rgba(59,130,246,0.35),0_0_16px_rgba(59,130,246,0.22)]" : ""}`}
               style={wiggleStyle}
             >
               <div className="flex items-start gap-3">
@@ -547,10 +547,10 @@ export default function ChatsListPanel({
                     {isChannel ? (
                       <Megaphone
                         size={14}
-                        className="shrink-0 text-indigo-500"
+                        className="shrink-0 text-primary-500"
                       />
                     ) : isGroup ? (
-                      <Users size={14} className="shrink-0 text-indigo-500" />
+                      <Users size={14} className="shrink-0 text-primary-500" />
                     ) : null}
                     <span
                       className={`min-w-0 max-w-full truncate ${hasPersian(name) ? "font-fa" : ""} ${isDeletedDm ? "text-slate-500" : ""}`}
@@ -690,7 +690,7 @@ export default function ChatsListPanel({
                       <span
                         className={`inline-flex items-center ${
                           isOwnLastMessagePending
-                            ? "text-indigo-900/80 dark:text-indigo-50/80"
+                            ? "text-primary-900/80 dark:text-primary-50/80"
                             : isOwnLastMessageSeen
                               ? "text-sky-400"
                               : "text-slate-500 dark:text-slate-400"
@@ -729,7 +729,7 @@ export default function ChatsListPanel({
                       className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-2 text-[10px] font-bold text-white ${
                         conv._muted
                           ? "bg-slate-400 dark:bg-slate-500"
-                          : "bg-indigo-500"
+                          : "bg-primary-500"
                       }`}
                     >
                       {unreadCount}
@@ -804,8 +804,8 @@ export default function ChatsListPanel({
                   }}
                   className={`inline-flex h-8 w-8 items-center justify-center rounded-full border ${
                     selectedChats.includes(conv.id)
-                      ? "border-indigo-500 bg-indigo-500 text-white"
-                      : "border-indigo-200 text-indigo-600 dark:border-indigo-500/30 dark:text-indigo-200"
+                      ? "border-primary-500 bg-primary-500 text-white"
+                      : "border-primary-200 text-primary-600 dark:border-primary-500/30 dark:text-primary-200"
                   }`}
                   aria-label="Select chat"
                 >

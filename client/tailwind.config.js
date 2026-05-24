@@ -2,10 +2,6 @@
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   darkMode: 'class',
-  safelist: [
-    { pattern: /^(bg|text|border|ring|shadow|from|via|to)-indigo-(50|100|200|300|400|500|600|700|800|900|950)/ },
-    { pattern: /^(bg|text|border|ring|shadow|from|via|to)-indigo-(50|100|200|300|400|500|600|700|800|900|950)/, variants: ['dark', 'hover', 'focus', 'focus-visible'] },
-  ],
   theme: {
     extend: {
       fontFamily: {
@@ -13,23 +9,36 @@ export default {
         body: ['"DM Sans"', 'system-ui', 'sans-serif'],
         fa: ['"Vazirmatn"', '"DM Sans"', 'system-ui', 'sans-serif'],
       },
-      boxShadow: {
-        glow: '0 20px 60px -30px rgba(99, 102, 241, 0.8)',
-      },
       colors: {
-        brand: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
+        primary: {
+          50: 'var(--color-primary-50)',
+          100: 'var(--color-primary-100)',
+          200: 'var(--color-primary-200)',
+          300: 'var(--color-primary-300)',
+          400: 'var(--color-primary-400)',
+          500: 'var(--color-primary-500)',
+          600: 'var(--color-primary-600)',
+          700: 'var(--color-primary-700)',
+          800: 'var(--color-primary-800)',
+          900: 'var(--color-primary-900)',
+          950: 'var(--color-primary-950)',
         },
+        accent: {
+          50: 'var(--color-accent-50)',
+          100: 'var(--color-accent-100)',
+          200: 'var(--color-accent-200)',
+          300: 'var(--color-accent-300)',
+          400: 'var(--color-accent-400)',
+          500: 'var(--color-accent-500)',
+          600: 'var(--color-accent-600)',
+          700: 'var(--color-accent-700)',
+          800: 'var(--color-accent-800)',
+          900: 'var(--color-accent-900)',
+          950: 'var(--color-accent-950)',
+        },
+      },
+      boxShadow: {
+        glow: '0 20px 60px -30px var(--color-primary-500)',
       },
     },
   },

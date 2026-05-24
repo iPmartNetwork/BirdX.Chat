@@ -7,7 +7,7 @@ export default function Avatar({
   src,
   alt,
   name,
-  color = "#6366f1",
+  color = "#3b82f6",
   initials = null,
   placeholderContent = null,
   className = "",

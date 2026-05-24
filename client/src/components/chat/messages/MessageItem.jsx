@@ -178,7 +178,7 @@ export const MessageItem = memo(function MessageItem({
           username: msg?.forwarded_from_username || "",
           nickname: forwardedFromLabel,
           avatar_url: msg?.forwarded_from_avatar_url || "",
-          color: msg?.forwarded_from_color || "#6366f1",
+          color: msg?.forwarded_from_color || "#3b82f6",
         }
       : forwardedFromLabel
         ? { kind: "self" }
@@ -490,8 +490,8 @@ export const MessageItem = memo(function MessageItem({
         "Unknown";
   const replyColor =
     isChannelChat && replyTarget
-      ? chatColor || "#6366f1"
-      : replyTarget?.color || "#6366f1";
+      ? chatColor || "#3b82f6"
+      : replyTarget?.color || "#3b82f6";
   const replyPreviewRaw =
     extractMessageBodyText(replyTarget?.body).trim() || "Message";
   const truncateReplyPreview = (value, maxChars = 90) => {
@@ -556,7 +556,7 @@ export const MessageItem = memo(function MessageItem({
     ? "Deleted account"
     : msg.nickname || msg.username || "Unknown";
   const senderInitials = getAvatarInitials(senderName);
-  const senderColor = isDeletedAuthor ? "#94a3b8" : msg.color || "#6366f1";
+  const senderColor = isDeletedAuthor ? "#94a3b8" : msg.color || "#3b82f6";
   const canOpenSenderProfile =
     !isDeletedAuthor && typeof onOpenSenderProfile === "function";
   const contextMenuMobileEnabled = !isDesktop && isMobileTouchDevice;
@@ -565,7 +565,7 @@ export const MessageItem = memo(function MessageItem({
     username: msg.username || "",
     nickname: msg.nickname || "",
     avatar_url: msg.avatar_url || "",
-    color: msg.color || "#6366f1",
+    color: msg.color || "#3b82f6",
     role: "",
   };
   const senderContextMenu = {
@@ -716,17 +716,17 @@ export const MessageItem = memo(function MessageItem({
           className="flex items-center gap-3 py-3"
           style={{ scrollMarginTop: "96px" }}
         >
-          <span className="h-px flex-1 bg-indigo-200/70 dark:bg-indigo-500/30" />
-          <span className="rounded-full border border-indigo-200/60 bg-white/90 px-3 py-1 text-[11px] font-semibold text-indigo-700 dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200">
+          <span className="h-px flex-1 bg-primary-200/70 dark:bg-primary-500/30" />
+          <span className="rounded-full border border-primary-200/60 bg-white/90 px-3 py-1 text-[11px] font-semibold text-primary-700 dark:border-primary-500/30 dark:bg-slate-950 dark:text-primary-200">
             Unread Messages
           </span>
-          <span className="h-px flex-1 bg-indigo-200/70 dark:bg-indigo-500/30" />
+          <span className="h-px flex-1 bg-primary-200/70 dark:bg-primary-500/30" />
         </div>
       ) : null}
       {msg?._systemEvent ? (
         <div className="flex justify-center px-3 py-1 md:px-0">
           <span
-            className="inline-flex max-w-full items-center justify-center rounded-full border border-indigo-200/60 bg-white/90 px-3 py-1 text-center text-[11px] font-semibold text-indigo-700 dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
+            className="inline-flex max-w-full items-center justify-center rounded-full border border-primary-200/60 bg-white/90 px-3 py-1 text-center text-[11px] font-semibold text-primary-700 dark:border-primary-500/30 dark:bg-slate-950 dark:text-primary-200"
             style={{ lineHeight: 1.35 }}
           >
             <span className="min-w-0 truncate">
@@ -846,7 +846,7 @@ export const MessageItem = memo(function MessageItem({
           {showSwipeHint ? (
             <div className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2">
               <div
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg shadow-indigo-500/30"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-500 text-white shadow-lg shadow-primary-500/30"
                 style={{
                   opacity: swipeProgress,
                   transform: `translateX(${124 - swipeProgress * 124}px) scale(${
@@ -887,7 +887,7 @@ export const MessageItem = memo(function MessageItem({
                   }
                   className={`h-7 w-7 shrink-0 text-[10px] transition ${
                     canOpenSenderProfile
-                      ? "group-hover:ring-2 group-hover:ring-indigo-300"
+                      ? "group-hover:ring-2 group-hover:ring-primary-300"
                       : ""
                   }`}
                 />
@@ -960,7 +960,7 @@ export const MessageItem = memo(function MessageItem({
                   <button
                     type="button"
                     onClick={() => onJumpToMessage?.(replyTarget.id)}
-                    className="group mb-2 inline-flex w-full max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-indigo-200/70 bg-white/70 px-3 py-2.5 text-left text-xs text-slate-700 transition hover:border-indigo-300 hover:bg-white hover:shadow-[0_0_16px_rgba(99,102,241,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:shadow-[0_0_16px_rgba(99,102,241,0.14)]"
+                    className="group mb-2 inline-flex w-full max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-primary-200/70 bg-white/70 px-3 py-2.5 text-left text-xs text-slate-700 transition hover:border-primary-300 hover:bg-white hover:shadow-[0_0_16px_rgba(59,130,246,0.18)] dark:border-primary-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:shadow-[0_0_16px_rgba(59,130,246,0.14)]"
                     aria-label={`Reply to ${replyDisplayName}`}
                   >
                     <span className="min-w-0 flex-1">
@@ -1070,7 +1070,7 @@ export const MessageItem = memo(function MessageItem({
                   : "max-w-[82%] sm:max-w-[86%] md:max-w-[80%]"
               } ${
                 isOwn
-                  ? "rounded-br-md bg-indigo-200 text-indigo-950 dark:bg-indigo-800 dark:text-white"
+                  ? "rounded-br-md bg-primary-200 text-primary-950 dark:bg-primary-800 dark:text-white"
                   : "bg-white/90 text-slate-800 rounded-bl-md dark:bg-slate-800/75 dark:text-slate-100"
               }`}
               onDoubleClick={() => {
@@ -1120,7 +1120,7 @@ export const MessageItem = memo(function MessageItem({
                 <button
                   type="button"
                   onClick={() => onJumpToMessage?.(replyTarget.id)}
-                  className="group mb-2 inline-flex w-full max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-indigo-200/70 bg-white/70 px-3 py-2.5 text-left text-xs text-slate-700 transition hover:border-indigo-300 hover:bg-white hover:shadow-[0_0_16px_rgba(99,102,241,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:shadow-[0_0_16px_rgba(99,102,241,0.14)]"
+                  className="group mb-2 inline-flex w-full max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-primary-200/70 bg-white/70 px-3 py-2.5 text-left text-xs text-slate-700 transition hover:border-primary-300 hover:bg-white hover:shadow-[0_0_16px_rgba(59,130,246,0.18)] dark:border-primary-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:shadow-[0_0_16px_rgba(59,130,246,0.14)]"
                   aria-label={`Reply to ${replyDisplayName}`}
                 >
                   <span className="min-w-0 flex-1">
@@ -1213,7 +1213,7 @@ export const MessageItem = memo(function MessageItem({
               <div
                 className={`mt-2 flex w-full items-center text-[10px] ${
                   isOwn
-                    ? "text-indigo-900/80 dark:text-indigo-50/80"
+                    ? "text-primary-900/80 dark:text-primary-50/80"
                     : "text-slate-500 dark:text-slate-400"
                 }`}
               >
@@ -1224,14 +1224,14 @@ export const MessageItem = memo(function MessageItem({
                     <span
                       className={`inline-flex items-center gap-1 ${
                         isSending
-                          ? "text-indigo-900/80 dark:text-indigo-50/80"
+                          ? "text-primary-900/80 dark:text-primary-50/80"
                           : isFailed
                             ? "text-rose-500"
                             : isChannelChat
                               ? "text-slate-500 dark:text-slate-400"
                               : isRead
                                 ? "text-sky-400"
-                                : "text-indigo-900/80 dark:text-indigo-50/80"
+                                : "text-primary-900/80 dark:text-primary-50/80"
                       }`}
                     >
                       {isSending ? (
@@ -1284,7 +1284,7 @@ export const MessageItem = memo(function MessageItem({
                 <button
                   type="button"
                   onClick={() => onForwardMessage(msg)}
-                  className="absolute bottom-2 -right-12 inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-white text-indigo-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(99,102,241,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+                  className="absolute bottom-2 -right-12 inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary-200 bg-white text-primary-700 shadow-sm transition hover:border-primary-300 hover:bg-primary-50 hover:shadow-[0_0_14px_rgba(59,130,246,0.2)] dark:border-primary-500/30 dark:bg-slate-900 dark:text-primary-200 dark:hover:bg-primary-500/10"
                   aria-label="Forward message"
                 >
                   <Forward size={15} className="icon-anim-pop" />

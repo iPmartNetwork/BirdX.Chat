@@ -24,7 +24,7 @@ export function getAvatarTextColor(backgroundColor) {
   return luminance > 0.56 ? "#0f172a" : "#ffffff";
 }
 
-export function getAvatarStyle(backgroundColor, fallback = "#6366f1") {
+export function getAvatarStyle(backgroundColor, fallback = "#3b82f6") {
   const color = backgroundColor || fallback;
   return {
     backgroundColor: color,

@@ -20,9 +20,9 @@ export function NotificationsSettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6">
-      <div className="w-full max-w-sm rounded-3xl border border-indigo-100/70 bg-white p-6 shadow-xl dark:border-indigo-500/30 dark:bg-slate-950">
+      <div className="w-full max-w-sm rounded-3xl border border-primary-100/70 bg-white p-6 shadow-xl dark:border-primary-500/30 dark:bg-slate-950">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-indigo-800 dark:text-indigo-200">
+          <h3 className="text-base font-semibold text-primary-800 dark:text-primary-200">
             {t("settings.notifications")}
           </h3>
           <button
@@ -52,7 +52,7 @@ export function NotificationsSettingsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full bg-indigo-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-indigo-400"
+            className="rounded-full bg-primary-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-400"
           >
             {t("settings.done")}
           </button>

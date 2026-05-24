@@ -28,7 +28,7 @@ export function SettingsMenuPopover({
 
   return (
     <div
-      className="absolute bottom-20 right-4 z-10 w-64 max-w-[90vw] rounded-2xl border border-indigo-100/70 bg-white p-2 text-sm shadow-xl dark:border-indigo-500/30 dark:bg-slate-950"
+      className="absolute bottom-20 right-4 z-10 w-64 max-w-[90vw] rounded-2xl border border-primary-100/70 bg-white p-2 text-sm shadow-xl dark:border-primary-500/30 dark:bg-slate-950"
       ref={settingsMenuRef}
     >
       <SettingsMenuActions

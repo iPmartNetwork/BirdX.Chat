@@ -2769,8 +2769,8 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       ? (activeChat?.name || "Channel")
       : (msg.nickname || msg.username || msg.replyTo?.nickname || msg.replyTo?.username || "");
     const replyColor = isActiveChannelChat
-      ? (activeChat?.group_color || "#6366f1")
-      : (msg.color || "#6366f1");
+      ? (activeChat?.group_color || "#3b82f6")
+      : (msg.color || "#3b82f6");
     const preview = resolveReplyPreview(msg);
     setReplyTarget({
       id: targetId,
@@ -2851,7 +2851,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
               type: "saved",
               name: "Saved messages",
               members: [],
-              group_color: "#6366f1",
+              group_color: "#3b82f6",
               group_avatar_url: "",
               last_outgoing_time: null,
               last_time: null,
@@ -2885,7 +2885,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
         username: target.username || "",
         nickname: target.nickname || "",
         avatar_url: target.avatar_url || "",
-        color: target.color || "#6366f1",
+        color: target.color || "#3b82f6",
         status: "online",
         role: "",
       });
@@ -2910,7 +2910,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
           name: data?.name || "Chat",
           group_username: data?.username || "",
           group_visibility: data?.visibility || "public",
-          group_color: data?.color || "#6366f1",
+          group_color: data?.color || "#3b82f6",
           group_avatar_url: data?.avatarUrl || "",
           invite_token: data?.inviteToken || "",
           membersCount: Number(data?.membersCount || 0),
@@ -2940,7 +2940,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       name: targetChat.name || "Chat",
       username: targetChat.group_username || "",
       visibility: targetChat.group_visibility || "public",
-      color: targetChat.group_color || "#6366f1",
+      color: targetChat.group_color || "#3b82f6",
       avatarUrl: targetChat.group_avatar_url || "",
       inviteToken: targetChat.invite_token || "",
       membersCount:
@@ -3396,7 +3396,7 @@ useEffect(() => {
             "",
           avatar_url:
             openedChat?.last_sender_avatar_url || sender?.avatar_url || "",
-          color: sender?.color || openedChat?.group_color || "#6366f1",
+          color: sender?.color || openedChat?.group_color || "#3b82f6",
           replyTo: null,
           reactions: [],
           seenCount: 1,
@@ -3806,7 +3806,7 @@ useEffect(() => {
     [handleChatScroll, enqueueChannelSeenCounts],
   );
   const canStartChat = Boolean(newChatSelection);
-  const userColor = user?.color || "#6366f1";
+  const userColor = user?.color || "#3b82f6";
   const handleExitEdit = () => {
     setEditMode(false);
     setSelectedChats([]);
@@ -3829,7 +3829,7 @@ useEffect(() => {
     statusValue === "invisible"
       ? "bg-slate-400"
       : statusValue === "online"
-        ? "bg-indigo-400"
+        ? "bg-primary-400"
         : "";
 
   const parsePresenceDate = (value) => {
@@ -4031,7 +4031,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
           username: mentionProfile.username,
           nickname: mentionProfile.nickname || mentionProfile.username,
           avatar_url: mentionProfile.avatarUrl || "",
-          color: mentionProfile.color || "#6366f1",
+          color: mentionProfile.color || "#3b82f6",
           status: "online",
         }
       : null;
@@ -4074,7 +4074,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
           group_color:
             liveMentionProfileChat?.group_color ||
             mentionProfile.color ||
-            "#6366f1",
+            "#3b82f6",
           group_avatar_url:
             liveMentionProfileChat?.group_avatar_url ??
             mentionProfile.avatarUrl ??
@@ -4237,7 +4237,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         forwardedFromColor: isActiveChannelChat
           ? ""
           : String(
-              forwardMessageTarget?.color || user?.color || "#6366f1",
+              forwardMessageTarget?.color || user?.color || "#3b82f6",
             ).trim(),
       });
       const data = await res.json();
@@ -4895,7 +4895,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         const nextUsername = liveMentionProfileChat.group_username || prev.username || "";
         const nextVisibility =
           liveMentionProfileChat.group_visibility || prev.visibility || "public";
-        const nextColor = liveMentionProfileChat.group_color || prev.color || "#6366f1";
+        const nextColor = liveMentionProfileChat.group_color || prev.color || "#3b82f6";
         const nextAvatarUrl =
           liveMentionProfileChat.group_avatar_url ?? prev.avatarUrl ?? null;
         const nextInviteToken =
@@ -4961,7 +4961,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             const nextKind = String(data?.type || prev.kind || "group").toLowerCase();
             const nextName = data?.name || prev.name || prev.username || "Chat";
             const nextUsername = data?.username || prev.username || "";
-            const nextColor = data?.color || prev.color || "#6366f1";
+            const nextColor = data?.color || prev.color || "#3b82f6";
             const nextAvatarUrl = data?.avatarUrl ?? prev.avatarUrl ?? null;
             const nextInviteToken = data?.inviteToken || prev.inviteToken || "";
             const nextMembersCount = Number(data?.membersCount || prev.membersCount || 0);
@@ -6739,7 +6739,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       username: user?.username || "",
       nickname: user?.nickname || "",
       avatar_url: user?.avatarUrl || "",
-      color: user?.color || "#6366f1",
+      color: user?.color || "#3b82f6",
       status: user?.status || "online",
       role: "",
     });
@@ -6803,7 +6803,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       username: msg.username || "",
       nickname: msg.nickname || "",
       avatar_url: msg.avatar_url || "",
-      color: msg.color || "#6366f1",
+      color: msg.color || "#3b82f6",
       status: "online",
       role: "",
     };
@@ -7678,7 +7678,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       };
   const callQualityClass =
     callConnectionQuality.level === "good"
-      ? "bg-indigo-400"
+      ? "bg-primary-400"
       : callConnectionQuality.level === "fair"
         ? "bg-amber-300"
         : callConnectionQuality.level === "poor"
@@ -7707,11 +7707,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     ? "pointer-events-auto opacity-100"
     : "pointer-events-none opacity-0";
   const videoCallButtonBase =
-    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-white shadow-lg shadow-black/20 transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300";
+    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-white shadow-lg shadow-black/20 transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300";
   const videoCallButtonIdle =
-    "border-white/15 bg-white/10 hover:border-indigo-300/70 hover:bg-indigo-400/20";
+    "border-white/15 bg-white/10 hover:border-primary-300/70 hover:bg-primary-400/20";
   const videoCallButtonActive =
-    "border-indigo-300/70 bg-indigo-400/20 text-indigo-100";
+    "border-primary-300/70 bg-primary-400/20 text-primary-100";
   const videoCallButtonWarn =
     "border-amber-300/70 bg-amber-400/20 text-amber-100";
   const safeNewGroupForm = {
@@ -8067,7 +8067,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             }
             submitLabel={editingGroup ? "Save" : "Create"}
             avatarPreview={groupAvatarPreview}
-            avatarColor={editingGroup ? activeChat?.group_color || "#6366f1" : "#6366f1"}
+            avatarColor={editingGroup ? activeChat?.group_color || "#3b82f6" : "#3b82f6"}
             avatarName={
               safeNewGroupForm.nickname ||
               safeNewGroupForm.username ||
@@ -8231,7 +8231,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         />
         {!primaryCallVideoReady ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 text-center">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-indigo-400/30 bg-indigo-500/15 text-3xl font-bold text-indigo-100 shadow-2xl shadow-indigo-500/20">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-primary-400/30 bg-primary-500/15 text-3xl font-bold text-primary-100 shadow-2xl shadow-primary-500/20">
               {primaryCallVideoKind === "local" ? (
                 <Video size={34} strokeWidth={2.2} />
               ) : (
@@ -8254,7 +8254,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             <span
               className={`h-2.5 w-2.5 rounded-full ${
                 callState.status === "connected"
-                  ? "bg-indigo-400"
+                  ? "bg-primary-400"
                   : callState.status === "error" || callState.status === "ended"
                     ? "bg-rose-400"
                     : "animate-pulse bg-amber-300"
@@ -8312,7 +8312,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
               toggleCallVideoFocus();
             }
           }}
-          className="absolute z-30 h-36 w-24 cursor-grab overflow-hidden rounded-2xl border border-white/30 bg-slate-900 shadow-2xl shadow-black/40 outline-none ring-0 transition-transform active:cursor-grabbing active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-indigo-300 sm:h-44 sm:w-32"
+          className="absolute z-30 h-36 w-24 cursor-grab overflow-hidden rounded-2xl border border-white/30 bg-slate-900 shadow-2xl shadow-black/40 outline-none ring-0 transition-transform active:cursor-grabbing active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary-300 sm:h-44 sm:w-32"
           style={{ ...callPreviewPositionStyle, touchAction: "none" }}
         >
           <video
@@ -8357,7 +8357,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
                     "Unable to change microphone.",
                   )
                 }
-                className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-indigo-300"
+                className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-primary-300"
               >
                 <option value="">Default microphone</option>
                 {callAudioInputOptions.map((device, index) => (
@@ -8377,7 +8377,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
                     "Unable to change camera.",
                   )
                 }
-                className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-indigo-300"
+                className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-primary-300"
               >
                 <option value="">Default camera</option>
                 {callVideoInputOptions.map((device, index) => (
@@ -8462,7 +8462,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-sm">
       <div className="w-full max-w-sm overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl dark:bg-slate-950">
         <div className="relative px-6 pb-6 pt-7 text-center text-slate-900 dark:text-white">
-          <div className="absolute inset-x-0 top-0 h-28 bg-indigo-500/15 dark:bg-indigo-400/10" />
+          <div className="absolute inset-x-0 top-0 h-28 bg-primary-500/15 dark:bg-primary-400/10" />
           <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
             <button
               type="button"
@@ -8472,7 +8472,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
                   "Unable to restart the call connection.",
                 )
               }
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-white/80 text-indigo-700 transition hover:bg-indigo-50 dark:border-indigo-500/30 dark:bg-slate-950/70 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary-200 bg-white/80 text-primary-700 transition hover:bg-primary-50 dark:border-primary-500/30 dark:bg-slate-950/70 dark:text-primary-200 dark:hover:bg-primary-500/10"
               aria-label="Reconnect call"
               title="Reconnect"
             >
@@ -8481,14 +8481,14 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             <button
               type="button"
               onClick={() => setCallMinimized(true)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-white/80 text-indigo-700 transition hover:bg-indigo-50 dark:border-indigo-500/30 dark:bg-slate-950/70 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary-200 bg-white/80 text-primary-700 transition hover:bg-primary-50 dark:border-primary-500/30 dark:bg-slate-950/70 dark:text-primary-200 dark:hover:bg-primary-500/10"
               aria-label="Minimize call"
               title="Minimize"
             >
               <Minimize2 size={16} />
             </button>
           </div>
-          <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 text-2xl font-bold text-indigo-700 shadow-lg shadow-indigo-500/20 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-100">
+          <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-primary-200 bg-primary-50 text-2xl font-bold text-primary-700 shadow-lg shadow-primary-500/20 dark:border-primary-500/30 dark:bg-primary-500/15 dark:text-primary-100">
             {getAvatarInitials(callPeerName || "C")}
           </div>
           <h2 className="relative mt-4 truncate text-xl font-bold" title={callPeerName}>
@@ -8498,7 +8498,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             <span
               className={`h-2.5 w-2.5 rounded-full ${
                 callState.status === "connected"
-                  ? "bg-indigo-500"
+                  ? "bg-primary-500"
                   : callState.status === "error" || callState.status === "ended"
                     ? "bg-rose-500"
                     : "animate-pulse bg-amber-400"
@@ -8523,7 +8523,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             className={`flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border text-xs font-semibold transition ${
               callMuted
                 ? "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-100"
-                : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/40 dark:hover:text-indigo-100"
+                : "border-slate-200 bg-white text-slate-700 hover:border-primary-300 hover:text-primary-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-primary-500/40 dark:hover:text-primary-100"
             }`}
           >
             {callMuted ? <MicOff size={18} /> : <Mic size={18} />}
@@ -8532,7 +8532,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
           <button
             type="button"
             onClick={() => remoteAudioRef.current?.play?.().catch(() => null)}
-            className="flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/40 dark:hover:text-indigo-100"
+            className="flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 transition hover:border-primary-300 hover:text-primary-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-primary-500/40 dark:hover:text-primary-100"
           >
             <Volume2 size={18} />
             Audio
@@ -8562,7 +8562,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
 
 {callState && callMinimized ? (
   <div
-    className="fixed z-[320] w-[20rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-indigo-200/70 bg-white shadow-2xl shadow-black/20 dark:border-indigo-500/30 dark:bg-slate-950 select-none touch-none"
+    className="fixed z-[320] w-[20rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-primary-200/70 bg-white shadow-2xl shadow-black/20 dark:border-primary-500/30 dark:bg-slate-950 select-none touch-none"
     style={
       callMinimizedPosition
         ? { left: `${callMinimizedPosition.x}px`, top: `${callMinimizedPosition.y}px` }
@@ -8587,7 +8587,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
           }`}
         />
         {!(callVideoStreamsReady.remote || callVideoStreamsReady.local) ? (
-          <div className="absolute inset-0 flex items-center justify-center text-xl font-bold text-indigo-100">
+          <div className="absolute inset-0 flex items-center justify-center text-xl font-bold text-primary-100">
             {getAvatarInitials(callPeerName || "C")}
           </div>
         ) : null}
@@ -8603,7 +8603,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       </div>
     ) : (
       <div className="flex items-center gap-3 p-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 text-base font-bold text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-100">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary-200 bg-primary-50 text-base font-bold text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/15 dark:text-primary-100">
           {getAvatarInitials(callPeerName || "C")}
         </div>
         <div className="min-w-0 flex-1">
@@ -8621,7 +8621,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       <button
         type="button"
         onClick={() => { setCallMinimized(false); setCallMinimizedPosition(null); }}
-        className="flex h-10 items-center justify-center rounded-xl border border-indigo-200 bg-white text-indigo-700 transition hover:bg-indigo-50 dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+        className="flex h-10 items-center justify-center rounded-xl border border-primary-200 bg-white text-primary-700 transition hover:bg-primary-50 dark:border-primary-500/30 dark:bg-slate-950 dark:text-primary-200 dark:hover:bg-primary-500/10"
         aria-label="Maximize call"
         title="Maximize"
       >
@@ -8633,7 +8633,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         className={`flex h-10 items-center justify-center rounded-xl border transition ${
           callMuted
             ? "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-100"
-            : "border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+            : "border-primary-200 bg-white text-primary-700 hover:bg-primary-50 dark:border-primary-500/30 dark:bg-slate-950 dark:text-primary-200 dark:hover:bg-primary-500/10"
         }`}
         aria-label={callMuted ? "Unmute microphone" : "Mute microphone"}
         title={callMuted ? "Unmute" : "Mute"}
@@ -8656,7 +8656,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
 {incomingCall ? (
   <div className="fixed inset-0 z-[310] flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-sm">
     <div className="w-full max-w-sm rounded-[2rem] border border-white/10 bg-white p-6 text-center shadow-2xl dark:bg-slate-950">
-      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 text-2xl font-bold text-indigo-700 shadow-lg shadow-indigo-500/20 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-100">
+      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-primary-200 bg-primary-50 text-2xl font-bold text-primary-700 shadow-lg shadow-primary-500/20 dark:border-primary-500/30 dark:bg-primary-500/15 dark:text-primary-100">
         {getAvatarInitials(incomingCall.callerName || "C")}
       </div>
 
@@ -8681,7 +8681,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         <button
           type="button"
           onClick={acceptIncomingCall}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-600"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-primary-500/25 transition hover:bg-primary-600"
         >
           {normalizeCallType(incomingCall.callType) === "video" ? (
             <Video size={17} strokeWidth={2.4} />

@@ -210,7 +210,7 @@ export function useMessagesLoader({
             "",
           avatar_url:
             summaryChat?.last_sender_avatar_url || sender?.avatar_url || "",
-          color: sender?.color || summaryChat?.group_color || "#6366f1",
+          color: sender?.color || summaryChat?.group_color || "#3b82f6",
           replyTo: null,
           reactions: [],
           _readByMe:

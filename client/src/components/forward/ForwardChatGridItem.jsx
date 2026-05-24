@@ -10,10 +10,10 @@ function ForwardChatGlyph({ kind }) {
 
 function ForwardChatKindIcon({ kind }) {
   if (kind === "channel") {
-    return <Megaphone size={13} className="shrink-0 text-indigo-500" />;
+    return <Megaphone size={13} className="shrink-0 text-primary-500" />;
   }
   if (kind === "group") {
-    return <Users size={13} className="shrink-0 text-indigo-500" />;
+    return <Users size={13} className="shrink-0 text-primary-500" />;
   }
   return null;
 }
@@ -39,7 +39,7 @@ export default function ForwardChatGridItem({
       <span
         className={`relative flex h-[4.15rem] w-[4.15rem] items-center justify-center rounded-full border-[4px] transition ${
           selected
-            ? "border-indigo-500 bg-indigo-500/8"
+            ? "border-primary-500 bg-primary-500/8"
             : "border-transparent bg-transparent p-0"
         }`}
       >
@@ -50,7 +50,7 @@ export default function ForwardChatGridItem({
             src={avatarUrl}
             alt={title}
             name={title}
-            color={color || "#6366f1"}
+            color={color || "#3b82f6"}
             initials={initials}
             placeholderContent={
               kind === "saved" ? <ForwardChatGlyph kind={kind} /> : initials
@@ -60,7 +60,7 @@ export default function ForwardChatGridItem({
           />
         </span>
         {selected ? (
-          <span className="absolute bottom-0 right-0 inline-flex h-[1.2rem] w-[1.2rem] items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg shadow-indigo-500/30">
+          <span className="absolute bottom-0 right-0 inline-flex h-[1.2rem] w-[1.2rem] items-center justify-center rounded-full bg-primary-500 text-white shadow-lg shadow-primary-500/30">
             <Check size={11} strokeWidth={3.25} />
           </span>
         ) : null}

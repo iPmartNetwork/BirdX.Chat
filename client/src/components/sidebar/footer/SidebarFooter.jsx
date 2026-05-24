@@ -14,7 +14,7 @@ export default function SidebarFooter({
   settingsButtonRef,
 }) {
   return (
-    <div className="hidden h-[88px] border-t border-slate-300/80 bg-white px-6 py-4 dark:border-indigo-500/20 dark:bg-slate-900 md:absolute md:bottom-0 md:left-0 md:right-0 md:block">
+    <div className="hidden h-[88px] border-t border-slate-300/80 bg-white px-6 py-4 dark:border-primary-500/20 dark:bg-slate-900 md:absolute md:bottom-0 md:left-0 md:right-0 md:block">
       <div className="flex h-full items-center justify-between">
         <button
           type="button"
@@ -27,11 +27,11 @@ export default function SidebarFooter({
             name={displayName}
             color={userColor}
             initials={displayInitials}
-            className="h-10 w-10 transition group-hover:ring-2 group-hover:ring-indigo-300"
+            className="h-10 w-10 transition group-hover:ring-2 group-hover:ring-primary-300"
           />
           <div className="min-w-0">
             <p
-              className={`truncate text-sm font-semibold text-indigo-700 transition group-hover:text-indigo-600 dark:text-indigo-200 dark:group-hover:text-indigo-300 ${hasPersian(displayName) ? "font-fa" : ""}`}
+              className={`truncate text-sm font-semibold text-primary-700 transition group-hover:text-primary-600 dark:text-primary-200 dark:group-hover:text-primary-300 ${hasPersian(displayName) ? "font-fa" : ""}`}
               dir="auto"
               style={{ unicodeBidi: "plaintext" }}
               title={displayName}
@@ -47,7 +47,7 @@ export default function SidebarFooter({
         <button
           type="button"
           onClick={onOpenSettings}
-          className="flex items-center justify-center rounded-full border border-indigo-200 bg-white/80 p-2 text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_16px_rgba(99,102,241,0.22)] dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
+          className="flex items-center justify-center rounded-full border border-primary-200 bg-white/80 p-2 text-primary-700 transition hover:border-primary-300 hover:shadow-[0_0_16px_rgba(59,130,246,0.22)] dark:border-primary-500/30 dark:bg-slate-950 dark:text-primary-200"
           aria-label="Open settings"
           ref={settingsButtonRef}
         >

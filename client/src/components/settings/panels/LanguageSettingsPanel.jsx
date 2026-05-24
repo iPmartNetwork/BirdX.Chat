@@ -15,13 +15,13 @@ export function LanguageSettingsPanel({ onClose, variant = "desktop" }) {
     <div
       className={`${isMobile ? "space-y-3 text-xs" : "space-y-4 text-sm"} text-slate-600 dark:text-slate-300`}
     >
-      <div className="rounded-2xl border border-indigo-200/70 bg-white/90 p-4 dark:border-indigo-500/30 dark:bg-slate-900/50">
+      <div className="rounded-2xl border border-primary-200/70 bg-white/90 p-4 dark:border-primary-500/30 dark:bg-slate-900/50">
         <div className="flex items-start gap-3">
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200">
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 dark:bg-primary-500/15 dark:text-primary-200">
             <Globe size={18} className="icon-anim-sway" />
           </span>
           <div className="min-w-0">
-            <p className="font-semibold text-indigo-700 dark:text-indigo-200">
+            <p className="font-semibold text-primary-700 dark:text-primary-200">
               {t("settings.language.current")}
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
@@ -35,7 +35,7 @@ export function LanguageSettingsPanel({ onClose, variant = "desktop" }) {
       </div>
 
       <div className="space-y-2">
-        <p className="px-1 text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-300">
+        <p className="px-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary-600 dark:text-primary-300">
           {t("settings.language.interface")}
         </p>
         {supportedLanguages.map((item) => {
@@ -47,8 +47,8 @@ export function LanguageSettingsPanel({ onClose, variant = "desktop" }) {
               onClick={() => setLanguage(item.code)}
               className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-start transition ${
                 active
-                  ? "border-indigo-400 bg-indigo-50 text-indigo-700 shadow-sm dark:border-indigo-400/70 dark:bg-indigo-500/15 dark:text-indigo-100"
-                  : "border-indigo-200/70 bg-white/90 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-indigo-500/10"
+                  ? "border-primary-400 bg-primary-50 text-primary-700 shadow-sm dark:border-primary-400/70 dark:bg-primary-500/15 dark:text-primary-100"
+                  : "border-primary-200/70 bg-white/90 text-slate-700 hover:border-primary-300 hover:bg-primary-50 dark:border-primary-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-primary-500/10"
               }`}
               lang={item.htmlLang}
               dir={item.dir}
@@ -80,7 +80,7 @@ export function LanguageSettingsPanel({ onClose, variant = "desktop" }) {
         <button
           type="button"
           onClick={() => onClose?.()}
-          className="rounded-full bg-indigo-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-indigo-400"
+          className="rounded-full bg-primary-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-400"
         >
           {t("settings.done")}
         </button>

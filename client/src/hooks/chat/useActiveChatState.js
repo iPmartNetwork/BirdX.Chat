@@ -100,14 +100,14 @@ export function useActiveChatState({
       : activeHeaderPeer;
   const activeGroupAvatarColor =
     isActiveGroupChat || isActiveChannelChat
-      ? activeChat?.group_color || "#6366f1"
+      ? activeChat?.group_color || "#3b82f6"
       : null;
   const activeGroupAvatarUrl =
     isActiveGroupChat || isActiveChannelChat
       ? activeChat?.group_avatar_url || ""
       : "";
   const headerAvatarColor = isActiveSavedChat
-    ? "#6366f1"
+    ? "#3b82f6"
     : activeGroupAvatarColor;
 
   return {

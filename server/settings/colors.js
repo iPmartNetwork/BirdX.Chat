@@ -1,14 +1,14 @@
 const USER_COLORS = [
-  "#6366f1",
-  "#0ea5e9",
+  "#3b82f6",
+  "#a855f7",
   "#f97316",
   "#8b5cf6",
   "#ef4444",
   "#14b8a6",
   "#f59e0b",
-  "#3b82f6",
-  "#84cc16",
   "#ec4899",
+  "#84cc16",
+  "#60a5fa",
 ];
 
 function setUserColor() {
