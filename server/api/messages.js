@@ -559,6 +559,25 @@ function registerMessageRoutes(app, deps) {
           return res.status(404).json({ error: "User not found." });
         }
 
+        // Per-user upload policy check
+        if (Number(user.file_upload_disabled || 0)) {
+          removeUploadedFiles(uploadedFiles);
+          return res.status(403).json({ error: "File uploads are disabled for your account." });
+        }
+
+        const userMaxSizeBytes = Number(user.file_upload_max_size_bytes || 0);
+        if (userMaxSizeBytes > 0) {
+          const oversizedFile = uploadedFiles.find(
+            (file) => Number(file.size || 0) > userMaxSizeBytes,
+          );
+          if (oversizedFile) {
+            removeUploadedFiles(uploadedFiles);
+            return res.status(400).json({
+              error: `Each file must be smaller than ${Math.round(userMaxSizeBytes / (1024 * 1024))} MB for your account.`,
+            });
+          }
+        }
+
         if (!isMember(chatId, user.id)) {
           removeUploadedFiles(uploadedFiles);
 

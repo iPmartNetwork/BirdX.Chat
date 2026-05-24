@@ -15,6 +15,7 @@ import {
   Copy,
   Ghost,
   LoaderCircle,
+  Lock,
   Mic,
   Phone,
   Video,
@@ -120,6 +121,7 @@ export default function ChatWindowPanel({
   onRequestMicrophonePermission = null,
   permissionsPrompt = null,
   copyToastVisible = false,
+  e2eeActive = false,
 }) {
   const MEDIA_CACHE_VERSION = 1;
   const MEDIA_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -1161,6 +1163,9 @@ export default function ChatWindowPanel({
                 )}
                 {showStatus ? (
                   <p className="flex min-w-0 max-w-[70vw] items-center gap-2 text-xs text-slate-500 dark:text-slate-400 sm:max-w-[42vw] md:max-w-[30vw]">
+                    {e2eeActive ? (
+                      <Lock size={11} className="shrink-0 text-emerald-500" aria-label="End-to-end encrypted" />
+                    ) : null}
                     {!isConnected ? (
                       <>
                         <LoaderCircle className="h-4 w-4 animate-spin text-emerald-500" />

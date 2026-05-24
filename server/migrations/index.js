@@ -28,6 +28,8 @@ import { migration027SecurityEvents } from "./027-security-events.js";
 import { migration028CallLogs } from "./028-call-logs.js";
 import { migration029RemoteChannelQueue } from "./029-remote-channel-queue.js";
 import { migration030RequiredChannels } from "./030-required-channels.js";
+import { migration031UserUploadPolicy } from "./031-user-upload-policy.js";
+import { migration032E2eeKeys } from "./032-e2ee-keys.js";
 
 export const migrations = [
   migration001InitialSchema,
@@ -60,4 +62,6 @@ export const migrations = [
   migration028CallLogs,
   migration029RemoteChannelQueue,
   migration030RequiredChannels,
+  migration031UserUploadPolicy,
+  migration032E2eeKeys,
 ];

@@ -2,6 +2,24 @@
 
 All notable changes to BirdX are documented in this file.
 
+## v2.5.3-rc2 - 2026-05-20
+
+### Added
+
+- Added End-to-End Encryption (E2EE) foundation for DM chats using X3DH key agreement and AES-256-GCM symmetric encryption.
+- Added E2EE key generation, upload, and bundle fetch API endpoints (`/api/e2ee/keys/*`).
+- Added database migration `031-e2ee-keys` for identity keys, signed prekeys, one-time prekeys, and session storage.
+- Added client-side E2EE crypto module with ECDH P-256 key exchange, HKDF key derivation, and AES-256-GCM message encryption.
+- Added client-side E2EE key store using a dedicated IndexedDB database (`birdx-e2ee-keys`).
+- Added `useE2ee` hook for automatic session establishment, message encryption/decryption, and prekey replenishment.
+- Added green lock indicator in the chat header when E2EE is active between both DM participants.
+- Added automatic E2EE message decryption for incoming messages via SSE events.
+
+### Changed
+
+- Messages in E2EE-enabled DM chats are encrypted client-side before sending; the server only stores ciphertext.
+- Bumped service-worker cache version to `v2.5.3-rc2`.
+
 ## v2.5.3-rc1 - 2026-05-20
 
 ### Added
@@ -15,8 +33,6 @@ All notable changes to BirdX are documented in this file.
 - Fixed message reactions not appearing in real-time for other chat participants without a page refresh.
 - Fixed install bar not hiding on mobile when opening a chat due to event name mismatch between `ChatPage` and `App` (`songbird-*` vs `birdx-*`).
 - Fixed push notification click not opening the correct chat due to `OPEN_CHAT_ID_KEY` mismatch between `App.jsx` and `chatPageConstants.js`.
-- Fixed push notification fallback title showing "Songbird" instead of "BirdX" in service worker and test notification endpoint.
-- Fixed `process.title` still set to `songbird-server` instead of `birdx-server`.
 - Fixed `socket.io` missing from `server/package.json` dependencies (was only in root).
 
 ### Changed

@@ -467,3 +467,24 @@ export const getSseStreamUrl = (username) =>
   `${API_BASE}/api/events?username=${encodeURIComponent(username)}`;
 
 export const getMessagesUploadUrl = () => `${API_BASE}/api/messages/upload`;
+
+// --- E2EE Key Exchange ---
+
+export const uploadE2eeKeys = (payload) =>
+  apiFetch(`${API_BASE}/api/e2ee/keys/upload`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+export const fetchE2eeKeyBundle = (targetUserId) =>
+  apiFetch(`${API_BASE}/api/e2ee/keys/bundle/${encodeURIComponent(targetUserId)}`);
+
+export const fetchE2eeKeyStatus = (username) =>
+  apiFetch(`${API_BASE}/api/e2ee/keys/status?username=${encodeURIComponent(username)}`);
+
+export const checkPeerE2eeStatus = (targetUserId) =>
+  apiFetch(`${API_BASE}/api/e2ee/keys/check/${encodeURIComponent(targetUserId)}`);
+
+export const fetchE2eePreKeyCount = (username) =>
+  apiFetch(`${API_BASE}/api/e2ee/keys/prekey-count?username=${encodeURIComponent(username)}`);

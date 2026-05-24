@@ -44,10 +44,12 @@ import { useNewGroupModal } from "../hooks/chat/useNewGroupModal.js";
 import { usePerfTelemetry } from "../hooks/chat/usePerfTelemetry.js";
 import { useResumeRefresh } from "../hooks/chat/useResumeRefresh.js";
 import { useAppReleaseInfo } from "../hooks/useAppReleaseInfo.js";
+import { useE2ee } from "../hooks/chat/useE2ee.js";
 import {
   Bookmark,
   Camera,
   CameraOff,
+  Lock,
   Maximize2,
   Mic,
   MicOff,
@@ -2271,6 +2273,54 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   } = useAppReleaseInfo();
   const { isAppActive } = useAppActivity();
   const { isMobileViewport } = useMobileViewport();
+  const {
+    e2eeEnabled,
+    e2eeInitializing,
+    peerE2eeSupported,
+    shouldUseE2ee,
+    enableE2ee,
+    encryptMessageBody,
+    decryptMessageBody,
+    decryptMessages,
+    getActivePeerUserId,
+    isE2eeMessage: checkIsE2eeMessage,
+  } = useE2ee({ user, activeChatId, chats });
+
+  // E2EE: Decrypt messages that arrive encrypted
+  const e2eeDecryptingRef = useRef(false);
+  useEffect(() => {
+    if (!e2eeEnabled || e2eeDecryptingRef.current) return;
+    const peerUserId = getActivePeerUserId();
+    if (!peerUserId) return;
+
+    const hasEncrypted = messages.some(
+      (msg) => checkIsE2eeMessage(msg?.body) && !msg._e2eeDecrypted,
+    );
+    if (!hasEncrypted) return;
+
+    e2eeDecryptingRef.current = true;
+    let cancelled = false;
+    (async () => {
+      const decrypted = await Promise.all(
+        messages.map(async (msg) => {
+          if (!checkIsE2eeMessage(msg?.body) || msg._e2eeDecrypted) return msg;
+          try {
+            const plaintext = await decryptMessageBody(peerUserId, msg.body);
+            return { ...msg, body: plaintext, _e2ee: true, _e2eeDecrypted: true };
+          } catch {
+            return { ...msg, body: "\u{1F512} Unable to decrypt", _e2ee: true, _e2eeDecrypted: true };
+          }
+        }),
+      );
+      if (!cancelled) {
+        setMessages(decrypted);
+      }
+      e2eeDecryptingRef.current = false;
+    })();
+
+    return () => { cancelled = true; e2eeDecryptingRef.current = false; };
+  }, [messages, e2eeEnabled, getActivePeerUserId, decryptMessageBody, checkIsE2eeMessage]);
+
   const { isConnected } = useHealthCheck({
     fetchHealth,
     intervalMs: CHAT_PAGE_CONFIG.healthCheckIntervalMs,
@@ -5118,16 +5168,30 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         }
         data = await uploadPendingMessageWithProgress(pendingMessage, targetChatId);
       } else {
+        let messageBody = pendingMessage.body;
+
+        // E2EE: encrypt message body if both parties support it
+        if (shouldUseE2ee && !isEditingExistingMessage) {
+          const peerUserId = getActivePeerUserId();
+          if (peerUserId) {
+            try {
+              messageBody = await encryptMessageBody(peerUserId, messageBody);
+            } catch (e2eeErr) {
+              console.warn("[e2ee] encryption failed, sending plaintext:", e2eeErr);
+            }
+          }
+        }
+
         const res = isEditingExistingMessage
           ? await editMessage({
               username: user.username,
-              body: pendingMessage.body,
+              body: messageBody,
               chatId: targetChatId,
               messageId: pendingMessage._editMessageId,
             })
           : await sendMessage({
               username: user.username,
-              body: pendingMessage.body,
+              body: messageBody,
               chatId: targetChatId,
               replyToMessageId: pendingMessage.replyTo?.id || null,
               clientRequestId: String(clientId),
@@ -7857,6 +7921,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         copyToastVisible={copyToastVisible}
         microphonePermissionStatus={microphonePermission}
         onRequestMicrophonePermission={requestMicrophonePermission}
+        e2eeActive={shouldUseE2ee}
         permissionsPrompt={{
           show: showPermissionsPrompt,
           mode: activePermissionPrompt,

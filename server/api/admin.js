@@ -817,6 +817,8 @@ function registerAdminRoutes(app, deps) {
         banned: Boolean(Number(user.banned || 0)),
         role: normalizeAdminRole(user.role),
         envAdmin: adminUsernameSet.has(String(user.username || "").toLowerCase()),
+        fileUploadDisabled: Boolean(Number(user.file_upload_disabled || 0)),
+        fileUploadMaxSizeBytes: Number(user.file_upload_max_size_bytes || 0) || null,
       },
       stats: {
         messages: Number(stats?.messages || 0),
@@ -873,6 +875,15 @@ function registerAdminRoutes(app, deps) {
       updates.push("banned = ?");
       params.push(req.body.banned ? 1 : 0);
     }
+    if (req.body?.fileUploadDisabled !== undefined) {
+      updates.push("file_upload_disabled = ?");
+      params.push(req.body.fileUploadDisabled ? 1 : 0);
+    }
+    if (req.body?.fileUploadMaxSizeBytes !== undefined) {
+      const maxSize = Number(req.body.fileUploadMaxSizeBytes || 0);
+      updates.push("file_upload_max_size_bytes = ?");
+      params.push(maxSize > 0 ? maxSize : null);
+    }
     if (!updates.length) return res.status(400).json({ error: "No changes provided." });
     if (!requireAdminPassword(req, res, session)) return;
     params.push(userId);
@@ -884,6 +895,8 @@ function registerAdminRoutes(app, deps) {
     writeAuditLog(req, session, "user.update", "user", userId, {
       role: req.body?.role,
       banned: req.body?.banned,
+      fileUploadDisabled: req.body?.fileUploadDisabled,
+      fileUploadMaxSizeBytes: req.body?.fileUploadMaxSizeBytes,
     });
     res.json({ ok: true });
   });

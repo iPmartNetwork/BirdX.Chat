@@ -2,6 +2,7 @@ import { registerAppRoutes } from "./app.js";
 import { registerAdminRoutes } from "./admin.js";
 import { registerAuthRoutes } from "./auth.js";
 import { registerChatRoutes } from "./chats.js";
+import { registerE2eeRoutes } from "./e2ee.js";
 import { registerHealthRoutes } from "./health.js";
 import { registerMessageRoutes } from "./messages.js";
 import { registerPushRoutes } from "./push.js";
@@ -33,6 +34,7 @@ function registerApiRoutes(app, deps) {
   registerMessageRoutes(app, deps);
   registerPushRoutes(app, deps);
   registerRemoteChannelRoutes(app, deps);
+  registerE2eeRoutes(app, deps);
 
   /* 🔥 BirdX Custom */
   registerBirdxRoutes(app);
