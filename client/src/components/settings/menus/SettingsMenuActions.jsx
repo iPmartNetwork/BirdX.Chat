@@ -35,7 +35,7 @@ export function SettingsMenuActions({
     ? "flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-start text-base font-medium"
     : "flex w-full items-center gap-2 rounded-xl border border-transparent px-3 py-2 text-start text-sm";
   const accentHover =
-    "text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 hover:shadow-[0_0_18px_rgba(59,130,246,0.22)] dark:text-blue-200 dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10";
+    "text-blue-700 transition hover:border-purple-300 hover:bg-purple-50 hover:shadow-[0_0_18px_rgba(168,85,247,0.18)] dark:text-purple-300 dark:hover:border-purple-500/30 dark:hover:bg-purple-500/10";
 
   return (
     <>

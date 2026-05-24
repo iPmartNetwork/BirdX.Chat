@@ -156,7 +156,7 @@ export default function ChatSidebar({
   return (
     <aside
       className={
-        "relative flex h-full min-h-0 w-full flex-col overflow-hidden border-x border-slate-300/80 bg-white shadow-lg shadow-blue-500/10 dark:border-white/5 dark:bg-slate-900 md:border md:w-[35%] md:pb-[88px] md:shadow-xl md:shadow-blue-500/15 " +
+        "relative flex h-full min-h-0 w-full flex-col overflow-hidden border-x border-slate-300/80 bg-white shadow-lg shadow-blue-500/10 dark:border-blue-500/10 dark:bg-[#0c1222] md:border md:w-[35%] md:pb-[88px] md:shadow-xl md:shadow-blue-500/15 " +
         (mobileTab === "chat" ? "hidden md:block" : "block")
       }
     >

@@ -3829,7 +3829,7 @@ useEffect(() => {
     statusValue === "invisible"
       ? "bg-slate-400"
       : statusValue === "online"
-        ? "bg-blue-400"
+        ? "bg-green-400"
         : "";
 
   const parsePresenceDate = (value) => {

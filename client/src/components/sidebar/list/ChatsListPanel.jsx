@@ -229,7 +229,7 @@ export default function ChatsListPanel({
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                       isActive
                         ? "border-blue-400 bg-blue-100 text-blue-900 dark:border-blue-400/60 dark:bg-blue-500/20 dark:text-blue-100"
-                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-blue-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-blue-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-blue-500/15 dark:bg-[#0d1425]/80 dark:text-slate-200"
                     }`}
                   >
                     <Avatar
@@ -281,7 +281,7 @@ export default function ChatsListPanel({
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                       isActive
                         ? "border-blue-400 bg-blue-100 text-blue-900 dark:border-blue-400/60 dark:bg-blue-500/20 dark:text-blue-100"
-                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-blue-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-blue-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-blue-500/15 dark:bg-[#0d1425]/80 dark:text-slate-200"
                     }`}
                   >
                     {group.avatarUrl ? (
@@ -348,7 +348,7 @@ export default function ChatsListPanel({
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                       isActive
                         ? "border-blue-400 bg-blue-100 text-blue-900 dark:border-blue-400/60 dark:bg-blue-500/20 dark:text-blue-100"
-                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-blue-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-blue-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-blue-500/15 dark:bg-[#0d1425]/80 dark:text-slate-200"
                     }`}
                   >
                     {channel.avatarUrl ? (
@@ -411,7 +411,7 @@ export default function ChatsListPanel({
                 className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                   isSavedChatActive
                     ? "border-blue-400 bg-blue-100 text-blue-900 dark:border-blue-400/60 dark:bg-blue-500/20 dark:text-blue-100"
-                    : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-blue-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                    : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:border-blue-300 focus-visible:shadow-[0_0_20px_rgba(59,130,246,0.18)] focus-visible:outline-none dark:border-blue-500/15 dark:bg-[#0d1425]/80 dark:text-slate-200"
                 }`}
               >
                 <div
@@ -516,7 +516,7 @@ export default function ChatsListPanel({
               className={`w-full min-h-[72px] rounded-2xl border px-3 py-3 text-left text-sm transition ${
                   Number(activeChatId || 0) === Number(conv.id || 0)
                   ? "border-blue-400 bg-blue-100 text-blue-900 dark:border-blue-400/60 dark:bg-blue-500/20 dark:text-blue-100"
-                  : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                  : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-blue-300 hover:shadow-[0_0_20px_rgba(59,130,246,0.18)] dark:border-blue-500/15 dark:bg-[#0d1425]/80 dark:text-slate-200"
               } ${editMode ? "animate-chat-wiggle-ios shadow-[0_0_0_1px_rgba(59,130,246,0.35),0_0_16px_rgba(59,130,246,0.22)]" : ""}`}
               style={wiggleStyle}
             >

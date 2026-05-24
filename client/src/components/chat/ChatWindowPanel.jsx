@@ -893,9 +893,9 @@ export default function ChatWindowPanel({
   const chatScrollStyle = useMemo(
     () => ({
       backgroundImage: isDark
-        ? "radial-gradient(circle at top right, rgba(59,130,246,0.22), transparent 48%), radial-gradient(circle at bottom left, rgba(59,130,246,0.20), transparent 44%)"
-        : "radial-gradient(circle at top right, rgba(59,130,246,0.10), transparent 45%), radial-gradient(circle at bottom left, rgba(59,130,246,0.09), transparent 40%)",
-      backgroundColor: isDark ? "#0a0e1a" : "#eef2ff",
+        ? "radial-gradient(ellipse at top right, rgba(59,130,246,0.15), transparent 50%), radial-gradient(ellipse at bottom left, rgba(168,85,247,0.12), transparent 45%)"
+        : "radial-gradient(circle at top right, rgba(59,130,246,0.08), transparent 45%), radial-gradient(circle at bottom left, rgba(168,85,247,0.06), transparent 40%)",
+      backgroundColor: isDark ? "#0a0e1a" : "#f8fafc",
       scrollbarGutter: "stable both-edges",
       overscrollBehaviorY:
         !isDesktop && composerFocused ? "none" : "contain",
@@ -1254,7 +1254,7 @@ export default function ChatWindowPanel({
                         <span
                           className={`h-2 w-2 rounded-full ${
                             peerStatusLabel === "online"
-                              ? "bg-blue-400"
+                              ? "bg-green-400"
                               : "bg-slate-400"
                           }`}
                         />
