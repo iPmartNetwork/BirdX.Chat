@@ -2,6 +2,10 @@
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   darkMode: 'class',
+  safelist: [
+    { pattern: /^(bg|text|border|ring|shadow|from|via|to)-indigo-(50|100|200|300|400|500|600|700|800|900|950)/ },
+    { pattern: /^(bg|text|border|ring|shadow|from|via|to)-indigo-(50|100|200|300|400|500|600|700|800|900|950)/, variants: ['dark', 'hover', 'focus', 'focus-visible'] },
+  ],
   theme: {
     extend: {
       fontFamily: {
