@@ -99,7 +99,7 @@ export function MobileSettingsPanel({
             <button
               type="button"
               onClick={onOpenOwnProfile}
-              className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-1 py-1 text-start transition hover:border-indigo-300 hover:bg-indigo-50/50 hover:shadow-[0_0_16px_rgba(16,185,129,0.18)] dark:hover:border-indigo-500/30 dark:hover:bg-indigo-500/10"
+              className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-1 py-1 text-start transition hover:border-indigo-300 hover:bg-indigo-50/50 hover:shadow-[0_0_16px_rgba(99,102,241,0.18)] dark:hover:border-indigo-500/30 dark:hover:bg-indigo-500/10"
             >
               <Avatar
                 src={user.avatarUrl}
@@ -311,7 +311,7 @@ export function MobileSettingsPanel({
             ) : null}
             <button
               type="submit"
-              className="w-full rounded-xl bg-indigo-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+              className="w-full rounded-xl bg-indigo-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)]"
             >
               Save profile
             </button>
@@ -356,7 +356,7 @@ export function MobileSettingsPanel({
                 <button
                   type="button"
                   onClick={() => setShowCurrentPassword((prev) => !prev)}
-                  className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+                  className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(99,102,241,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
                   aria-label={
                     showCurrentPassword
                       ? "Hide current password"
@@ -391,7 +391,7 @@ export function MobileSettingsPanel({
                 <button
                   type="button"
                   onClick={() => setShowNewPassword((prev) => !prev)}
-                  className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+                  className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(99,102,241,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
                   aria-label={
                     showNewPassword ? "Hide new password" : "Show new password"
                   }
@@ -424,7 +424,7 @@ export function MobileSettingsPanel({
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+                  className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(99,102,241,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
                   aria-label={
                     showConfirmPassword
                       ? "Hide confirm password"
@@ -441,7 +441,7 @@ export function MobileSettingsPanel({
             </label>
             <button
               type="submit"
-              className="w-full rounded-xl bg-indigo-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+              className="w-full rounded-xl bg-indigo-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)]"
             >
               Update password
             </button>

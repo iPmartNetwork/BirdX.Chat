@@ -123,7 +123,7 @@ export default function AuthFormFields({
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
-            className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10 sm:h-9 sm:w-9"
+            className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(99,102,241,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10 sm:h-9 sm:w-9"
             aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? (
@@ -152,7 +152,7 @@ export default function AuthFormFields({
             <button
               type="button"
               onClick={() => setShowConfirmPassword((prev) => !prev)}
-              className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10 sm:h-9 sm:w-9"
+              className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(99,102,241,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10 sm:h-9 sm:w-9"
               aria-label={
                 showConfirmPassword
                   ? "Hide confirm password"
@@ -172,7 +172,7 @@ export default function AuthFormFields({
       <button
         type="submit"
         disabled={loading}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] disabled:cursor-not-allowed disabled:opacity-70 sm:px-4 sm:py-3 sm:text-sm"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] disabled:cursor-not-allowed disabled:opacity-70 sm:px-4 sm:py-3 sm:text-sm"
       >
         {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
         {isLogin ? "Sign in" : "Create account"}

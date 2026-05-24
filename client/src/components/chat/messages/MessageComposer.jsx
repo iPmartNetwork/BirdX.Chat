@@ -950,7 +950,7 @@ export function MessageComposer({
                 }}
                 className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-transparent bg-transparent transition ${
                   !uploadBusy
-                    ? "text-indigo-700 hover:border-indigo-300 hover:bg-indigo-100 hover:shadow-[0_0_16px_rgba(16,185,129,0.22)] dark:text-indigo-200 dark:hover:border-indigo-500/30 dark:hover:bg-indigo-500/10"
+                    ? "text-indigo-700 hover:border-indigo-300 hover:bg-indigo-100 hover:shadow-[0_0_16px_rgba(99,102,241,0.22)] dark:text-indigo-200 dark:hover:border-indigo-500/30 dark:hover:bg-indigo-500/10"
                     : "cursor-not-allowed text-slate-400 dark:text-slate-500"
                 }`}
                 aria-label="Attach file"

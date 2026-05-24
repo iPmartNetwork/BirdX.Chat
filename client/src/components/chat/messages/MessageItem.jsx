@@ -960,7 +960,7 @@ export const MessageItem = memo(function MessageItem({
                   <button
                     type="button"
                     onClick={() => onJumpToMessage?.(replyTarget.id)}
-                    className="group mb-2 inline-flex w-full max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-indigo-200/70 bg-white/70 px-3 py-2.5 text-left text-xs text-slate-700 transition hover:border-indigo-300 hover:bg-white hover:shadow-[0_0_16px_rgba(16,185,129,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:shadow-[0_0_16px_rgba(16,185,129,0.14)]"
+                    className="group mb-2 inline-flex w-full max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-indigo-200/70 bg-white/70 px-3 py-2.5 text-left text-xs text-slate-700 transition hover:border-indigo-300 hover:bg-white hover:shadow-[0_0_16px_rgba(99,102,241,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:shadow-[0_0_16px_rgba(99,102,241,0.14)]"
                     aria-label={`Reply to ${replyDisplayName}`}
                   >
                     <span className="min-w-0 flex-1">
@@ -1120,7 +1120,7 @@ export const MessageItem = memo(function MessageItem({
                 <button
                   type="button"
                   onClick={() => onJumpToMessage?.(replyTarget.id)}
-                  className="group mb-2 inline-flex w-full max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-indigo-200/70 bg-white/70 px-3 py-2.5 text-left text-xs text-slate-700 transition hover:border-indigo-300 hover:bg-white hover:shadow-[0_0_16px_rgba(16,185,129,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:shadow-[0_0_16px_rgba(16,185,129,0.14)]"
+                  className="group mb-2 inline-flex w-full max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-indigo-200/70 bg-white/70 px-3 py-2.5 text-left text-xs text-slate-700 transition hover:border-indigo-300 hover:bg-white hover:shadow-[0_0_16px_rgba(99,102,241,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:shadow-[0_0_16px_rgba(99,102,241,0.14)]"
                   aria-label={`Reply to ${replyDisplayName}`}
                 >
                   <span className="min-w-0 flex-1">
@@ -1284,7 +1284,7 @@ export const MessageItem = memo(function MessageItem({
                 <button
                   type="button"
                   onClick={() => onForwardMessage(msg)}
-                  className="absolute bottom-2 -right-12 inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-white text-indigo-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+                  className="absolute bottom-2 -right-12 inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-white text-indigo-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(99,102,241,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
                   aria-label="Forward message"
                 >
                   <Forward size={15} className="icon-anim-pop" />

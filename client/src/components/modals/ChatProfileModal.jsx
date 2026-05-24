@@ -328,7 +328,7 @@ function ChatProfileModal({
                     // ignore clipboard errors
                   }
                 }}
-                className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+                className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(99,102,241,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
               >
                 <Copy size={12} className="icon-anim-pop" />
                 {copiedInviteLink ? "Copied" : "Copy"}
@@ -441,7 +441,7 @@ function ChatProfileModal({
                   <ContextMenuSurface
                     as="div"
                     key={`member-row-${member.id}`}
-                    className="flex items-center gap-2 rounded-xl border border-indigo-100/80 bg-white/80 px-2 py-2 transition hover:border-indigo-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.18)] dark:border-indigo-500/20 dark:bg-slate-900/70 dark:hover:border-indigo-500/35 dark:hover:shadow-[0_0_18px_rgba(16,185,129,0.12)]"
+                    className="flex items-center gap-2 rounded-xl border border-indigo-100/80 bg-white/80 px-2 py-2 transition hover:border-indigo-300 hover:shadow-[0_0_20px_rgba(99,102,241,0.18)] dark:border-indigo-500/20 dark:bg-slate-900/70 dark:hover:border-indigo-500/35 dark:hover:shadow-[0_0_18px_rgba(99,102,241,0.12)]"
                     contextMenu={{
                       isMobile:
                         typeof window !== "undefined" &&
@@ -547,7 +547,7 @@ function ChatProfileModal({
                     }
                   }, 0);
                 }}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+                className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(99,102,241,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
               >
                 <ArrowDown size={12} className="icon-anim-pop" />
                 Show more

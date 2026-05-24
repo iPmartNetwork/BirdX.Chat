@@ -234,7 +234,7 @@ export function DesktopSettingsModal({
             ) : null}
             <button
               type="submit"
-              className="w-full rounded-2xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+              className="w-full rounded-2xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)]"
             >
               Save profile
             </button>
@@ -267,7 +267,7 @@ export function DesktopSettingsModal({
                 <button
                   type="button"
                   onClick={() => setShowCurrentPassword((prev) => !prev)}
-                  className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+                  className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(99,102,241,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
                   aria-label={
                     showCurrentPassword
                       ? "Hide current password"
@@ -302,7 +302,7 @@ export function DesktopSettingsModal({
                 <button
                   type="button"
                   onClick={() => setShowNewPassword((prev) => !prev)}
-                  className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+                  className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(99,102,241,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
                   aria-label={
                     showNewPassword ? "Hide new password" : "Show new password"
                   }
@@ -335,7 +335,7 @@ export function DesktopSettingsModal({
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+                  className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-indigo-700 transition hover:bg-indigo-100 hover:shadow-[0_0_18px_rgba(99,102,241,0.22)] dark:text-indigo-200 dark:hover:bg-indigo-500/10"
                   aria-label={
                     showConfirmPassword
                       ? "Hide confirm password"
@@ -352,7 +352,7 @@ export function DesktopSettingsModal({
             </label>
             <button
               type="submit"
-              className="w-full rounded-2xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+              className="w-full rounded-2xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)]"
             >
               Update password
             </button>

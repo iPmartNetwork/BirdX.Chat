@@ -92,7 +92,7 @@ export default function SidebarHeader({
                   type="button"
                   onClick={onEnterEdit}
                   disabled={!hasChats}
-                  className="inline-flex items-center justify-center rounded-full border border-indigo-200 bg-white/80 p-2 text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_16px_rgba(16,185,129,0.22)] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-indigo-200 disabled:hover:shadow-none dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
+                  className="inline-flex items-center justify-center rounded-full border border-indigo-200 bg-white/80 p-2 text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_16px_rgba(99,102,241,0.22)] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-indigo-200 disabled:hover:shadow-none dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
                   aria-label="Edit chat list"
                 >
                   <Pencil size={18} className="icon-anim-sway" />
@@ -144,7 +144,7 @@ export default function SidebarHeader({
                   <button
                     type="button"
                     onClick={() => setShowCreateMenu((prev) => !prev)}
-                    className="inline-flex items-center justify-center rounded-full border border-indigo-200 bg-white/80 p-2 text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_16px_rgba(16,185,129,0.22)] dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
+                    className="inline-flex items-center justify-center rounded-full border border-indigo-200 bg-white/80 p-2 text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_16px_rgba(99,102,241,0.22)] dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
                     aria-label="Create"
                     aria-expanded={showCreateMenu}
                   >
@@ -223,7 +223,7 @@ export default function SidebarHeader({
                 placeholder="Search"
                 lang={searchIsRtl ? "fa" : "en"}
                 dir={searchIsRtl ? "rtl" : "ltr"}
-                className={`w-full rounded-2xl border border-indigo-200 bg-white py-2 pr-10 text-sm text-slate-700 outline-none transition hover:border-indigo-300 hover:shadow-[0_0_16px_rgba(16,185,129,0.18)] focus:border-indigo-400 focus:bg-white/80 focus:ring-2 focus:ring-indigo-300/60 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-indigo-500/50 dark:hover:shadow-[0_0_18px_rgba(16,185,129,0.12)] dark:focus:bg-slate-950 ${
+                className={`w-full rounded-2xl border border-indigo-200 bg-white py-2 pr-10 text-sm text-slate-700 outline-none transition hover:border-indigo-300 hover:shadow-[0_0_16px_rgba(99,102,241,0.18)] focus:border-indigo-400 focus:bg-white/80 focus:ring-2 focus:ring-indigo-300/60 dark:border-indigo-500/30 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-indigo-500/50 dark:hover:shadow-[0_0_18px_rgba(99,102,241,0.12)] dark:focus:bg-slate-950 ${
                   chatsSearchFocused || hasSearchText
                     ? searchIsRtl
                       ? "pl-9 text-right font-fa placeholder-slate-500 dark:placeholder-slate-400"

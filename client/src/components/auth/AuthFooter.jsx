@@ -8,7 +8,7 @@
       <button
         type="button"
         onClick={onSwitchMode}
-        className="mt-2 w-full rounded-2xl border border-indigo-300 bg-white/80 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:border-indigo-400 hover:shadow-[0_0_18px_rgba(16,185,129,0.24)] dark:border-indigo-500/40 dark:bg-slate-900/60 dark:text-indigo-200 sm:px-4 sm:py-2 sm:text-sm"
+        className="mt-2 w-full rounded-2xl border border-indigo-300 bg-white/80 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:border-indigo-400 hover:shadow-[0_0_18px_rgba(99,102,241,0.24)] dark:border-indigo-500/40 dark:bg-slate-900/60 dark:text-indigo-200 sm:px-4 sm:py-2 sm:text-sm"
       >
         {isLogin ? "Create new account" : "Back to sign in"}
       </button>

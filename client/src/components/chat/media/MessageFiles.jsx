@@ -789,7 +789,7 @@ const VoiceMessageChip = memo(
     const canPlay = Boolean(serverUrl);
     const waveformMaxHeight = 32;
     return (
-      <div className="inline-flex w-max max-w-full items-center gap-2 rounded-xl border border-indigo-200/70 bg-white px-3 py-2 text-xs text-slate-900 transition hover:border-indigo-300 hover:bg-white/90 hover:shadow-[0_0_16px_rgba(16,185,129,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:shadow-[0_0_16px_rgba(16,185,129,0.14)]">
+      <div className="inline-flex w-max max-w-full items-center gap-2 rounded-xl border border-indigo-200/70 bg-white px-3 py-2 text-xs text-slate-900 transition hover:border-indigo-300 hover:bg-white/90 hover:shadow-[0_0_16px_rgba(99,102,241,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:shadow-[0_0_16px_rgba(99,102,241,0.14)]">
         <button
           type="button"
           onClick={togglePlay}
@@ -1327,7 +1327,7 @@ export function MessageFiles({
             href={file.url}
             download={file.name || undefined}
             rel="noopener noreferrer"
-            className={`group ${docChipClass} items-center gap-2 rounded-xl border border-indigo-200/70 bg-white/70 px-3 py-2.5 text-xs text-slate-700 transition hover:border-indigo-300 hover:bg-white hover:shadow-[0_0_16px_rgba(16,185,129,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:shadow-[0_0_16px_rgba(16,185,129,0.14)]`}
+            className={`group ${docChipClass} items-center gap-2 rounded-xl border border-indigo-200/70 bg-white/70 px-3 py-2.5 text-xs text-slate-700 transition hover:border-indigo-300 hover:bg-white hover:shadow-[0_0_16px_rgba(99,102,241,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:shadow-[0_0_16px_rgba(99,102,241,0.14)]`}
           >
             <span className="relative inline-flex h-5 w-5 shrink-0 items-center justify-center">
               <File

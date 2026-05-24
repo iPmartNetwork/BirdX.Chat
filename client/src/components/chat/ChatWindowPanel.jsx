@@ -893,9 +893,9 @@ export default function ChatWindowPanel({
   const chatScrollStyle = useMemo(
     () => ({
       backgroundImage: isDark
-        ? "radial-gradient(circle at top right, rgba(16,185,129,0.22), transparent 48%), radial-gradient(circle at bottom left, rgba(16,185,129,0.20), transparent 44%)"
-        : "radial-gradient(circle at top right, rgba(16,185,129,0.10), transparent 45%), radial-gradient(circle at bottom left, rgba(16,185,129,0.09), transparent 40%)",
-      backgroundColor: isDark ? "#0b1320" : "#dcfce7",
+        ? "radial-gradient(circle at top right, rgba(99,102,241,0.22), transparent 48%), radial-gradient(circle at bottom left, rgba(99,102,241,0.20), transparent 44%)"
+        : "radial-gradient(circle at top right, rgba(99,102,241,0.10), transparent 45%), radial-gradient(circle at bottom left, rgba(99,102,241,0.09), transparent 40%)",
+      backgroundColor: isDark ? "#0a0e1a" : "#eef2ff",
       scrollbarGutter: "stable both-edges",
       overscrollBehaviorY:
         !isDesktop && composerFocused ? "none" : "contain",
@@ -1665,7 +1665,7 @@ export default function ChatWindowPanel({
           <button
             type="button"
             onClick={() => onToggleChannelMute?.()}
-            className="inline-flex h-11 items-center rounded-2xl border border-indigo-200 bg-white px-6 text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+            className="inline-flex h-11 items-center rounded-2xl border border-indigo-200 bg-white px-6 text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(99,102,241,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
           >
             {isChannelMuted ? "Unmute" : "Mute"}
           </button>

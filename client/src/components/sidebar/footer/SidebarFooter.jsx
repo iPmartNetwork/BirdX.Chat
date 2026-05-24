@@ -47,7 +47,7 @@ export default function SidebarFooter({
         <button
           type="button"
           onClick={onOpenSettings}
-          className="flex items-center justify-center rounded-full border border-indigo-200 bg-white/80 p-2 text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_16px_rgba(16,185,129,0.22)] dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
+          className="flex items-center justify-center rounded-full border border-indigo-200 bg-white/80 p-2 text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_16px_rgba(99,102,241,0.22)] dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
           aria-label="Open settings"
           ref={settingsButtonRef}
         >

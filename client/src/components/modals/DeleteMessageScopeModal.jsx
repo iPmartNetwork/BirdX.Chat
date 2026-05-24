@@ -29,7 +29,7 @@ export default function DeleteMessageScopeModal({
             onClick={() => setDeleteForEveryone((prev) => !prev)}
             role="switch"
             aria-checked={deleteForEveryone}
-            className="mt-4 flex w-full items-center justify-between rounded-2xl border border-indigo-200/70 bg-white/90 px-4 py-3 text-left text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_18px_rgba(16,185,129,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+            className="mt-4 flex w-full items-center justify-between rounded-2xl border border-indigo-200/70 bg-white/90 px-4 py-3 text-left text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_18px_rgba(99,102,241,0.18)] dark:border-indigo-500/30 dark:bg-slate-900/50 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
           >
             <span>Delete for everyone</span>
             <span
@@ -50,7 +50,7 @@ export default function DeleteMessageScopeModal({
               setDeleteForEveryone(false);
               onClose?.();
             }}
-            className="rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
+            className="rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:shadow-[0_0_14px_rgba(99,102,241,0.2)] dark:border-indigo-500/30 dark:bg-slate-950 dark:text-indigo-200"
           >
             Cancel
           </button>

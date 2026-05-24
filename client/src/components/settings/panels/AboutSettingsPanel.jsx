@@ -40,7 +40,7 @@ function WalletRow({ label, address, copyLabel, copiedLabel }) {
             setCopied(true);
             window.setTimeout(() => setCopied(false), 1400);
           }}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(99,102,241,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
           aria-label={`Copy ${label} wallet`}
         >
           <Copy size={12} className="icon-anim-pop" />
@@ -104,7 +104,7 @@ export function AboutSettingsPanel({
     if (checkState.status === "checking") {
       return {
         className:
-          "cursor-wait border border-indigo-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-indigo-700 hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10",
+          "cursor-wait border border-indigo-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-indigo-700 hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(99,102,241,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10",
         label: t("settings.about.checking"),
         icon: <LoaderCircle size={12} className="animate-spin" />,
       };

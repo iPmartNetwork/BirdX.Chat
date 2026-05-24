@@ -33,7 +33,7 @@ export default function GroupInviteLinkModal({ open, inviteLink, onClose }) {
                 // ignore clipboard errors
               }
             }}
-            className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
+            className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-[0_0_14px_rgba(99,102,241,0.2)] dark:border-indigo-500/30 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
           >
             <Copy size={12} className="icon-anim-pop" />
             {copied ? "Copied" : "Copy"}
