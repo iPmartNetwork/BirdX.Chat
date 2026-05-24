@@ -935,6 +935,24 @@ if (MESSAGE_TEXT_RETENTION_DAYS > 0) {
 
 bootstrapEnvAdmins();
 backfillStorageEncryption();
+
+// Migrate old emerald avatar colors to indigo
+try {
+  const oldColor = "#10b981";
+  const newColor = "#6366f1";
+  const affected = adminGetRow(
+    "SELECT COUNT(*) AS n FROM users WHERE color = ?",
+    [oldColor],
+  );
+  if (Number(affected?.n || 0) > 0) {
+    adminRun("UPDATE users SET color = ? WHERE color = ?", [newColor, oldColor]);
+    adminSave();
+    console.log(`[colors] migrated ${affected.n} user(s) from ${oldColor} to ${newColor}`);
+  }
+} catch (error) {
+  console.warn("[colors] migration failed:", String(error?.message || error));
+}
+
 remoteChannelManager.start();
 
 const httpServer = createServer(app);
