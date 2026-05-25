@@ -2,6 +2,23 @@
 
 All notable changes to BirdX are documented in this file.
 
+## v2.5.3-rc3 - 2026-05-25
+
+### Added
+
+- Added Broadcast messaging from Admin Panel — send messages to all users, online users, or by role (delivered to Saved Messages).
+- Added Export Data feature — download users, chats, files, and audit logs in CSV or JSON format.
+- Added Bulk Actions for users — multi-select with checkboxes and batch Ban / Unban / Delete.
+- Added Bulk Actions for chats — multi-select with checkboxes and batch Delete.
+- Added Enhanced User Detail — view recent messages, devices (user agents), and login history from the user detail drawer.
+- Added new admin API endpoints: `POST /api/admin/broadcast`, `GET /api/admin/export/:type`, `POST /api/admin/bulk/users`, `POST /api/admin/bulk/chats`, `GET /api/admin/users/:id/activity`.
+- Added Broadcast and Export tabs to the Admin Panel sidebar navigation.
+
+### Changed
+
+- Updated Admin Panel version label to v2.5.3-rc3.
+- Bumped client and server package versions to `2.5.3-rc3`.
+
 ## v2.5.3-rc2 - 2026-05-20
 
 ### Added
