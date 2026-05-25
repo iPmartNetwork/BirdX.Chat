@@ -756,7 +756,7 @@ function registerAdminRoutes(app, deps) {
     const userId = toInt(req.params.id);
     const user = userId
       ? adminGetRow(
-          `SELECT id, username, nickname, avatar_url, color, status, banned, role, created_at, last_seen
+          `SELECT id, username, nickname, avatar_url, color, status, banned, role, created_at, last_seen, file_upload_disabled, file_upload_max_size_bytes
            FROM users
            WHERE id = ?`,
           [userId],
