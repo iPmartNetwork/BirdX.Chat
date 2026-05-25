@@ -244,8 +244,9 @@ export function DesktopSettingsModal({
         ) : null}
 
         {settingsPanel === "security" ? (
+          <div className="app-scroll mt-4 min-h-0 flex-1 overflow-y-auto px-6 pb-6">
           <form
-            className="app-scroll mt-4 min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6"
+            className="space-y-4"
             onSubmit={handlePasswordSave}
           >
             <label className="block">
@@ -360,6 +361,7 @@ export function DesktopSettingsModal({
             <InlineError message={passwordError} />
           </form>
           <TwoFactorSettings />
+          </div>
         ) : null}
 
         {settingsPanel === "data" ? (
