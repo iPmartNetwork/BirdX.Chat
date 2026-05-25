@@ -3065,7 +3065,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const effectiveMaxFileSize = user?.fileUploadMaxSizeBytes || CHAT_PAGE_CONFIG.maxFileSizeBytes;
   const effectiveMaxTotalSize = user?.fileUploadMaxSizeBytes
     ? user.fileUploadMaxSizeBytes * CHAT_PAGE_CONFIG.maxFilesPerMessage
-    : effectiveMaxTotalSize;
+    : CHAT_PAGE_CONFIG.maxTotalUploadBytes;
 
   const fileUploadInProgress = useMemo(
     () =>
