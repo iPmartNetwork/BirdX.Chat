@@ -3181,6 +3181,39 @@ function registerAdminRoutes(app, deps) {
   });
 
   // ─── Broadcast ────────────────────────────────────────────────────────────────
+  const BROADCAST_CHANNEL_USERNAME = "broadcast";
+  const BROADCAST_CHANNEL_NAME = "📢 اطلاعیه‌ها";
+
+  const ensureBroadcastChannel = () => {
+    let channel = adminGetRow(
+      "SELECT id FROM chats WHERE group_username = ? AND type = 'channel'",
+      [BROADCAST_CHANNEL_USERNAME],
+    );
+    if (!channel?.id) {
+      adminRun(
+        `INSERT INTO chats (name, type, group_username, group_visibility, group_color, allow_member_invites, created_at)
+         VALUES (?, 'channel', ?, 'public', '#f59e0b', 0, datetime('now'))`,
+        [BROADCAST_CHANNEL_NAME, BROADCAST_CHANNEL_USERNAME],
+      );
+      const newId = Number(adminGetRow("SELECT last_insert_rowid() AS id")?.id || 0);
+      if (newId) channel = { id: newId };
+    }
+    return channel?.id || null;
+  };
+
+  const ensureUserInBroadcastChannel = (channelId, userId) => {
+    const existing = adminGetRow(
+      "SELECT 1 AS m FROM chat_members WHERE chat_id = ? AND user_id = ?",
+      [channelId, userId],
+    );
+    if (!existing?.m) {
+      adminRun(
+        "INSERT OR IGNORE INTO chat_members (chat_id, user_id, role) VALUES (?, ?, 'member')",
+        [channelId, userId],
+      );
+    }
+  };
+
   app.post("/api/admin/broadcast", (req, res) => {
     const session = requireAdminSession(req, res, "usersWrite");
     if (!session) return;
@@ -3215,61 +3248,59 @@ function registerAdminRoutes(app, deps) {
       return res.status(400).json({ error: "No target users found for this filter." });
     }
 
-    let delivered = 0;
-    const adminUserId = Number(session.id || 0);
+    // Ensure broadcast channel exists
+    const channelId = ensureBroadcastChannel();
+    if (!channelId) {
+      return res.status(500).json({ error: "Unable to create broadcast channel." });
+    }
 
+    // Ensure admin is owner of broadcast channel
+    const adminUserId = Number(session.id || 0);
+    const adminMember = adminGetRow(
+      "SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?",
+      [channelId, adminUserId],
+    );
+    if (!adminMember) {
+      adminRun("INSERT OR IGNORE INTO chat_members (chat_id, user_id, role) VALUES (?, ?, 'owner')", [channelId, adminUserId]);
+    }
+
+    // Add all target users to broadcast channel
+    let delivered = 0;
     for (const targetUser of targetUsers) {
       try {
-        let savedChat = adminGetRow(
-          `SELECT chats.id FROM chats
-           JOIN chat_members ON chat_members.chat_id = chats.id
-           WHERE chats.type = 'saved' AND chat_members.user_id = ?`,
-          [targetUser.id],
-        );
-        // Create saved chat if it doesn't exist
-        if (!savedChat?.id) {
-          adminRun(
-            "INSERT INTO chats (name, type, created_at) VALUES ('Saved Messages', 'saved', datetime('now'))",
-          );
-          const newChatId = Number(adminGetRow("SELECT last_insert_rowid() AS id")?.id || 0);
-          if (newChatId) {
-            adminRun(
-              "INSERT OR IGNORE INTO chat_members (chat_id, user_id, role) VALUES (?, ?, 'owner')",
-              [newChatId, targetUser.id],
-            );
-            savedChat = { id: newChatId };
-          }
-        }
-        if (savedChat?.id) {
-          const encBody = storageEncryption?.encryptText
-            ? storageEncryption.encryptText(`📢 [Broadcast] ${message}`)
-            : `📢 [Broadcast] ${message}`;
-          adminRun(
-            `INSERT INTO chat_messages (chat_id, user_id, body, created_at)
-             VALUES (?, ?, ?, datetime('now'))`,
-            [savedChat.id, adminUserId, encBody],
-          );
-          delivered += 1;
-          // Notify user via SSE
-          try {
-            emitSseEvent?.(targetUser.username, { type: "chat_message", chatId: savedChat.id });
-          } catch { /* non-critical */ }
-        }
-      } catch {
-        // skip individual failures
-      }
+        ensureUserInBroadcastChannel(channelId, targetUser.id);
+        delivered += 1;
+      } catch { /* skip */ }
     }
+
+    // Send message to broadcast channel
+    const encBody = storageEncryption?.encryptText
+      ? storageEncryption.encryptText(message)
+      : message;
+    adminRun(
+      `INSERT INTO chat_messages (chat_id, user_id, body, created_at)
+       VALUES (?, ?, ?, datetime('now'))`,
+      [channelId, adminUserId, encBody],
+    );
     adminSave();
+
+    // Notify all users via SSE
+    for (const targetUser of targetUsers) {
+      try {
+        emitSseEvent?.(targetUser.username, { type: "chat_message", chatId: channelId });
+      } catch { /* non-critical */ }
+    }
 
     writeAuditLog(req, session, "admin.broadcast", "broadcast", "", {
       targetGroup,
       targetRole,
       targetCount: targetUsers.length,
       delivered,
+      channelId,
       messagePreview: message.slice(0, 100),
     });
 
-    res.json({ ok: true, delivered, total: targetUsers.length });
+    res.json({ ok: true, delivered, total: targetUsers.length, channelId });
   });
 
   // ─── Export Data ──────────────────────────────────────────────────────────────
