@@ -3062,7 +3062,10 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     }, 280);
   };
 
-  const effectiveMaxFileSize = user?.fileUploadMaxSizeBytes || effectiveMaxFileSize;
+  const effectiveMaxFileSize = user?.fileUploadMaxSizeBytes || CHAT_PAGE_CONFIG.maxFileSizeBytes;
+  const effectiveMaxTotalSize = user?.fileUploadMaxSizeBytes
+    ? user.fileUploadMaxSizeBytes * CHAT_PAGE_CONFIG.maxFilesPerMessage
+    : effectiveMaxTotalSize;
 
   const fileUploadInProgress = useMemo(
     () =>
@@ -5808,10 +5811,10 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       );
       return;
     }
-    if (sizeBytes > CHAT_PAGE_CONFIG.maxTotalUploadBytes) {
+    if (sizeBytes > effectiveMaxTotalSize) {
       setUploadError(
         `Total upload size cannot exceed ${formatBytesAsMb(
-          CHAT_PAGE_CONFIG.maxTotalUploadBytes,
+          effectiveMaxTotalSize,
         )}.`,
       );
       return;
@@ -6065,10 +6068,10 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     );
     const incomingBytes = incoming.reduce((sum, file) => sum + Number(file.size || 0), 0);
     const totalBytes = existingBytes + incomingBytes;
-    if (totalBytes > CHAT_PAGE_CONFIG.maxTotalUploadBytes) {
+    if (totalBytes > effectiveMaxTotalSize) {
       setUploadError(
         `Total upload size cannot exceed ${formatBytesAsMb(
-          CHAT_PAGE_CONFIG.maxTotalUploadBytes,
+          effectiveMaxTotalSize,
         )}.`,
       );
       return;
