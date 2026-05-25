@@ -36,6 +36,9 @@ self.addEventListener("message", (event) => {
   if (event?.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
+  if (event?.data?.type === "GET_VERSION" && event.ports?.[0]) {
+    event.ports[0].postMessage({ cacheVersion: CACHE_VERSION });
+  }
 });
 
 self.addEventListener("activate", (event) => {

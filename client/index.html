@@ -56,30 +56,30 @@
     <!-- Title -->
     <title>BirdX</title>
 
-    <!-- SW Force Update -->
+    <!-- SW Version Guard — prevents stale cache issues on deploy -->
     <script>
       (function () {
-        var REQUIRED_SW_VERSION = "v2.5.3-rc3";
-        var SW_MIGRATED_KEY = "birdx-sw-migrated-" + REQUIRED_SW_VERSION;
-        if ('serviceWorker' in navigator && !sessionStorage.getItem(SW_MIGRATED_KEY)) {
-          navigator.serviceWorker.getRegistrations().then(function (regs) {
-            if (!regs.length) return;
-            var needsReload = false;
-            var promises = regs.map(function (reg) {
-              return reg.unregister().then(function () { needsReload = true; });
-            });
-            Promise.all(promises).then(function () {
-              if (needsReload) {
-                caches.keys().then(function (keys) {
-                  return Promise.all(keys.map(function (key) { return caches.delete(key); }));
-                }).then(function () {
-                  sessionStorage.setItem(SW_MIGRATED_KEY, "1");
-                  window.location.reload();
-                });
-              }
-            });
+        if (!('serviceWorker' in navigator)) return;
+        var EXPECTED_VERSION = "v2.5.3-rc3";
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          if (!regs.length) return;
+          regs.forEach(function (reg) {
+            if (reg.active) {
+              var ch = new MessageChannel();
+              ch.port1.onmessage = function (e) {
+                if (e.data && e.data.cacheVersion && e.data.cacheVersion !== EXPECTED_VERSION) {
+                  reg.unregister().then(function () {
+                    caches.keys().then(function (keys) {
+                      return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                    }).then(function () { window.location.reload(); });
+                  });
+                }
+              };
+              try { reg.active.postMessage({ type: "GET_VERSION" }, [ch.port2]); } catch (_) {}
+            }
+            reg.update();
           });
-        }
+        });
       })();
     </script>
   </head>
