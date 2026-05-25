@@ -55,6 +55,19 @@
 
     <!-- Title -->
     <title>BirdX</title>
+
+    <!-- SW Force Update -->
+    <script>
+      (function () {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (reg) {
+              reg.update();
+            });
+          });
+        }
+      })();
+    </script>
   </head>
 
   <body>
