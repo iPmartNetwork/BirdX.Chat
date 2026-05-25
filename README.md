@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="client/public/birdx-logo.svg" alt="BirdX Logo" width="80" height="80" />
+  <img src="client/public/birdx-logo.svg" alt="BirdX" width="280" height="280" />
 </p>
-
-<h1 align="center">BirdX</h1>
 
 <p align="center">
   <strong>Modern self-hosted chat platform for private communities and teams</strong>
@@ -28,11 +26,11 @@
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#features">Features</a> •
-  <a href="#admin-panel">Admin Panel</a> •
-  <a href="#tech-stack">Tech Stack</a> •
-  <a href="#deployment">Deployment</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-features">Features</a> •
+  <a href="#%EF%B8%8F-admin-panel">Admin Panel</a> •
+  <a href="#%EF%B8%8F-tech-stack">Tech Stack</a> •
+  <a href="#-deployment">Deployment</a> •
   <a href="./CHANGELOG.md">Changelog</a>
 </p>
 
