@@ -507,3 +507,24 @@ export const bulkAdminChats = (payload = {}) =>
 // --- Admin: Enhanced User Detail ---
 export const fetchAdminUserActivity = (userId) =>
   apiFetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}/activity`);
+
+// --- Admin: Analytics ---
+export const fetchAdminAnalytics = (params = {}) =>
+  apiFetch(`${API_BASE}/api/admin/analytics${buildAdminQuery(params)}`);
+
+// --- Admin: Scheduled Messages ---
+export const fetchAdminScheduledMessages = () =>
+  apiFetch(`${API_BASE}/api/admin/scheduled-messages`);
+
+export const createAdminScheduledMessage = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/scheduled-messages`, adminJsonOptions("POST", payload));
+
+export const deleteAdminScheduledMessage = (id) =>
+  apiFetch(`${API_BASE}/api/admin/scheduled-messages/${encodeURIComponent(id)}`, adminJsonOptions("DELETE"));
+
+// --- Admin: Branding ---
+export const fetchAdminBranding = () =>
+  apiFetch(`${API_BASE}/api/admin/branding`);
+
+export const updateAdminBranding = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/branding`, adminJsonOptions("PUT", payload));

@@ -142,6 +142,32 @@ function registerAdminRoutes(app, deps) {
         adminRun("ALTER TABLE users ADD COLUMN file_upload_max_size_bytes INTEGER DEFAULT NULL");
       }
 
+      adminRun(`
+        CREATE TABLE IF NOT EXISTS scheduled_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          chat_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          body TEXT NOT NULL,
+          scheduled_at DATETIME NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          sent_at DATETIME
+        )
+      `);
+
+      adminRun(`
+        CREATE INDEX IF NOT EXISTS idx_scheduled_messages_status
+        ON scheduled_messages(status, scheduled_at)
+      `);
+
+      adminRun(`
+        CREATE TABLE IF NOT EXISTS app_settings (
+          key TEXT PRIMARY KEY,
+          value TEXT,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       adminSave();
     } catch (error) {
       console.warn("[admin] schema self-heal failed:", String(error?.message || error));
@@ -149,6 +175,44 @@ function registerAdminRoutes(app, deps) {
   };
 
   ensureAdminSchema();
+
+  // Scheduled messages processor (runs every 30 seconds)
+  const processScheduledMessages = () => {
+    try {
+      const pending = adminGetAll(
+        `SELECT id, chat_id, user_id, body, scheduled_at
+         FROM scheduled_messages
+         WHERE status = 'pending'
+           AND datetime(scheduled_at) <= datetime('now')
+         ORDER BY datetime(scheduled_at) ASC
+         LIMIT 20`,
+      );
+      pending.forEach((msg) => {
+        try {
+          let body = msg.body || "";
+          try {
+            if (storageEncryption?.decryptText) body = storageEncryption.decryptText(body);
+          } catch { /* keep raw */ }
+          const encBody = storageEncryption?.encryptText ? storageEncryption.encryptText(`📅 ${body}`) : `📅 ${body}`;
+          adminRun(
+            `INSERT INTO chat_messages (chat_id, user_id, body, created_at) VALUES (?, ?, ?, datetime('now'))`,
+            [msg.chat_id, msg.user_id, encBody],
+          );
+          adminRun("UPDATE scheduled_messages SET status = 'sent', sent_at = datetime('now') WHERE id = ?", [msg.id]);
+          try {
+            emitChatEvent?.(msg.chat_id, { type: "chat_message", chatId: msg.chat_id });
+          } catch { /* non-critical */ }
+        } catch {
+          adminRun("UPDATE scheduled_messages SET status = 'failed' WHERE id = ?", [msg.id]);
+        }
+      });
+      if (pending.length) adminSave();
+    } catch {
+      // keep server alive
+    }
+  };
+  const scheduledMsgTimer = setInterval(processScheduledMessages, 30000);
+  if (typeof scheduledMsgTimer?.unref === "function") scheduledMsgTimer.unref();
 
   const ADMIN_ROLES = ["owner", "admin", "moderator", "support"];
   const ALL_ROLES = [...ADMIN_ROLES, "user"];
@@ -3360,6 +3424,195 @@ function registerAdminRoutes(app, deps) {
       devices,
       loginHistory,
     });
+  });
+
+  // ─── Advanced Analytics ───────────────────────────────────────────────────────
+  app.get("/api/admin/analytics", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsRead");
+    if (!session) return;
+
+    const days = Math.min(90, Math.max(7, toInt(req.query?.days) || 30));
+
+    // User growth (per day)
+    const userGrowth = adminGetAll(
+      `SELECT DATE(created_at) AS day, COUNT(*) AS count
+       FROM users
+       WHERE datetime(created_at) >= datetime('now', '-' || ? || ' days')
+       GROUP BY DATE(created_at)
+       ORDER BY day ASC`,
+      [days],
+    );
+
+    // Messages per day
+    const messagesPerDay = adminGetAll(
+      `SELECT DATE(created_at) AS day, COUNT(*) AS count
+       FROM chat_messages
+       WHERE datetime(created_at) >= datetime('now', '-' || ? || ' days')
+       GROUP BY DATE(created_at)
+       ORDER BY day ASC`,
+      [days],
+    );
+
+    // Hourly activity (last 24h)
+    const hourlyActivity = adminGetAll(
+      `SELECT CAST(strftime('%H', created_at) AS INTEGER) AS hour, COUNT(*) AS count
+       FROM chat_messages
+       WHERE datetime(created_at) >= datetime('now', '-1 day')
+       GROUP BY hour
+       ORDER BY hour ASC`,
+    );
+
+    // Top active users (by message count in period)
+    const topUsers = adminGetAll(
+      `SELECT u.id, u.username, u.nickname, u.avatar_url, COUNT(cm.id) AS message_count
+       FROM users u
+       JOIN chat_messages cm ON cm.user_id = u.id
+       WHERE datetime(cm.created_at) >= datetime('now', '-' || ? || ' days')
+       GROUP BY u.id
+       ORDER BY message_count DESC
+       LIMIT 10`,
+      [days],
+    ).map((row) => ({
+      ...row,
+      avatar_url: ensureAvatarExists?.(row.id, row.avatar_url) || null,
+    }));
+
+    // Top active chats
+    const topChats = adminGetAll(
+      `SELECT c.id, c.name, c.type, c.group_username, COUNT(cm.id) AS message_count
+       FROM chats c
+       JOIN chat_messages cm ON cm.chat_id = c.id
+       WHERE datetime(cm.created_at) >= datetime('now', '-' || ? || ' days')
+       GROUP BY c.id
+       ORDER BY message_count DESC
+       LIMIT 10`,
+      [days],
+    );
+
+    // Summary stats
+    const totalUsers = Number(adminGetRow("SELECT COUNT(*) AS c FROM users")?.c || 0);
+    const newUsersToday = Number(adminGetRow("SELECT COUNT(*) AS c FROM users WHERE DATE(created_at) = DATE('now')")?.c || 0);
+    const totalMessages = Number(adminGetRow("SELECT COUNT(*) AS c FROM chat_messages")?.c || 0);
+    const messagesToday = Number(adminGetRow("SELECT COUNT(*) AS c FROM chat_messages WHERE DATE(created_at) = DATE('now')")?.c || 0);
+    const activeUsersToday = Number(adminGetRow("SELECT COUNT(DISTINCT user_id) AS c FROM chat_messages WHERE DATE(created_at) = DATE('now')")?.c || 0);
+    const onlineNow = Number(adminGetRow("SELECT COUNT(*) AS c FROM users WHERE julianday('now') - julianday(last_seen) <= (15.0 / 1440.0)")?.c || 0);
+
+    res.json({
+      ok: true,
+      period: days,
+      summary: { totalUsers, newUsersToday, totalMessages, messagesToday, activeUsersToday, onlineNow },
+      userGrowth,
+      messagesPerDay,
+      hourlyActivity,
+      topUsers,
+      topChats,
+    });
+  });
+
+  // ─── Message Scheduling ───────────────────────────────────────────────────────
+  app.get("/api/admin/scheduled-messages", (req, res) => {
+    const session = requireAdminSession(req, res, "usersWrite");
+    if (!session) return;
+
+    const messages = adminGetAll(
+      `SELECT id, chat_id, user_id, body, scheduled_at, status, created_at
+       FROM scheduled_messages
+       WHERE status IN ('pending', 'failed')
+       ORDER BY datetime(scheduled_at) ASC
+       LIMIT 100`,
+    ).map((msg) => {
+      let body = msg.body || "";
+      try {
+        if (storageEncryption?.decryptText) body = storageEncryption.decryptText(body);
+      } catch { /* keep raw */ }
+      return { ...msg, body: body.slice(0, 300) };
+    });
+
+    res.json({ ok: true, messages });
+  });
+
+  app.post("/api/admin/scheduled-messages", (req, res) => {
+    const session = requireAdminSession(req, res, "usersWrite");
+    if (!session) return;
+
+    const chatId = toInt(req.body?.chatId);
+    const body = String(req.body?.body || "").trim();
+    const scheduledAt = String(req.body?.scheduledAt || "").trim();
+
+    if (!chatId) return res.status(400).json({ error: "Chat ID is required." });
+    if (!body) return res.status(400).json({ error: "Message body is required." });
+    if (!scheduledAt) return res.status(400).json({ error: "Scheduled time is required." });
+
+    // Validate chat exists
+    const chat = adminGetRow("SELECT id, name, type FROM chats WHERE id = ?", [chatId]);
+    if (!chat?.id) return res.status(404).json({ error: "Chat not found." });
+
+    const encBody = storageEncryption?.encryptText ? storageEncryption.encryptText(body) : body;
+    adminRun(
+      `INSERT INTO scheduled_messages (chat_id, user_id, body, scheduled_at, status, created_at)
+       VALUES (?, ?, ?, ?, 'pending', datetime('now'))`,
+      [chatId, Number(session.id), encBody, scheduledAt],
+    );
+    adminSave();
+    writeAuditLog(req, session, "scheduled_message.create", "chat", chatId, { scheduledAt, bodyPreview: body.slice(0, 50) });
+
+    res.json({ ok: true });
+  });
+
+  app.delete("/api/admin/scheduled-messages/:id", (req, res) => {
+    const session = requireAdminSession(req, res, "usersWrite");
+    if (!session) return;
+
+    const msgId = toInt(req.params.id);
+    const existing = adminGetRow("SELECT id FROM scheduled_messages WHERE id = ?", [msgId]);
+    if (!existing?.id) return res.status(404).json({ error: "Scheduled message not found." });
+
+    adminRun("DELETE FROM scheduled_messages WHERE id = ?", [msgId]);
+    adminSave();
+    writeAuditLog(req, session, "scheduled_message.delete", "scheduled_message", msgId);
+
+    res.json({ ok: true });
+  });
+
+  // ─── Custom Themes & Branding ─────────────────────────────────────────────────
+  app.get("/api/admin/branding", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsRead");
+    if (!session) return;
+
+    const row = adminGetRow("SELECT key, value FROM app_settings WHERE key = 'branding'");
+    let branding = {};
+    try {
+      branding = row?.value ? JSON.parse(row.value) : {};
+    } catch {
+      branding = {};
+    }
+
+    res.json({ ok: true, branding });
+  });
+
+  app.put("/api/admin/branding", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsWrite");
+    if (!session) return;
+    if (!requireAdminPassword(req, res, session)) return;
+
+    const branding = {
+      appName: String(req.body?.appName || "").trim().slice(0, 50) || "BirdX",
+      primaryColor: String(req.body?.primaryColor || "").trim().slice(0, 20) || "#10b981",
+      accentColor: String(req.body?.accentColor || "").trim().slice(0, 20) || "#6366f1",
+      logoUrl: String(req.body?.logoUrl || "").trim().slice(0, 500) || "",
+      welcomeMessage: String(req.body?.welcomeMessage || "").trim().slice(0, 500) || "",
+      footerText: String(req.body?.footerText || "").trim().slice(0, 200) || "",
+    };
+
+    adminRun(
+      `INSERT INTO app_settings (key, value, updated_at) VALUES ('branding', ?, datetime('now'))
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [JSON.stringify(branding)],
+    );
+    adminSave();
+    writeAuditLog(req, session, "branding.update", "settings", "branding", branding);
+
+    res.json({ ok: true, branding });
   });
 }
 

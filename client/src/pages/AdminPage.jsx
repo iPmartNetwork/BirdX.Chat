@@ -4,20 +4,25 @@ import {
   bulkAdminChats,
   bulkAdminUsers,
   createAdminBackup,
+  createAdminScheduledMessage,
   deleteAdminBackup,
   deleteAdminChat,
   deleteAdminChatMember,
   deleteAdminFile,
+  deleteAdminScheduledMessage,
   deleteAdminUser,
   deleteAdminUserSession,
   deleteAdminUserSessions,
+  fetchAdminAnalytics,
   fetchAdminAuditLogs,
   fetchAdminBackups,
+  fetchAdminBranding,
   fetchAdminChatDetail,
   fetchAdminChats,
   fetchAdminFiles,
   fetchAdminOverview,
   fetchAdminRequiredChannels,
+  fetchAdminScheduledMessages,
   fetchAdminSecuritySummary,
   fetchAdminSettings,
   fetchAdminSystemHealth,
@@ -28,6 +33,7 @@ import {
   getAdminExportUrl,
   resetAdminUserPassword,
   sendAdminBroadcast,
+  updateAdminBranding,
   updateAdminChatMember,
   updateAdminChatSettings,
   updateAdminRequiredChannels,
@@ -61,12 +67,15 @@ const CHAT_ROLE_OPTIONS = ["owner", "admin", "moderator", "member"];
 
 const tabs = [
   { id: "overview", label: "Overview", icon: Database },
+  { id: "analytics", label: "Analytics", icon: Globe },
   { id: "monitor", label: "Monitor", icon: Globe },
   { id: "users", label: "Users", icon: Users },
   { id: "chats", label: "Chats", icon: Chat },
   { id: "files", label: "Files", icon: File },
   { id: "broadcast", label: "Broadcast", icon: Globe },
+  { id: "scheduled", label: "Scheduled", icon: Settings },
   { id: "export", label: "Export", icon: Download },
+  { id: "branding", label: "Branding", icon: Pencil },
   { id: "audit", label: "Audit", icon: ShieldCheck },
   { id: "maintenance", label: "Maintenance", icon: Settings },
 ];
@@ -600,6 +609,14 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
   const [broadcastResult, setBroadcastResult] = useState(null);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [selectedChatIds, setSelectedChatIds] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsDays, setAnalyticsDays] = useState(30);
+  const [scheduledMessages, setScheduledMessages] = useState([]);
+  const [schedChatId, setSchedChatId] = useState("");
+  const [schedBody, setSchedBody] = useState("");
+  const [schedAt, setSchedAt] = useState("");
+  const [branding, setBranding] = useState(null);
+  const [brandingForm, setBrandingForm] = useState({ appName: "", primaryColor: "", accentColor: "", logoUrl: "", welcomeMessage: "", footerText: "" });
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState("");
   const [error, setError] = useState("");
@@ -1402,6 +1419,187 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
                     );
                   })}
                 </div>
+              </section>
+            </div>
+          ) : null}
+
+          {!loading && activeTab === "analytics" ? (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-sm font-bold">Analytics Dashboard</h2>
+                <div className="flex items-center gap-2">
+                  <select value={analyticsDays} onChange={(e) => setAnalyticsDays(Number(e.target.value))} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900">
+                    <option value={7}>7 days</option>
+                    <option value={14}>14 days</option>
+                    <option value={30}>30 days</option>
+                    <option value={60}>60 days</option>
+                    <option value={90}>90 days</option>
+                  </select>
+                  <button type="button" onClick={async () => { try { const data = await readJsonResponse(await fetchAdminAnalytics({ days: analyticsDays })); setAnalytics(data); } catch (err) { setError(err?.message || "Failed to load analytics."); } }} className="h-9 rounded-lg bg-emerald-500 px-4 text-sm font-semibold text-white">Load</button>
+                </div>
+              </div>
+              {analytics ? (
+                <div className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                    <StatCard label="Total Users" value={analytics.summary?.totalUsers || 0} icon={Users} />
+                    <StatCard label="New Today" value={analytics.summary?.newUsersToday || 0} icon={UserPlus} />
+                    <StatCard label="Online Now" value={analytics.summary?.onlineNow || 0} icon={Globe} />
+                    <StatCard label="Total Messages" value={analytics.summary?.totalMessages || 0} icon={Database} />
+                    <StatCard label="Messages Today" value={analytics.summary?.messagesToday || 0} icon={Chat} />
+                    <StatCard label="Active Today" value={analytics.summary?.activeUsersToday || 0} icon={User} />
+                  </div>
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950">
+                      <h3 className="text-sm font-bold">User Growth ({analyticsDays} days)</h3>
+                      <div className="mt-3 space-y-1">
+                        {analytics.userGrowth?.length ? analytics.userGrowth.map((item) => (
+                          <div key={item.day} className="flex items-center justify-between gap-2 text-sm">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">{item.day}</span>
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${Math.max(4, Math.min(120, (item.count / Math.max(1, ...analytics.userGrowth.map((d) => d.count))) * 120))}px` }} />
+                              <span className="text-xs font-bold">{item.count}</span>
+                            </div>
+                          </div>
+                        )) : <p className="text-sm text-slate-500">No data.</p>}
+                      </div>
+                    </section>
+                    <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950">
+                      <h3 className="text-sm font-bold">Messages Per Day ({analyticsDays} days)</h3>
+                      <div className="mt-3 space-y-1">
+                        {analytics.messagesPerDay?.length ? analytics.messagesPerDay.slice(-15).map((item) => (
+                          <div key={item.day} className="flex items-center justify-between gap-2 text-sm">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">{item.day}</span>
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${Math.max(4, Math.min(120, (item.count / Math.max(1, ...analytics.messagesPerDay.map((d) => d.count))) * 120))}px` }} />
+                              <span className="text-xs font-bold">{item.count}</span>
+                            </div>
+                          </div>
+                        )) : <p className="text-sm text-slate-500">No data.</p>}
+                      </div>
+                    </section>
+                  </div>
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950">
+                      <h3 className="text-sm font-bold">Hourly Activity (24h)</h3>
+                      <div className="mt-3 flex items-end gap-1" style={{ height: "80px" }}>
+                        {Array.from({ length: 24 }, (_, h) => {
+                          const item = analytics.hourlyActivity?.find((a) => a.hour === h);
+                          const count = item?.count || 0;
+                          const max = Math.max(1, ...(analytics.hourlyActivity || []).map((a) => a.count));
+                          const height = Math.max(4, (count / max) * 72);
+                          return <div key={h} title={`${h}:00 — ${count} messages`} className="flex-1 rounded-t bg-amber-400 dark:bg-amber-500" style={{ height: `${height}px` }} />;
+                        })}
+                      </div>
+                      <div className="mt-1 flex justify-between text-[10px] text-slate-400"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span></div>
+                    </section>
+                    <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950">
+                      <h3 className="text-sm font-bold">Top Active Users</h3>
+                      <div className="mt-3 divide-y divide-slate-100 dark:divide-white/10">
+                        {analytics.topUsers?.length ? analytics.topUsers.map((item, idx) => (
+                          <div key={item.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-400">{idx + 1}</span>
+                              <span className="font-semibold">{item.nickname || item.username}</span>
+                            </div>
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200">{item.message_count}</span>
+                          </div>
+                        )) : <p className="text-sm text-slate-500">No data.</p>}
+                      </div>
+                    </section>
+                  </div>
+                  <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950">
+                    <h3 className="text-sm font-bold">Top Active Chats</h3>
+                    <div className="mt-3 divide-y divide-slate-100 dark:divide-white/10">
+                      {analytics.topChats?.length ? analytics.topChats.map((item, idx) => (
+                        <div key={item.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-400">{idx + 1}</span>
+                            <span className="font-semibold">{item.name || `${item.type} #${item.id}`}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">{item.type}</span>
+                          </div>
+                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-200">{item.message_count}</span>
+                        </div>
+                      )) : <p className="text-sm text-slate-500">No data.</p>}
+                    </div>
+                  </section>
+                </div>
+              ) : <EmptyState text="Click Load to fetch analytics data." />}
+            </div>
+          ) : null}
+
+          {!loading && activeTab === "scheduled" ? (
+            <div className="space-y-4">
+              <section className="rounded-lg border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950">
+                <h2 className="text-sm font-bold">Schedule a message</h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Send a message to a chat at a specific time.</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_2fr_1fr_auto]">
+                  <input value={schedChatId} onChange={(e) => setSchedChatId(e.target.value)} placeholder="Chat ID" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                  <input value={schedBody} onChange={(e) => setSchedBody(e.target.value)} placeholder="Message text" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                  <input type="datetime-local" value={schedAt} onChange={(e) => setSchedAt(e.target.value)} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                  <button type="button" disabled={!schedChatId || !schedBody || !schedAt} onClick={async () => { try { await readJsonResponse(await createAdminScheduledMessage({ chatId: Number(schedChatId), body: schedBody, scheduledAt: new Date(schedAt).toISOString() })); setSchedBody(""); setSchedAt(""); const data = await readJsonResponse(await fetchAdminScheduledMessages()); setScheduledMessages(data.messages || []); } catch (err) { setError(err?.message || "Failed to schedule message."); } }} className="h-10 rounded-lg bg-emerald-500 px-4 text-sm font-semibold text-white disabled:opacity-50">Schedule</button>
+                </div>
+              </section>
+              <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-bold">Pending messages</h3>
+                  <button type="button" onClick={async () => { try { const data = await readJsonResponse(await fetchAdminScheduledMessages()); setScheduledMessages(data.messages || []); } catch (err) { setError(err?.message || "Failed to load."); } }} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold dark:border-white/10"><Refresh size={13} /> Refresh</button>
+                </div>
+                <div className="mt-3 divide-y divide-slate-100 dark:divide-white/10">
+                  {scheduledMessages.length ? scheduledMessages.map((msg) => (
+                    <div key={msg.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+                      <div>
+                        <p className="font-semibold">Chat #{msg.chat_id} — {msg.scheduled_at}</p>
+                        <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{msg.body}</p>
+                      </div>
+                      <button type="button" onClick={async () => { try { await readJsonResponse(await deleteAdminScheduledMessage(msg.id)); setScheduledMessages((prev) => prev.filter((m) => m.id !== msg.id)); } catch (err) { setError(err?.message || "Failed to delete."); } }} className="inline-flex h-8 items-center gap-1 rounded-lg border border-rose-200 px-2 text-xs font-bold text-rose-600 dark:border-rose-500/30"><Trash size={13} />Cancel</button>
+                    </div>
+                  )) : <EmptyState text="No scheduled messages." />}
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {!loading && activeTab === "branding" ? (
+            <div className="space-y-4">
+              <section className="rounded-lg border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-bold">Custom Branding</h2>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Customize the app name, colors, and welcome message.</p>
+                  </div>
+                  <button type="button" onClick={async () => { try { const data = await readJsonResponse(await fetchAdminBranding()); setBranding(data.branding || {}); setBrandingForm(data.branding || { appName: "", primaryColor: "", accentColor: "", logoUrl: "", welcomeMessage: "", footerText: "" }); } catch (err) { setError(err?.message || "Failed to load branding."); } }} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold dark:border-white/10">Load</button>
+                </div>
+                {branding !== null ? (
+                  <div className="mt-4 space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="block">
+                        <span className="text-xs font-bold uppercase text-slate-500">App Name</span>
+                        <input value={brandingForm.appName || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, appName: e.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-bold uppercase text-slate-500">Logo URL</span>
+                        <input value={brandingForm.logoUrl || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, logoUrl: e.target.value }))} placeholder="/birdx-logo.svg" className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-bold uppercase text-slate-500">Primary Color</span>
+                        <input value={brandingForm.primaryColor || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, primaryColor: e.target.value }))} placeholder="#10b981" className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-bold uppercase text-slate-500">Accent Color</span>
+                        <input value={brandingForm.accentColor || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, accentColor: e.target.value }))} placeholder="#6366f1" className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                      </label>
+                    </div>
+                    <label className="block">
+                      <span className="text-xs font-bold uppercase text-slate-500">Welcome Message</span>
+                      <textarea value={brandingForm.welcomeMessage || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, welcomeMessage: e.target.value }))} rows={2} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-bold uppercase text-slate-500">Footer Text</span>
+                      <input value={brandingForm.footerText || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, footerText: e.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                    </label>
+                    <button type="button" onClick={() => confirmAction({ title: "Save branding", body: "Update the app branding settings?", confirmLabel: "Save", requiresPassword: true, run: async ({ adminPassword }) => { const data = await readJsonResponse(await updateAdminBranding({ ...brandingForm, adminPassword })); setBranding(data.branding || {}); setBrandingForm(data.branding || {}); }, refresh: () => Promise.resolve() })} className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-500 px-5 text-sm font-semibold text-white"><Pencil size={15} />Save branding</button>
+                  </div>
+                ) : <EmptyState text="Click Load to fetch current branding settings." />}
               </section>
             </div>
           ) : null}
