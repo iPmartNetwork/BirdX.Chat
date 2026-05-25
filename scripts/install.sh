@@ -1964,16 +1964,23 @@ ${acme_block}
     proxy_cache_bypass \$http_upgrade;
   }
 
-  location / {
+  location = /sw.js {
     proxy_pass http://127.0.0.1:${SERVER_PORT};
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade \$http_upgrade;
-    proxy_set_header Connection "upgrade";
     proxy_set_header Host \$host;
     proxy_set_header X-Real-IP \$remote_addr;
     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto \$scheme;
-    proxy_cache_bypass \$http_upgrade;
+    add_header Cache-Control "no-cache, no-store, must-revalidate";
+    add_header Pragma "no-cache";
+  }
+
+  location / {
+    proxy_pass http://127.0.0.1:${SERVER_PORT};
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
   }
 }
 ${redirect_server_block}
