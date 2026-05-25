@@ -1004,6 +1004,7 @@ function registerAdminRoutes(app, deps) {
     adminRun(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, params);
     if (req.body?.banned) {
       adminRun("DELETE FROM sessions WHERE user_id = ?", [userId]);
+      deps.fireWebhookEvent?.("user.ban", { userId, username: target.username, banned: true });
     }
     adminSave();
     writeAuditLog(req, session, "user.update", "user", userId, {

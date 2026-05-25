@@ -13,6 +13,7 @@ import webpush from "web-push";
 import { registerApiRoutes } from "./api/index.js";
 import { ensureValidVapidKeys } from "./lib/vapid.js";
 import { createSseHub } from "./lib/sse.js";
+import { initWebhookDispatcher, fireWebhookEvent } from "./lib/webhookDispatcher.js";
 import { createPushService } from "./lib/push.js";
 import { createUploadTools } from "./lib/uploads.js";
 import { createVideoTranscodeManager } from "./lib/videoTranscode.js";
@@ -719,6 +720,10 @@ const remoteChannelManager = createRemoteChannelManager({
 apiDeps.remoteChannelManager = remoteChannelManager;
 
 registerApiRoutes(app, apiDeps);
+
+initWebhookDispatcher({ adminGetAll, adminRun, adminSave });
+
+apiDeps.fireWebhookEvent = fireWebhookEvent;
 
 if (isProduction) {
   app.use(staticLimiter);

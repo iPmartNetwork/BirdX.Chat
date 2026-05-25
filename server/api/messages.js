@@ -1116,6 +1116,10 @@ function registerMessageRoutes(app, deps) {
       expiresAt,
       deduped: Boolean(created?.deduped),
     });
+
+    if (!created?.deduped) {
+      deps.fireWebhookEvent?.("message.new", { chatId: Number(chatId), messageId: id, userId: user.id, username: user.username, chatType: chat.type, bodyPreview: String(body || "").slice(0, 200) });
+    }
   });
 
   app.post("/api/messages/edit", async (req, res) => {

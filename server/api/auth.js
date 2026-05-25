@@ -129,6 +129,8 @@ function registerAuthRoutes(app, deps) {
     const requiredChannelMemberships = applyRequiredChannelsToUser?.(id) || 0;
     setSessionCookie(req, res, token);
 
+    deps.fireWebhookEvent?.("user.register", { userId: id, username: trimmed, nickname: nickname?.trim() || null });
+
     return res.json({
       id,
       username: trimmed,
@@ -219,6 +221,8 @@ function registerAuthRoutes(app, deps) {
 
     createSession(user.id, token, getSessionMetadata(req));
     setSessionCookie(req, res, token);
+
+    deps.fireWebhookEvent?.("user.login", { userId: user.id, username: user.username });
 
     return res.json({
       id: user.id,
