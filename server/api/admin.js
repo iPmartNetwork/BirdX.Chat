@@ -3061,6 +3061,306 @@ function registerAdminRoutes(app, deps) {
         .json({ error: error?.message || "Admin action failed." });
     }
   });
+
+  // ─── Broadcast ────────────────────────────────────────────────────────────────
+  app.post("/api/admin/broadcast", (req, res) => {
+    const session = requireAdminSession(req, res, "usersWrite");
+    if (!session) return;
+    if (!requireAdminPassword(req, res, session)) return;
+
+    const message = String(req.body?.message || "").trim();
+    if (!message) return res.status(400).json({ error: "Message body is required." });
+    if (message.length > (deps.MESSAGE_MAX_CHARS || 5000)) {
+      return res.status(400).json({ error: "Message exceeds maximum length." });
+    }
+
+    const targetGroup = String(req.body?.targetGroup || "all").toLowerCase();
+    const targetRole = String(req.body?.targetRole || "").toLowerCase();
+
+    let targetUsers = [];
+    if (targetGroup === "role" && targetRole) {
+      targetUsers = adminGetAll(
+        "SELECT id, username FROM users WHERE role = ? AND COALESCE(banned, 0) = 0",
+        [targetRole],
+      );
+    } else if (targetGroup === "online") {
+      targetUsers = adminGetAll(
+        "SELECT id, username FROM users WHERE COALESCE(banned, 0) = 0 AND julianday('now') - julianday(last_seen) <= (15.0 / 1440.0)",
+      );
+    } else {
+      targetUsers = adminGetAll(
+        "SELECT id, username FROM users WHERE COALESCE(banned, 0) = 0",
+      );
+    }
+
+    if (!targetUsers.length) {
+      return res.status(400).json({ error: "No target users found for this filter." });
+    }
+
+    let delivered = 0;
+    const adminUserId = Number(session.id || 0);
+
+    for (const targetUser of targetUsers) {
+      try {
+        const savedChat = adminGetRow(
+          `SELECT chats.id FROM chats
+           JOIN chat_members ON chat_members.chat_id = chats.id
+           WHERE chats.type = 'saved' AND chat_members.user_id = ?`,
+          [targetUser.id],
+        );
+        if (savedChat?.id) {
+          const encBody = storageEncryption?.encryptText
+            ? storageEncryption.encryptText(`📢 [Broadcast] ${message}`)
+            : `📢 [Broadcast] ${message}`;
+          adminRun(
+            `INSERT INTO chat_messages (chat_id, user_id, body, created_at)
+             VALUES (?, ?, ?, datetime('now'))`,
+            [savedChat.id, adminUserId, encBody],
+          );
+          delivered += 1;
+        }
+      } catch {
+        // skip individual failures
+      }
+    }
+    adminSave();
+
+    // Emit SSE event so online users see the broadcast
+    try {
+      emitSseEvent?.("broadcast", { message, from: session.username, at: new Date().toISOString() });
+    } catch {
+      // non-critical
+    }
+
+    writeAuditLog(req, session, "admin.broadcast", "broadcast", "", {
+      targetGroup,
+      targetRole,
+      targetCount: targetUsers.length,
+      delivered,
+      messagePreview: message.slice(0, 100),
+    });
+
+    res.json({ ok: true, delivered, total: targetUsers.length });
+  });
+
+  // ─── Export Data ──────────────────────────────────────────────────────────────
+  app.get("/api/admin/export/:type", (req, res) => {
+    const session = requireAdminSession(req, res, "auditRead");
+    if (!session) return;
+
+    const exportType = String(req.params.type || "").toLowerCase();
+    const format = String(req.query?.format || "json").toLowerCase();
+    const allowed = ["users", "chats", "files", "audit"];
+    if (!allowed.includes(exportType)) {
+      return res.status(400).json({ error: `Invalid export type. Allowed: ${allowed.join(", ")}` });
+    }
+    if (!["json", "csv"].includes(format)) {
+      return res.status(400).json({ error: "Format must be json or csv." });
+    }
+
+    let rows = [];
+    let columns = [];
+
+    if (exportType === "users") {
+      rows = adminGetAll(
+        `SELECT id, username, nickname, role, status, banned, created_at, last_seen,
+                (SELECT COUNT(*) FROM chat_messages WHERE user_id = users.id) AS message_count,
+                (SELECT COUNT(*) FROM chat_members WHERE user_id = users.id) AS chat_count
+         FROM users
+         ORDER BY id ASC`,
+      ).map((row) => ({
+        ...row,
+        banned: Boolean(Number(row.banned || 0)),
+      }));
+      columns = ["id", "username", "nickname", "role", "status", "banned", "created_at", "last_seen", "message_count", "chat_count"];
+    } else if (exportType === "chats") {
+      rows = adminGetAll(
+        `SELECT chats.id, chats.name, chats.type, chats.group_username, chats.group_visibility,
+                chats.created_at,
+                COUNT(DISTINCT chat_members.user_id) AS member_count,
+                COUNT(DISTINCT chat_messages.id) AS message_count
+         FROM chats
+         LEFT JOIN chat_members ON chat_members.chat_id = chats.id
+         LEFT JOIN chat_messages ON chat_messages.chat_id = chats.id
+         GROUP BY chats.id
+         ORDER BY chats.id ASC`,
+      );
+      columns = ["id", "name", "type", "group_username", "group_visibility", "created_at", "member_count", "message_count"];
+    } else if (exportType === "files") {
+      rows = adminGetAll(
+        `SELECT cmf.id, cmf.original_name, cmf.stored_name, cmf.mime_type, cmf.size_bytes,
+                cmf.created_at, u.username AS owner_username
+         FROM chat_message_files cmf
+         JOIN chat_messages cm ON cm.id = cmf.message_id
+         LEFT JOIN users u ON u.id = cm.user_id
+         ORDER BY cmf.id ASC`,
+      );
+      columns = ["id", "original_name", "stored_name", "mime_type", "size_bytes", "created_at", "owner_username"];
+    } else if (exportType === "audit") {
+      rows = adminGetAll(
+        `SELECT id, actor_username, action, target_type, target_id, ip_address, success, created_at
+         FROM admin_audit_logs
+         ORDER BY id DESC
+         LIMIT 5000`,
+      ).map((row) => ({ ...row, success: Boolean(Number(row.success || 0)) }));
+      columns = ["id", "actor_username", "action", "target_type", "target_id", "ip_address", "success", "created_at"];
+    }
+
+    writeAuditLog(req, session, "admin.export", exportType, "", { format, count: rows.length });
+
+    if (format === "csv") {
+      const escapeCsv = (val) => {
+        const str = String(val ?? "");
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+      const header = columns.join(",");
+      const body = rows.map((row) => columns.map((col) => escapeCsv(row[col])).join(",")).join("\n");
+      const csv = `${header}\n${body}`;
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="birdx-${exportType}-export.csv"`);
+      return res.send(csv);
+    }
+
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="birdx-${exportType}-export.json"`);
+    return res.json({ exportType, exportedAt: new Date().toISOString(), count: rows.length, data: rows });
+  });
+
+  // ─── Bulk Actions ─────────────────────────────────────────────────────────────
+  app.post("/api/admin/bulk/users", (req, res) => {
+    const session = requireAdminSession(req, res, "usersWrite");
+    if (!session) return;
+    if (!requireAdminPassword(req, res, session)) return;
+
+    const action = String(req.body?.action || "").toLowerCase();
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : [];
+    if (!ids.length) return res.status(400).json({ error: "No user IDs provided." });
+    if (!["ban", "unban", "delete"].includes(action)) {
+      return res.status(400).json({ error: "Action must be ban, unban, or delete." });
+    }
+
+    // Prevent self-action
+    const selfId = Number(session.id || 0);
+    const safeIds = ids.filter((id) => id !== selfId);
+    if (!safeIds.length) return res.status(400).json({ error: "Cannot perform bulk action on your own account." });
+
+    let affected = 0;
+    if (action === "ban") {
+      for (const userId of safeIds) {
+        const target = adminGetRow("SELECT id, role FROM users WHERE id = ?", [userId]);
+        if (!target?.id) continue;
+        if (normalizeAdminRole(target.role) === "owner" && resolveSessionRole(session) !== "owner") continue;
+        adminRun("UPDATE users SET banned = 1 WHERE id = ?", [userId]);
+        adminRun("DELETE FROM sessions WHERE user_id = ?", [userId]);
+        affected += 1;
+      }
+    } else if (action === "unban") {
+      for (const userId of safeIds) {
+        adminRun("UPDATE users SET banned = 0 WHERE id = ?", [userId]);
+        affected += 1;
+      }
+    } else if (action === "delete") {
+      for (const userId of safeIds) {
+        const target = adminGetRow("SELECT id, role FROM users WHERE id = ?", [userId]);
+        if (!target?.id) continue;
+        if (normalizeAdminRole(target.role) === "owner" && resolveSessionRole(session) !== "owner") continue;
+        if (["owner", "admin"].includes(normalizeAdminRole(target.role)) && countRoleAdmins() <= 1 && !adminUsernameSet.size) continue;
+        const result = deleteUserById(userId);
+        removeStoredFileNames(result?.storedNames || []);
+        affected += 1;
+      }
+    }
+    adminSave();
+    writeAuditLog(req, session, `admin.bulk.${action}`, "users", "", {
+      ids: safeIds,
+      affected,
+    });
+    res.json({ ok: true, affected, requested: safeIds.length });
+  });
+
+  app.post("/api/admin/bulk/chats", (req, res) => {
+    const session = requireAdminSession(req, res, "chatsWrite");
+    if (!session) return;
+    if (!requireAdminPassword(req, res, session)) return;
+
+    const action = String(req.body?.action || "").toLowerCase();
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : [];
+    if (!ids.length) return res.status(400).json({ error: "No chat IDs provided." });
+    if (!["delete"].includes(action)) {
+      return res.status(400).json({ error: "Action must be delete." });
+    }
+
+    let affected = 0;
+    for (const chatId of ids) {
+      try {
+        deleteChatById(chatId);
+        affected += 1;
+      } catch {
+        // skip individual failures
+      }
+    }
+    adminSave();
+    writeAuditLog(req, session, "admin.bulk.delete", "chats", "", { ids, affected });
+    res.json({ ok: true, affected, requested: ids.length });
+  });
+
+  // ─── Enhanced User Detail ─────────────────────────────────────────────────────
+  app.get("/api/admin/users/:id/activity", (req, res) => {
+    const session = requireAdminSession(req, res, "usersRead");
+    if (!session) return;
+
+    const userId = toInt(req.params.id);
+    const user = userId ? adminGetRow("SELECT id, username FROM users WHERE id = ?", [userId]) : null;
+    if (!user?.id) return res.status(404).json({ error: "User not found." });
+
+    // Last messages
+    const recentMessages = adminGetAll(
+      `SELECT cm.id, cm.body, cm.chat_id, cm.created_at, c.name AS chat_name, c.type AS chat_type
+       FROM chat_messages cm
+       JOIN chats c ON c.id = cm.chat_id
+       WHERE cm.user_id = ?
+       ORDER BY datetime(cm.created_at) DESC, cm.id DESC
+       LIMIT 15`,
+      [userId],
+    ).map((msg) => {
+      let body = msg.body || "";
+      try {
+        if (storageEncryption?.decryptText) body = storageEncryption.decryptText(body);
+      } catch { /* keep raw */ }
+      return { ...msg, body: body.slice(0, 200) };
+    });
+
+    // Devices (unique user agents from sessions)
+    const devices = adminGetAll(
+      `SELECT user_agent, ip_address, MAX(last_seen) AS last_seen
+       FROM sessions
+       WHERE user_id = ? AND COALESCE(user_agent, '') != ''
+       GROUP BY user_agent
+       ORDER BY datetime(last_seen) DESC
+       LIMIT 10`,
+      [userId],
+    );
+
+    // Activity timeline
+    const loginHistory = adminGetAll(
+      `SELECT created_at, ip_address, user_agent
+       FROM sessions
+       WHERE user_id = ?
+       ORDER BY datetime(created_at) DESC
+       LIMIT 10`,
+      [userId],
+    );
+
+    res.json({
+      ok: true,
+      recentMessages,
+      devices,
+      loginHistory,
+    });
+  });
 }
 
 export { registerAdminRoutes };

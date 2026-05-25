@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addAdminChatMember,
+  bulkAdminChats,
+  bulkAdminUsers,
   createAdminBackup,
   deleteAdminBackup,
   deleteAdminChat,
@@ -19,10 +21,13 @@ import {
   fetchAdminSecuritySummary,
   fetchAdminSettings,
   fetchAdminSystemHealth,
+  fetchAdminUserActivity,
   fetchAdminUserDetail,
   fetchAdminUsers,
   getAdminBackupDownloadUrl,
+  getAdminExportUrl,
   resetAdminUserPassword,
+  sendAdminBroadcast,
   updateAdminChatMember,
   updateAdminChatSettings,
   updateAdminRequiredChannels,
@@ -60,6 +65,8 @@ const tabs = [
   { id: "users", label: "Users", icon: Users },
   { id: "chats", label: "Chats", icon: Chat },
   { id: "files", label: "Files", icon: File },
+  { id: "broadcast", label: "Broadcast", icon: Globe },
+  { id: "export", label: "Export", icon: Download },
   { id: "audit", label: "Audit", icon: ShieldCheck },
   { id: "maintenance", label: "Maintenance", icon: Settings },
 ];
@@ -244,7 +251,7 @@ function ActionModal({ action, onClose, onConfirm, busy }) {
   );
 }
 
-function UserDetailDrawer({ detail, onClose, onRevokeSession, onRevokeAllSessions, onUpdateUploadPolicy }) {
+function UserDetailDrawer({ detail, onClose, onRevokeSession, onRevokeAllSessions, onUpdateUploadPolicy, userActivity, onLoadActivity }) {
   if (!detail) return null;
   return (
     <div className="fixed inset-0 z-[420] bg-slate-950/40 backdrop-blur-sm">
@@ -274,6 +281,69 @@ function UserDetailDrawer({ detail, onClose, onRevokeSession, onRevokeAllSession
             <StatCard label="Files" value={detail.stats.files} detail={detail.stats.storageLabel} icon={File} />
             <StatCard label="Sessions" value={detail.stats.sessions} icon={Lock} />
           </div>
+
+          {/* Enhanced: Last activity & devices */}
+          <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-900">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold">Activity & Devices</h3>
+              <button
+                type="button"
+                onClick={() => onLoadActivity?.(detail.user)}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold dark:border-white/10"
+              >
+                Load activity
+              </button>
+            </div>
+            {userActivity ? (
+              <div className="mt-3 space-y-3">
+                {userActivity.devices?.length ? (
+                  <div>
+                    <p className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Devices</p>
+                    <div className="mt-2 divide-y divide-slate-100 dark:divide-white/10">
+                      {userActivity.devices.map((device, idx) => (
+                        <div key={idx} className="py-2 text-sm">
+                          <p className="truncate font-medium">{device.user_agent || "Unknown device"}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">IP {device.ip_address || "-"} / Last seen {device.last_seen || "-"}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {userActivity.recentMessages?.length ? (
+                  <div>
+                    <p className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Recent messages</p>
+                    <div className="mt-2 divide-y divide-slate-100 dark:divide-white/10">
+                      {userActivity.recentMessages.map((msg) => (
+                        <div key={msg.id} className="py-2 text-sm">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="truncate font-medium">{msg.chat_name || `${msg.chat_type} #${msg.chat_id}`}</p>
+                            <span className="shrink-0 text-xs text-slate-500 dark:text-slate-400">{msg.created_at}</span>
+                          </div>
+                          <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{msg.body || "(empty)"}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {userActivity.loginHistory?.length ? (
+                  <div>
+                    <p className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Login history</p>
+                    <div className="mt-2 divide-y divide-slate-100 dark:divide-white/10">
+                      {userActivity.loginHistory.map((entry, idx) => (
+                        <div key={idx} className="py-2 text-sm">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {entry.created_at} / IP {entry.ip_address || "-"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-slate-500">Click "Load activity" to see recent messages, devices, and login history.</p>
+            )}
+          </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-900">
             <div className="flex items-center justify-between gap-3">
@@ -523,6 +593,13 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
   const [auditFilters, setAuditFilters] = useState({ action: "", actor: "", targetType: "", page: 1 });
   const [userDetail, setUserDetail] = useState(null);
   const [chatDetail, setChatDetail] = useState(null);
+  const [userActivity, setUserActivity] = useState(null);
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastTarget, setBroadcastTarget] = useState("all");
+  const [broadcastRole, setBroadcastRole] = useState("");
+  const [broadcastResult, setBroadcastResult] = useState(null);
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [selectedChatIds, setSelectedChatIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState("");
   const [error, setError] = useState("");
@@ -760,7 +837,7 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
           </div>
           <div>
             <p className="text-sm font-bold">BirdX Admin</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">v2.3 workspace</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">v2.5.3-rc3</p>
           </div>
         </div>
         <nav className="mt-6 space-y-1">
@@ -993,10 +1070,45 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
               </div>
 
               <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950">
+                {selectedUserIds.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-amber-50 px-4 py-2 dark:border-white/10 dark:bg-amber-500/10">
+                    <span className="text-sm font-semibold text-amber-700 dark:text-amber-200">{selectedUserIds.length} selected</span>
+                    <button type="button" onClick={() => setSelectedUserIds([])} className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold dark:border-white/10">Clear</button>
+                    <button
+                      type="button"
+                      onClick={() => confirmAction({ title: "Bulk ban users", body: `Ban ${selectedUserIds.length} selected users?`, confirmLabel: "Ban all", danger: true, requiresPassword: true, run: async ({ adminPassword }) => { await readJsonResponse(await bulkAdminUsers({ action: "ban", ids: selectedUserIds, adminPassword })); setSelectedUserIds([]); }, refresh: loadUsers })}
+                      className="inline-flex h-7 items-center gap-1 rounded-lg border border-rose-200 px-2 text-xs font-bold text-rose-600 dark:border-rose-500/30"
+                    ><Ban size={13} />Ban</button>
+                    <button
+                      type="button"
+                      onClick={() => confirmAction({ title: "Bulk unban users", body: `Unban ${selectedUserIds.length} selected users?`, confirmLabel: "Unban all", requiresPassword: true, run: async ({ adminPassword }) => { await readJsonResponse(await bulkAdminUsers({ action: "unban", ids: selectedUserIds, adminPassword })); setSelectedUserIds([]); }, refresh: loadUsers })}
+                      className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2 text-xs font-bold dark:border-white/10"
+                    ><User size={13} />Unban</button>
+                    <button
+                      type="button"
+                      onClick={() => confirmAction({ title: "Bulk delete users", body: `Delete ${selectedUserIds.length} selected users? This cannot be undone.`, confirmLabel: "Delete all", danger: true, requiresPassword: true, run: async ({ adminPassword }) => { await readJsonResponse(await bulkAdminUsers({ action: "delete", ids: selectedUserIds, adminPassword })); setSelectedUserIds([]); }, refresh: loadUsers })}
+                      className="inline-flex h-7 items-center gap-1 rounded-lg border border-rose-200 px-2 text-xs font-bold text-rose-600 dark:border-rose-500/30"
+                    ><Trash size={13} />Delete</button>
+                  </div>
+                ) : null}
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
                     <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-white/5 dark:text-slate-400">
                       <tr>
+                        <th className="px-3 py-3 w-10">
+                          <input
+                            type="checkbox"
+                            checked={users.length > 0 && selectedUserIds.length === users.length}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedUserIds(users.map((u) => u.id));
+                              } else {
+                                setSelectedUserIds([]);
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-500"
+                          />
+                        </th>
                         <th className="px-4 py-3">User</th>
                         <th className="px-4 py-3">Role</th>
                         <th className="px-4 py-3">Status</th>
@@ -1006,7 +1118,21 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/10">
                       {users.map((item) => (
-                        <tr key={item.id}>
+                        <tr key={item.id} className={selectedUserIds.includes(item.id) ? "bg-emerald-50/50 dark:bg-emerald-500/5" : ""}>
+                          <td className="px-3 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedUserIds.includes(item.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUserIds((prev) => [...prev, item.id]);
+                                } else {
+                                  setSelectedUserIds((prev) => prev.filter((id) => id !== item.id));
+                                }
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-500"
+                            />
+                          </td>
                           <td className="px-4 py-3">
                             <button type="button" onClick={() => void openUserDetail(item)} className="flex items-center gap-3 text-left">
                               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200"><User size={17} /></span>
@@ -1080,12 +1206,37 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
                 </select>
                 <button type="button" onClick={() => void loadChats()} className="h-10 rounded-lg bg-emerald-500 px-4 text-sm font-semibold text-white">Apply</button>
               </div>
+              {selectedChatIds.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-500/30 dark:bg-amber-500/10">
+                  <span className="text-sm font-semibold text-amber-700 dark:text-amber-200">{selectedChatIds.length} selected</span>
+                  <button type="button" onClick={() => setSelectedChatIds([])} className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold dark:border-white/10">Clear</button>
+                  <button
+                    type="button"
+                    onClick={() => confirmAction({ title: "Bulk delete chats", body: `Delete ${selectedChatIds.length} selected chats? This cannot be undone.`, confirmLabel: "Delete all", danger: true, requiresPassword: true, run: async ({ adminPassword }) => { await readJsonResponse(await bulkAdminChats({ action: "delete", ids: selectedChatIds, adminPassword })); setSelectedChatIds([]); }, refresh: loadChats })}
+                    className="inline-flex h-7 items-center gap-1 rounded-lg border border-rose-200 px-2 text-xs font-bold text-rose-600 dark:border-rose-500/30"
+                  ><Trash size={13} />Delete all</button>
+                </div>
+              ) : null}
               <div className="grid gap-3">
                 {chats.length ? chats.map((chat) => (
-                  <section key={chat.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950">
-                    <div>
-                      <p className="font-bold">{chat.name || `${chat.type} #${chat.id}`}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{chat.type} / {chat.group_visibility || "private"} / {chat.group_username || "no username"} / {chat.member_count} members / {chat.message_count} messages</p>
+                  <section key={chat.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950 ${selectedChatIds.includes(chat.id) ? "ring-2 ring-emerald-400/50" : ""}`}>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedChatIds.includes(chat.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedChatIds((prev) => [...prev, chat.id]);
+                          } else {
+                            setSelectedChatIds((prev) => prev.filter((id) => id !== chat.id));
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-slate-300 text-emerald-500"
+                      />
+                      <div>
+                        <p className="font-bold">{chat.name || `${chat.type} #${chat.id}`}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{chat.type} / {chat.group_visibility || "private"} / {chat.group_username || "no username"} / {chat.member_count} members / {chat.message_count} messages</p>
+                      </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {["group", "channel"].includes(String(chat.type || "").toLowerCase()) ? (
@@ -1118,6 +1269,140 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
                 )) : <EmptyState text="No files found." />}
               </div>
               <Pager pagination={filePagination} onPage={(page) => setFileFilters((prev) => ({ ...prev, page }))} />
+            </div>
+          ) : null}
+
+          {!loading && activeTab === "broadcast" ? (
+            <div className="space-y-4">
+              <section className="rounded-lg border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950">
+                <h2 className="text-sm font-bold">Send broadcast message</h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Send a message to all users or a specific group. Messages appear in their Saved Messages.
+                </p>
+                <div className="mt-4 space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Target</span>
+                      <select
+                        value={broadcastTarget}
+                        onChange={(e) => setBroadcastTarget(e.target.value)}
+                        className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
+                      >
+                        <option value="all">All users</option>
+                        <option value="online">Online users</option>
+                        <option value="role">By role</option>
+                      </select>
+                    </label>
+                    {broadcastTarget === "role" ? (
+                      <label className="block">
+                        <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Role</span>
+                        <select
+                          value={broadcastRole}
+                          onChange={(e) => setBroadcastRole(e.target.value)}
+                          className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
+                        >
+                          <option value="">Select role</option>
+                          {ADMIN_ROLE_OPTIONS.map((role) => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                  </div>
+                  <label className="block">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Message</span>
+                    <textarea
+                      value={broadcastMessage}
+                      onChange={(e) => setBroadcastMessage(e.target.value)}
+                      rows={4}
+                      placeholder="Type your broadcast message..."
+                      className="mt-2 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm outline-none focus:border-emerald-400 dark:border-white/10 dark:bg-slate-900"
+                    />
+                  </label>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      {broadcastMessage.length} characters
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!broadcastMessage.trim()}
+                      onClick={() =>
+                        confirmAction({
+                          title: "Send broadcast",
+                          body: `Send this message to ${broadcastTarget === "role" ? `${broadcastRole} users` : broadcastTarget === "online" ? "online users" : "all users"}?`,
+                          confirmLabel: "Send",
+                          requiresPassword: true,
+                          run: async ({ adminPassword }) => {
+                            const data = await readJsonResponse(
+                              await sendAdminBroadcast({
+                                message: broadcastMessage,
+                                targetGroup: broadcastTarget,
+                                targetRole: broadcastRole,
+                                adminPassword,
+                              }),
+                            );
+                            setBroadcastResult(data);
+                            setBroadcastMessage("");
+                          },
+                          refresh: () => Promise.resolve(),
+                        })
+                      }
+                      className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-500 px-5 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      <Globe size={16} />Send broadcast
+                    </button>
+                  </div>
+                </div>
+                {broadcastResult ? (
+                  <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                    Broadcast delivered to {broadcastResult.delivered} of {broadcastResult.total} users.
+                  </div>
+                ) : null}
+              </section>
+            </div>
+          ) : null}
+
+          {!loading && activeTab === "export" ? (
+            <div className="space-y-4">
+              <section className="rounded-lg border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950">
+                <h2 className="text-sm font-bold">Export data</h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Download data exports in CSV or JSON format.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {[
+                    { type: "users", label: "Users", icon: Users, desc: "All user accounts" },
+                    { type: "chats", label: "Chats", icon: Chat, desc: "All chats with stats" },
+                    { type: "files", label: "Files", icon: File, desc: "All uploaded files" },
+                    { type: "audit", label: "Audit Logs", icon: ShieldCheck, desc: "Admin audit trail" },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <div key={item.type} className="rounded-lg border border-slate-200 p-4 dark:border-white/10">
+                        <div className="flex items-center gap-2">
+                          <Icon size={18} className="text-emerald-500" />
+                          <p className="text-sm font-bold">{item.label}</p>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.desc}</p>
+                        <div className="mt-3 flex gap-2">
+                          <a
+                            href={getAdminExportUrl(item.type, "csv")}
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-3 text-xs font-bold dark:border-white/10"
+                          >
+                            <Download size={13} />CSV
+                          </a>
+                          <a
+                            href={getAdminExportUrl(item.type, "json")}
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-3 text-xs font-bold dark:border-white/10"
+                          >
+                            <Download size={13} />JSON
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
             </div>
           ) : null}
 
@@ -1279,7 +1564,16 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
       />
       <UserDetailDrawer
         detail={userDetail}
-        onClose={() => setUserDetail(null)}
+        onClose={() => { setUserDetail(null); setUserActivity(null); }}
+        userActivity={userActivity}
+        onLoadActivity={async (detailUser) => {
+          try {
+            const data = await readJsonResponse(await fetchAdminUserActivity(detailUser.id));
+            setUserActivity(data);
+          } catch (err) {
+            setError(err?.message || "Unable to load user activity.");
+          }
+        }}
         onRevokeSession={(detailUser, session) =>
           confirmAction({
             title: "Revoke session",

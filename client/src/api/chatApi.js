@@ -488,3 +488,22 @@ export const checkPeerE2eeStatus = (targetUserId) =>
 
 export const fetchE2eePreKeyCount = (username) =>
   apiFetch(`${API_BASE}/api/e2ee/keys/prekey-count?username=${encodeURIComponent(username)}`);
+
+// --- Admin: Broadcast ---
+export const sendAdminBroadcast = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/broadcast`, adminJsonOptions("POST", payload));
+
+// --- Admin: Export Data ---
+export const getAdminExportUrl = (type, format = "json") =>
+  `${API_BASE}/api/admin/export/${encodeURIComponent(type)}?format=${encodeURIComponent(format)}`;
+
+// --- Admin: Bulk Actions ---
+export const bulkAdminUsers = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/bulk/users`, adminJsonOptions("POST", payload));
+
+export const bulkAdminChats = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/bulk/chats`, adminJsonOptions("POST", payload));
+
+// --- Admin: Enhanced User Detail ---
+export const fetchAdminUserActivity = (userId) =>
+  apiFetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}/activity`);
