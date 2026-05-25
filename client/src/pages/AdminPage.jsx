@@ -4,18 +4,23 @@ import {
   bulkAdminChats,
   bulkAdminUsers,
   createAdminBackup,
+  createAdminBot,
   createAdminScheduledMessage,
+  createAdminWebhook,
   deleteAdminBackup,
+  deleteAdminBot,
   deleteAdminChat,
   deleteAdminChatMember,
   deleteAdminFile,
   deleteAdminScheduledMessage,
+  deleteAdminWebhook,
   deleteAdminUser,
   deleteAdminUserSession,
   deleteAdminUserSessions,
   fetchAdminAnalytics,
   fetchAdminAuditLogs,
   fetchAdminBackups,
+  fetchAdminBots,
   fetchAdminBranding,
   fetchAdminChatDetail,
   fetchAdminChats,
@@ -29,15 +34,19 @@ import {
   fetchAdminUserActivity,
   fetchAdminUserDetail,
   fetchAdminUsers,
+  fetchAdminWebhooks,
   getAdminBackupDownloadUrl,
   getAdminExportUrl,
   resetAdminUserPassword,
   sendAdminBroadcast,
+  testAdminWebhook,
+  updateAdminBot,
   updateAdminBranding,
   updateAdminChatMember,
   updateAdminChatSettings,
   updateAdminRequiredChannels,
   updateAdminUser,
+  updateAdminWebhook,
 } from "../api/chatApi.js";
 import {
   Ban,
@@ -74,6 +83,8 @@ const tabs = [
   { id: "files", label: "Files", icon: File },
   { id: "broadcast", label: "Broadcast", icon: Globe },
   { id: "scheduled", label: "Scheduled", icon: Settings },
+  { id: "webhooks", label: "Webhooks", icon: Globe },
+  { id: "bots", label: "Bots", icon: ShieldCheck },
   { id: "export", label: "Export", icon: Download },
   { id: "branding", label: "Branding", icon: Pencil },
   { id: "audit", label: "Audit", icon: ShieldCheck },
@@ -617,6 +628,13 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
   const [schedAt, setSchedAt] = useState("");
   const [branding, setBranding] = useState(null);
   const [brandingForm, setBrandingForm] = useState({ appName: "", primaryColor: "", accentColor: "", logoUrl: "", welcomeMessage: "", footerText: "" });
+  const [webhooks, setWebhooks] = useState([]);
+  const [webhookForm, setWebhookForm] = useState({ name: "", url: "", secret: "", events: [] });
+  const [availableWebhookEvents, setAvailableWebhookEvents] = useState([]);
+  const [bots, setBots] = useState([]);
+  const [botForm, setBotForm] = useState({ name: "", permissions: [] });
+  const [availableBotPermissions, setAvailableBotPermissions] = useState([]);
+  const [newBotToken, setNewBotToken] = useState("");
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState("");
   const [error, setError] = useState("");
@@ -1635,6 +1653,117 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
                     <button type="button" onClick={() => confirmAction({ title: "Save branding", body: "Update the app branding settings?", confirmLabel: "Save", requiresPassword: true, run: async ({ adminPassword }) => { const data = await readJsonResponse(await updateAdminBranding({ ...brandingForm, adminPassword })); setBranding(data.branding || {}); setBrandingForm(data.branding || {}); }, refresh: () => Promise.resolve() })} className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-500 px-5 text-sm font-semibold text-white"><Pencil size={15} />Save branding</button>
                   </div>
                 ) : <EmptyState text="Click Load to fetch current branding settings." />}
+              </section>
+            </div>
+          ) : null}
+
+          {!loading && activeTab === "webhooks" ? (
+            <div className="space-y-4">
+              <section className="rounded-lg border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950">
+                <h2 className="text-sm font-bold">Create Webhook</h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Receive HTTP POST notifications when events happen in BirdX.</p>
+                <div className="mt-4 space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input value={webhookForm.name} onChange={(e) => setWebhookForm((p) => ({ ...p, name: e.target.value }))} placeholder="Webhook name" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                    <input value={webhookForm.url} onChange={(e) => setWebhookForm((p) => ({ ...p, url: e.target.value }))} placeholder="https://example.com/webhook" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                  </div>
+                  <input value={webhookForm.secret} onChange={(e) => setWebhookForm((p) => ({ ...p, secret: e.target.value }))} placeholder="Secret (optional)" className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                  <div>
+                    <p className="text-xs font-bold uppercase text-slate-500">Events</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {availableWebhookEvents.map((ev) => (
+                        <label key={ev} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs dark:border-white/10">
+                          <input type="checkbox" checked={webhookForm.events.includes(ev)} onChange={(e) => setWebhookForm((p) => ({ ...p, events: e.target.checked ? [...p.events, ev] : p.events.filter((x) => x !== ev) }))} />
+                          {ev}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <button type="button" disabled={!webhookForm.name || !webhookForm.url || !webhookForm.events.length} onClick={async () => { try { await readJsonResponse(await createAdminWebhook(webhookForm)); setWebhookForm({ name: "", url: "", secret: "", events: [] }); const data = await readJsonResponse(await fetchAdminWebhooks()); setWebhooks(data.webhooks || []); } catch (err) { setError(err?.message || "Failed."); } }} className="h-10 rounded-lg bg-emerald-500 px-5 text-sm font-semibold text-white disabled:opacity-50">Create webhook</button>
+                </div>
+              </section>
+              <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-bold">Active Webhooks</h3>
+                  <button type="button" onClick={async () => { try { const data = await readJsonResponse(await fetchAdminWebhooks()); setWebhooks(data.webhooks || []); setAvailableWebhookEvents(data.availableEvents || []); } catch (err) { setError(err?.message || "Failed."); } }} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold dark:border-white/10"><Refresh size={13} />Load</button>
+                </div>
+                <div className="mt-3 divide-y divide-slate-100 dark:divide-white/10">
+                  {webhooks.length ? webhooks.map((wh) => (
+                    <div key={wh.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+                      <div>
+                        <p className="font-semibold">{wh.name} <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${wh.enabled ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200" : "bg-slate-100 text-slate-500 dark:bg-white/10"}`}>{wh.enabled ? "active" : "disabled"}</span></p>
+                        <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{wh.url}</p>
+                        <p className="text-xs text-slate-400">{Array.isArray(wh.events) ? wh.events.join(", ") : ""} {wh.last_status ? `/ last: ${wh.last_status}` : ""}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={async () => { try { const data = await readJsonResponse(await testAdminWebhook(wh.id)); setError(data.ok ? "" : data.error || "Test failed"); const r = await readJsonResponse(await fetchAdminWebhooks()); setWebhooks(r.webhooks || []); } catch (err) { setError(err?.message || "Test failed."); } }} className="h-8 rounded-lg border border-slate-200 px-2 text-xs font-bold dark:border-white/10">Test</button>
+                        <button type="button" onClick={async () => { try { await readJsonResponse(await updateAdminWebhook(wh.id, { enabled: !wh.enabled })); const data = await readJsonResponse(await fetchAdminWebhooks()); setWebhooks(data.webhooks || []); } catch (err) { setError(err?.message || "Failed."); } }} className="h-8 rounded-lg border border-slate-200 px-2 text-xs font-bold dark:border-white/10">{wh.enabled ? "Disable" : "Enable"}</button>
+                        <button type="button" onClick={() => confirmAction({ title: "Delete webhook", body: `Delete ${wh.name}?`, confirmLabel: "Delete", danger: true, requiresPassword: true, run: async ({ adminPassword }) => { await readJsonResponse(await deleteAdminWebhook(wh.id, { adminPassword })); const data = await readJsonResponse(await fetchAdminWebhooks()); setWebhooks(data.webhooks || []); }, refresh: () => Promise.resolve() })} className="h-8 rounded-lg border border-rose-200 px-2 text-xs font-bold text-rose-600 dark:border-rose-500/30"><Trash size={13} /></button>
+                      </div>
+                    </div>
+                  )) : <EmptyState text="No webhooks. Click Load to refresh." />}
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {!loading && activeTab === "bots" ? (
+            <div className="space-y-4">
+              <section className="rounded-lg border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950">
+                <h2 className="text-sm font-bold">Create Bot Token</h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Generate API tokens for bots and integrations. Use <code className="rounded bg-slate-100 px-1 dark:bg-white/10">Authorization: Bearer &lt;token&gt;</code> to authenticate.</p>
+                <div className="mt-4 space-y-3">
+                  <input value={botForm.name} onChange={(e) => setBotForm((p) => ({ ...p, name: e.target.value }))} placeholder="Bot name" className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                  <div>
+                    <p className="text-xs font-bold uppercase text-slate-500">Permissions</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {availableBotPermissions.map((perm) => (
+                        <label key={perm} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs dark:border-white/10">
+                          <input type="checkbox" checked={botForm.permissions.includes(perm)} onChange={(e) => setBotForm((p) => ({ ...p, permissions: e.target.checked ? [...p.permissions, perm] : p.permissions.filter((x) => x !== perm) }))} />
+                          {perm}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <button type="button" disabled={!botForm.name || !botForm.permissions.length} onClick={async () => { try { const data = await readJsonResponse(await createAdminBot(botForm)); setNewBotToken(data.token || ""); setBotForm({ name: "", permissions: [] }); const r = await readJsonResponse(await fetchAdminBots()); setBots(r.bots || []); } catch (err) { setError(err?.message || "Failed."); } }} className="h-10 rounded-lg bg-emerald-500 px-5 text-sm font-semibold text-white disabled:opacity-50">Create bot</button>
+                </div>
+                {newBotToken ? (
+                  <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                    <p className="text-xs font-bold text-emerald-700 dark:text-emerald-200">Bot token (copy now — won't be shown again):</p>
+                    <code className="mt-1 block break-all rounded bg-white px-2 py-1 text-xs font-mono dark:bg-slate-900">{newBotToken}</code>
+                  </div>
+                ) : null}
+              </section>
+              <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-bold">Bot Tokens</h3>
+                  <button type="button" onClick={async () => { try { const data = await readJsonResponse(await fetchAdminBots()); setBots(data.bots || []); setAvailableBotPermissions(data.availablePermissions || []); } catch (err) { setError(err?.message || "Failed."); } }} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold dark:border-white/10"><Refresh size={13} />Load</button>
+                </div>
+                <div className="mt-3 divide-y divide-slate-100 dark:divide-white/10">
+                  {bots.length ? bots.map((bot) => (
+                    <div key={bot.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+                      <div>
+                        <p className="font-semibold">{bot.name} <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${bot.enabled ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200" : "bg-slate-100 text-slate-500 dark:bg-white/10"}`}>{bot.enabled ? "active" : "disabled"}</span></p>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Token: {bot.token} / Permissions: {Array.isArray(bot.permissions) ? bot.permissions.join(", ") : ""}</p>
+                        {bot.last_used_at ? <p className="text-xs text-slate-400">Last used: {bot.last_used_at}</p> : null}
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={async () => { try { await readJsonResponse(await updateAdminBot(bot.id, { enabled: !bot.enabled })); const data = await readJsonResponse(await fetchAdminBots()); setBots(data.bots || []); } catch (err) { setError(err?.message || "Failed."); } }} className="h-8 rounded-lg border border-slate-200 px-2 text-xs font-bold dark:border-white/10">{bot.enabled ? "Disable" : "Enable"}</button>
+                        <button type="button" onClick={() => confirmAction({ title: "Delete bot", body: `Delete bot ${bot.name}? The token will stop working.`, confirmLabel: "Delete", danger: true, requiresPassword: true, run: async ({ adminPassword }) => { await readJsonResponse(await deleteAdminBot(bot.id, { adminPassword })); const data = await readJsonResponse(await fetchAdminBots()); setBots(data.bots || []); }, refresh: () => Promise.resolve() })} className="h-8 rounded-lg border border-rose-200 px-2 text-xs font-bold text-rose-600 dark:border-rose-500/30"><Trash size={13} /></button>
+                      </div>
+                    </div>
+                  )) : <EmptyState text="No bots. Click Load to refresh." />}
+                </div>
+              </section>
+              <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950">
+                <h3 className="text-sm font-bold">Bot API Documentation</h3>
+                <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-300">
+                  <p><code className="rounded bg-slate-100 px-1 dark:bg-white/10">POST /api/bot/send-message</code> — Send a message to a chat <span className="text-slate-400">(send_message)</span></p>
+                  <p><code className="rounded bg-slate-100 px-1 dark:bg-white/10">GET /api/bot/chats</code> — List all chats <span className="text-slate-400">(read_chats)</span></p>
+                  <p><code className="rounded bg-slate-100 px-1 dark:bg-white/10">GET /api/bot/chats/:id/messages</code> — Read chat messages <span className="text-slate-400">(read_messages)</span></p>
+                  <p><code className="rounded bg-slate-100 px-1 dark:bg-white/10">GET /api/bot/users</code> — List all users <span className="text-slate-400">(read_users)</span></p>
+                  <p className="mt-2 text-slate-400">Header: <code className="rounded bg-slate-100 px-1 dark:bg-white/10">Authorization: Bearer bx_...</code></p>
+                </div>
               </section>
             </div>
           ) : null}

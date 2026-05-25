@@ -529,6 +529,35 @@ export const fetchAdminBranding = () =>
 export const updateAdminBranding = (payload = {}) =>
   apiFetch(`${API_BASE}/api/admin/branding`, adminJsonOptions("PUT", payload));
 
+// --- Admin: Webhooks ---
+export const fetchAdminWebhooks = () =>
+  apiFetch(`${API_BASE}/api/admin/webhooks`);
+
+export const createAdminWebhook = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/webhooks`, adminJsonOptions("POST", payload));
+
+export const updateAdminWebhook = (id, payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/webhooks/${encodeURIComponent(id)}`, adminJsonOptions("PATCH", payload));
+
+export const deleteAdminWebhook = (id, payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/webhooks/${encodeURIComponent(id)}`, adminJsonOptions("DELETE", payload));
+
+export const testAdminWebhook = (id) =>
+  apiFetch(`${API_BASE}/api/admin/webhooks/${encodeURIComponent(id)}/test`, adminJsonOptions("POST"));
+
+// --- Admin: Bots ---
+export const fetchAdminBots = () =>
+  apiFetch(`${API_BASE}/api/admin/bots`);
+
+export const createAdminBot = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/bots`, adminJsonOptions("POST", payload));
+
+export const updateAdminBot = (id, payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/bots/${encodeURIComponent(id)}`, adminJsonOptions("PATCH", payload));
+
+export const deleteAdminBot = (id, payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/bots/${encodeURIComponent(id)}`, adminJsonOptions("DELETE", payload));
+
 // --- Admin: Reset User 2FA ---
 export const resetAdminUser2FA = (userId, payload = {}) =>
   apiFetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}/reset-2fa`, adminJsonOptions("POST", payload));

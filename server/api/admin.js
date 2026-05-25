@@ -178,6 +178,35 @@ function registerAdminRoutes(app, deps) {
         )
       `);
 
+      adminRun(`
+        CREATE TABLE IF NOT EXISTS webhooks (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          url TEXT NOT NULL,
+          secret TEXT,
+          events TEXT NOT NULL DEFAULT '[]',
+          enabled INTEGER NOT NULL DEFAULT 1,
+          created_by_user_id INTEGER,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          last_triggered_at DATETIME,
+          last_status INTEGER,
+          failure_count INTEGER DEFAULT 0
+        )
+      `);
+
+      adminRun(`
+        CREATE TABLE IF NOT EXISTS bot_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          token TEXT NOT NULL UNIQUE,
+          user_id INTEGER NOT NULL,
+          permissions TEXT NOT NULL DEFAULT '[]',
+          enabled INTEGER NOT NULL DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          last_used_at DATETIME
+        )
+      `);
+
       adminSave();
     } catch (error) {
       console.warn("[admin] schema self-heal failed:", String(error?.message || error));
@@ -3649,6 +3678,284 @@ function registerAdminRoutes(app, deps) {
     writeAuditLog(req, session, "branding.update", "settings", "branding", branding);
 
     res.json({ ok: true, branding });
+  });
+
+  // ─── Webhooks ─────────────────────────────────────────────────────────────────
+  const WEBHOOK_EVENTS = ["message.new", "message.edit", "message.delete", "user.register", "user.login", "user.ban", "chat.create", "chat.delete", "member.join", "member.leave"];
+
+  app.get("/api/admin/webhooks", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsRead");
+    if (!session) return;
+
+    const webhooks = adminGetAll(
+      "SELECT id, name, url, secret, events, enabled, created_at, last_triggered_at, last_status, failure_count FROM webhooks ORDER BY id DESC",
+    ).map((row) => {
+      let events = [];
+      try { events = JSON.parse(row.events || "[]"); } catch { events = []; }
+      return { ...row, events, enabled: Boolean(Number(row.enabled || 0)) };
+    });
+
+    res.json({ ok: true, webhooks, availableEvents: WEBHOOK_EVENTS });
+  });
+
+  app.post("/api/admin/webhooks", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsWrite");
+    if (!session) return;
+
+    const name = String(req.body?.name || "").trim();
+    const url = String(req.body?.url || "").trim();
+    const events = Array.isArray(req.body?.events) ? req.body.events.filter((e) => WEBHOOK_EVENTS.includes(e)) : [];
+    const secret = String(req.body?.secret || "").trim() || null;
+
+    if (!name) return res.status(400).json({ error: "Webhook name is required." });
+    if (!url || (!url.startsWith("http://") && !url.startsWith("https://"))) {
+      return res.status(400).json({ error: "A valid URL is required." });
+    }
+    if (!events.length) return res.status(400).json({ error: "At least one event is required." });
+
+    adminRun(
+      `INSERT INTO webhooks (name, url, secret, events, enabled, created_by_user_id, created_at)
+       VALUES (?, ?, ?, ?, 1, ?, datetime('now'))`,
+      [name, url, secret, JSON.stringify(events), Number(session.id)],
+    );
+    adminSave();
+    writeAuditLog(req, session, "webhook.create", "webhook", "", { name, url, events });
+
+    res.json({ ok: true });
+  });
+
+  app.patch("/api/admin/webhooks/:id", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsWrite");
+    if (!session) return;
+
+    const webhookId = toInt(req.params.id);
+    const existing = adminGetRow("SELECT id FROM webhooks WHERE id = ?", [webhookId]);
+    if (!existing?.id) return res.status(404).json({ error: "Webhook not found." });
+
+    const updates = [];
+    const params = [];
+    if (req.body?.name !== undefined) { updates.push("name = ?"); params.push(String(req.body.name).trim()); }
+    if (req.body?.url !== undefined) { updates.push("url = ?"); params.push(String(req.body.url).trim()); }
+    if (req.body?.secret !== undefined) { updates.push("secret = ?"); params.push(String(req.body.secret).trim() || null); }
+    if (req.body?.events !== undefined) { updates.push("events = ?"); params.push(JSON.stringify(Array.isArray(req.body.events) ? req.body.events : [])); }
+    if (req.body?.enabled !== undefined) { updates.push("enabled = ?"); params.push(req.body.enabled ? 1 : 0); }
+    if (!updates.length) return res.status(400).json({ error: "No changes provided." });
+
+    params.push(webhookId);
+    adminRun(`UPDATE webhooks SET ${updates.join(", ")} WHERE id = ?`, params);
+    adminSave();
+    writeAuditLog(req, session, "webhook.update", "webhook", webhookId);
+
+    res.json({ ok: true });
+  });
+
+  app.delete("/api/admin/webhooks/:id", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsWrite");
+    if (!session) return;
+    if (!requireAdminPassword(req, res, session)) return;
+
+    const webhookId = toInt(req.params.id);
+    adminRun("DELETE FROM webhooks WHERE id = ?", [webhookId]);
+    adminSave();
+    writeAuditLog(req, session, "webhook.delete", "webhook", webhookId);
+
+    res.json({ ok: true });
+  });
+
+  app.post("/api/admin/webhooks/:id/test", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsWrite");
+    if (!session) return;
+
+    const webhookId = toInt(req.params.id);
+    const webhook = adminGetRow("SELECT id, url, secret FROM webhooks WHERE id = ?", [webhookId]);
+    if (!webhook?.id) return res.status(404).json({ error: "Webhook not found." });
+
+    // Fire test payload
+    const payload = JSON.stringify({ event: "test", timestamp: new Date().toISOString(), data: { message: "Webhook test from BirdX admin" } });
+    const headers = { "Content-Type": "application/json", "X-BirdX-Event": "test" };
+    if (webhook.secret) headers["X-BirdX-Secret"] = webhook.secret;
+
+    fetch(webhook.url, { method: "POST", headers, body: payload, signal: AbortSignal.timeout(10000) })
+      .then((r) => {
+        adminRun("UPDATE webhooks SET last_triggered_at = datetime('now'), last_status = ?, failure_count = 0 WHERE id = ?", [r.status, webhookId]);
+        adminSave();
+        res.json({ ok: true, status: r.status });
+      })
+      .catch((err) => {
+        adminRun("UPDATE webhooks SET last_triggered_at = datetime('now'), last_status = 0, failure_count = failure_count + 1 WHERE id = ?", [webhookId]);
+        adminSave();
+        res.json({ ok: false, error: err?.message || "Request failed" });
+      });
+  });
+
+  // ─── Bot API ──────────────────────────────────────────────────────────────────
+  const BOT_PERMISSIONS = ["send_message", "read_messages", "manage_chats", "manage_users", "read_users", "read_chats"];
+
+  app.get("/api/admin/bots", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsRead");
+    if (!session) return;
+
+    const bots = adminGetAll(
+      "SELECT id, name, token, user_id, permissions, enabled, created_at, last_used_at FROM bot_tokens ORDER BY id DESC",
+    ).map((row) => {
+      let permissions = [];
+      try { permissions = JSON.parse(row.permissions || "[]"); } catch { permissions = []; }
+      return { ...row, permissions, enabled: Boolean(Number(row.enabled || 0)), token: `${row.token.slice(0, 8)}...` };
+    });
+
+    res.json({ ok: true, bots, availablePermissions: BOT_PERMISSIONS });
+  });
+
+  app.post("/api/admin/bots", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsWrite");
+    if (!session) return;
+
+    const name = String(req.body?.name || "").trim();
+    const permissions = Array.isArray(req.body?.permissions) ? req.body.permissions.filter((p) => BOT_PERMISSIONS.includes(p)) : [];
+
+    if (!name) return res.status(400).json({ error: "Bot name is required." });
+    if (!permissions.length) return res.status(400).json({ error: "At least one permission is required." });
+
+    const crypto = deps.crypto;
+    const token = `bx_${crypto.randomBytes(32).toString("hex")}`;
+
+    adminRun(
+      `INSERT INTO bot_tokens (name, token, user_id, permissions, enabled, created_at)
+       VALUES (?, ?, ?, ?, 1, datetime('now'))`,
+      [name, token, Number(session.id), JSON.stringify(permissions)],
+    );
+    adminSave();
+    writeAuditLog(req, session, "bot.create", "bot", "", { name, permissions });
+
+    res.json({ ok: true, token, name });
+  });
+
+  app.delete("/api/admin/bots/:id", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsWrite");
+    if (!session) return;
+    if (!requireAdminPassword(req, res, session)) return;
+
+    const botId = toInt(req.params.id);
+    adminRun("DELETE FROM bot_tokens WHERE id = ?", [botId]);
+    adminSave();
+    writeAuditLog(req, session, "bot.delete", "bot", botId);
+
+    res.json({ ok: true });
+  });
+
+  app.patch("/api/admin/bots/:id", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsWrite");
+    if (!session) return;
+
+    const botId = toInt(req.params.id);
+    const existing = adminGetRow("SELECT id FROM bot_tokens WHERE id = ?", [botId]);
+    if (!existing?.id) return res.status(404).json({ error: "Bot not found." });
+
+    const updates = [];
+    const params = [];
+    if (req.body?.name !== undefined) { updates.push("name = ?"); params.push(String(req.body.name).trim()); }
+    if (req.body?.permissions !== undefined) { updates.push("permissions = ?"); params.push(JSON.stringify(Array.isArray(req.body.permissions) ? req.body.permissions : [])); }
+    if (req.body?.enabled !== undefined) { updates.push("enabled = ?"); params.push(req.body.enabled ? 1 : 0); }
+    if (!updates.length) return res.status(400).json({ error: "No changes provided." });
+
+    params.push(botId);
+    adminRun(`UPDATE bot_tokens SET ${updates.join(", ")} WHERE id = ?`, params);
+    adminSave();
+    writeAuditLog(req, session, "bot.update", "bot", botId);
+
+    res.json({ ok: true });
+  });
+
+  // ─── Bot API Public Endpoints (token-based auth) ──────────────────────────────
+  const requireBotAuth = (req, res, permission = null) => {
+    const authHeader = String(req.headers?.authorization || "").trim();
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    if (!token) { res.status(401).json({ error: "Bot token is required. Use Authorization: Bearer <token>" }); return null; }
+
+    const bot = adminGetRow("SELECT id, name, user_id, permissions, enabled FROM bot_tokens WHERE token = ?", [token]);
+    if (!bot?.id || !Number(bot.enabled)) { res.status(401).json({ error: "Invalid or disabled bot token." }); return null; }
+
+    let permissions = [];
+    try { permissions = JSON.parse(bot.permissions || "[]"); } catch { permissions = []; }
+
+    if (permission && !permissions.includes(permission)) {
+      res.status(403).json({ error: `Bot does not have '${permission}' permission.` });
+      return null;
+    }
+
+    adminRun("UPDATE bot_tokens SET last_used_at = datetime('now') WHERE id = ?", [bot.id]);
+    return { ...bot, permissions };
+  };
+
+  app.post("/api/bot/send-message", (req, res) => {
+    const bot = requireBotAuth(req, res, "send_message");
+    if (!bot) return;
+
+    const chatId = toInt(req.body?.chatId);
+    const body = String(req.body?.body || "").trim();
+    if (!chatId) return res.status(400).json({ error: "chatId is required." });
+    if (!body) return res.status(400).json({ error: "body is required." });
+
+    const chat = adminGetRow("SELECT id, type FROM chats WHERE id = ?", [chatId]);
+    if (!chat?.id) return res.status(404).json({ error: "Chat not found." });
+
+    const encBody = storageEncryption?.encryptText ? storageEncryption.encryptText(body) : body;
+    adminRun(
+      "INSERT INTO chat_messages (chat_id, user_id, body, created_at) VALUES (?, ?, ?, datetime('now'))",
+      [chatId, bot.user_id, encBody],
+    );
+    adminSave();
+
+    try { emitChatEvent?.(chatId, { type: "chat_message", chatId }); } catch { /* non-critical */ }
+
+    res.json({ ok: true, chatId });
+  });
+
+  app.get("/api/bot/chats", (req, res) => {
+    const bot = requireBotAuth(req, res, "read_chats");
+    if (!bot) return;
+
+    const chats = adminGetAll(
+      `SELECT id, name, type, group_username, group_visibility, created_at,
+              (SELECT COUNT(*) FROM chat_members WHERE chat_id = chats.id) AS member_count,
+              (SELECT COUNT(*) FROM chat_messages WHERE chat_id = chats.id) AS message_count
+       FROM chats ORDER BY id DESC LIMIT 100`,
+    );
+
+    res.json({ ok: true, chats });
+  });
+
+  app.get("/api/bot/chats/:id/messages", (req, res) => {
+    const bot = requireBotAuth(req, res, "read_messages");
+    if (!bot) return;
+
+    const chatId = toInt(req.params.id);
+    const limit = Math.min(100, Math.max(1, toInt(req.query?.limit) || 50));
+    const messages = adminGetAll(
+      `SELECT cm.id, cm.user_id, cm.body, cm.created_at, u.username, u.nickname
+       FROM chat_messages cm
+       LEFT JOIN users u ON u.id = cm.user_id
+       WHERE cm.chat_id = ? AND cm.hidden_everyone_at IS NULL
+       ORDER BY cm.id DESC LIMIT ?`,
+      [chatId, limit],
+    ).map((msg) => {
+      let body = msg.body || "";
+      try { if (storageEncryption?.decryptText) body = storageEncryption.decryptText(body); } catch { /* keep raw */ }
+      return { ...msg, body };
+    });
+
+    res.json({ ok: true, messages });
+  });
+
+  app.get("/api/bot/users", (req, res) => {
+    const bot = requireBotAuth(req, res, "read_users");
+    if (!bot) return;
+
+    const users = adminGetAll(
+      "SELECT id, username, nickname, status, role, banned, created_at, last_seen FROM users ORDER BY id ASC LIMIT 500",
+    ).map((row) => ({ ...row, banned: Boolean(Number(row.banned || 0)) }));
+
+    res.json({ ok: true, users });
   });
 }
 
