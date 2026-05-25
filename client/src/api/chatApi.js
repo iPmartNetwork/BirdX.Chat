@@ -528,3 +528,23 @@ export const fetchAdminBranding = () =>
 
 export const updateAdminBranding = (payload = {}) =>
   apiFetch(`${API_BASE}/api/admin/branding`, adminJsonOptions("PUT", payload));
+
+// --- Admin: Reset User 2FA ---
+export const resetAdminUser2FA = (userId, payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}/reset-2fa`, adminJsonOptions("POST", payload));
+
+// --- 2FA (User) ---
+export const fetch2FAStatus = () =>
+  apiFetch(`${API_BASE}/api/2fa/status`);
+
+export const setup2FA = () =>
+  apiFetch(`${API_BASE}/api/2fa/setup`, adminJsonOptions("POST"));
+
+export const verifySetup2FA = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/2fa/verify-setup`, adminJsonOptions("POST", payload));
+
+export const disable2FA = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/2fa/disable`, adminJsonOptions("POST", payload));
+
+export const fetch2FABackupCodes = () =>
+  apiFetch(`${API_BASE}/api/2fa/backup-codes`);

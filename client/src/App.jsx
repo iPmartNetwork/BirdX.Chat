@@ -142,6 +142,8 @@ export default function App() {
   const [authStatus, setAuthStatus] = useState('')
   const [authChecked, setAuthChecked] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
+  const [auth2FARequired, setAuth2FARequired] = useState(false)
+  const [auth2FACredentials, setAuth2FACredentials] = useState(null)
   const accountCreationEnabled = APP_CONFIG.accountCreationEnabled
   const isStandaloneDisplay =
     window.matchMedia?.('(display-mode: standalone)')?.matches ||
@@ -756,6 +758,13 @@ export default function App() {
       password: formData.get('password')?.toString() || '',
     }
 
+    // If 2FA step, include the token
+    if (auth2FARequired && auth2FACredentials) {
+      payload.username = auth2FACredentials.username
+      payload.password = auth2FACredentials.password
+      payload.totpToken = formData.get('totpToken')?.toString() || ''
+    }
+
     try {
       const res = await fetch(`${API_BASE}/api/login`, {
         method: 'POST',
@@ -772,9 +781,29 @@ export default function App() {
           data = {}
         }
       }
+
+      // Handle 2FA required response
+      if (data?.requires2FA && !payload.totpToken) {
+        setAuth2FARequired(true)
+        setAuth2FACredentials({ username: payload.username, password: payload.password })
+        setAuthStatus('Enter your 2FA code from your authenticator app.')
+        setAuthLoading(false)
+        return
+      }
+
       if (!res.ok) {
+        if (data?.requires2FA) {
+          setAuthStatus(data?.error || 'Invalid 2FA code.')
+          setAuthLoading(false)
+          return
+        }
         throw new Error(data?.error || 'Unable to sign in.')
       }
+
+      // Success — reset 2FA state
+      setAuth2FARequired(false)
+      setAuth2FACredentials(null)
+
       const fallbackUser = {
         id: data.id,
         username: data.username,
@@ -976,12 +1005,15 @@ export default function App() {
                   onSubmit={handleLogin}
                   onSwitchMode={() => {
                     setAuthStatus('')
+                    setAuth2FARequired(false)
+                    setAuth2FACredentials(null)
                     navigate('/signup')
                   }}
                   status={authStatus}
                   loading={authLoading}
                   showSigningOverlay={authLoading}
                   allowSignup={accountCreationEnabled}
+                  requires2FA={auth2FARequired}
                 />
               )}
               {route === 'signup' && (

@@ -348,6 +348,121 @@ function registerProfileRoutes(app, deps) {
     clearSessionCookie(req, res);
     return res.json({ ok: true });
   });
+
+  // ─── Two-Factor Authentication (2FA / TOTP) ──────────────────────────────────
+  const {
+    adminGetRow: totpGetRow,
+    adminRun: totpRun,
+    adminSave: totpSave,
+    adminGetAll: totpGetAll,
+  } = deps;
+
+  app.get("/api/2fa/status", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const row = totpGetRow?.("SELECT enabled, created_at FROM user_totp WHERE user_id = ?", [session.id]);
+    res.json({
+      ok: true,
+      enabled: Boolean(row && Number(row.enabled || 0)),
+      createdAt: row?.created_at || null,
+    });
+  });
+
+  app.post("/api/2fa/setup", async (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const { generateSecret, buildTotpUri, generateBackupCodes } = await import("../lib/totp.js");
+
+    // Check if already enabled
+    const existing = totpGetRow?.("SELECT enabled FROM user_totp WHERE user_id = ?", [session.id]);
+    if (existing && Number(existing.enabled || 0)) {
+      return res.status(400).json({ error: "2FA is already enabled. Disable it first." });
+    }
+
+    const secret = generateSecret();
+    const backupCodes = generateBackupCodes(8);
+    const uri = buildTotpUri(secret, session.username);
+
+    // Store pending (not yet enabled)
+    totpRun?.(
+      `INSERT INTO user_totp (user_id, secret, backup_codes, enabled, created_at)
+       VALUES (?, ?, ?, 0, datetime('now'))
+       ON CONFLICT(user_id) DO UPDATE SET secret = excluded.secret, backup_codes = excluded.backup_codes, enabled = 0, created_at = datetime('now')`,
+      [session.id, secret, JSON.stringify(backupCodes)],
+    );
+    totpSave?.();
+
+    res.json({ ok: true, secret, uri, backupCodes });
+  });
+
+  app.post("/api/2fa/verify-setup", async (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const { verifyTOTP } = await import("../lib/totp.js");
+    const token = String(req.body?.token || "").trim();
+    if (!token || token.length !== 6) {
+      return res.status(400).json({ error: "A 6-digit code is required." });
+    }
+
+    const row = totpGetRow?.("SELECT secret, enabled FROM user_totp WHERE user_id = ?", [session.id]);
+    if (!row?.secret) {
+      return res.status(400).json({ error: "No 2FA setup found. Start setup first." });
+    }
+    if (Number(row.enabled || 0)) {
+      return res.status(400).json({ error: "2FA is already enabled." });
+    }
+
+    if (!verifyTOTP(row.secret, token)) {
+      return res.status(400).json({ error: "Invalid code. Please try again." });
+    }
+
+    totpRun?.("UPDATE user_totp SET enabled = 1 WHERE user_id = ?", [session.id]);
+    totpSave?.();
+
+    res.json({ ok: true, message: "2FA enabled successfully." });
+  });
+
+  app.post("/api/2fa/disable", async (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const password = String(req.body?.password || "");
+    if (!password) {
+      return res.status(400).json({ error: "Password is required to disable 2FA." });
+    }
+
+    const user = findUserByUsername(session.username);
+    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+      return res.status(403).json({ error: "Invalid password." });
+    }
+
+    totpRun?.("DELETE FROM user_totp WHERE user_id = ?", [session.id]);
+    totpSave?.();
+
+    res.json({ ok: true, message: "2FA disabled." });
+  });
+
+  app.get("/api/2fa/backup-codes", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const row = totpGetRow?.("SELECT backup_codes, enabled FROM user_totp WHERE user_id = ?", [session.id]);
+    if (!row || !Number(row.enabled || 0)) {
+      return res.status(400).json({ error: "2FA is not enabled." });
+    }
+
+    let codes = [];
+    try {
+      codes = JSON.parse(row.backup_codes || "[]");
+    } catch {
+      codes = [];
+    }
+
+    res.json({ ok: true, backupCodes: codes });
+  });
 }
 
 export { registerProfileRoutes };

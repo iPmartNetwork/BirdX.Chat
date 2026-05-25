@@ -15,6 +15,7 @@ export default function AuthPage({
   loading,
   showSigningOverlay = false,
   allowSignup = true,
+  requires2FA = false,
 }) {
   const isLogin = mode === "login";
   const canSignup = Boolean(allowSignup);
@@ -98,6 +99,7 @@ export default function AuthPage({
       <AuthFormFields
         isLogin={isLogin}
         canSignup={canSignup}
+        requires2FA={requires2FA}
         showPassword={showPassword}
         setShowPassword={setShowPassword}
         showConfirmPassword={showConfirmPassword}

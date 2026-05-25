@@ -142,7 +142,7 @@ function registerAuthRoutes(app, deps) {
     });
   });
 
-  app.post("/api/login", (req, res) => {
+  app.post("/api/login", async (req, res) => {
     const { username, password } = req.body || {};
 
     if (!username || !password) {
@@ -169,6 +169,47 @@ function registerAuthRoutes(app, deps) {
         reason: "invalid_credentials",
       });
       return res.status(401).json({ error: "Invalid credentials." });
+    }
+
+    // Check if 2FA is enabled for this user
+    const { adminGetRow: authGetRow } = deps;
+    const totpRow = authGetRow?.("SELECT enabled, secret, backup_codes FROM user_totp WHERE user_id = ? AND enabled = 1", [user.id]);
+    if (totpRow && Number(totpRow.enabled || 0)) {
+      const totpToken = String(req.body?.totpToken || "").trim();
+      if (!totpToken) {
+        // Return a special response indicating 2FA is required
+        return res.status(200).json({
+          requires2FA: true,
+          userId: user.id,
+          message: "Two-factor authentication code required.",
+        });
+      }
+      // Verify TOTP token
+      const { verifyTOTP } = await import("../lib/totp.js");
+      let valid = verifyTOTP(totpRow.secret, totpToken);
+
+      // Check backup codes if TOTP fails
+      if (!valid) {
+        let backupCodes = [];
+        try { backupCodes = JSON.parse(totpRow.backup_codes || "[]"); } catch { backupCodes = []; }
+        const normalizedToken = totpToken.toUpperCase().replace(/[^A-Z0-9-]/g, "");
+        const codeIndex = backupCodes.findIndex((c) => c === normalizedToken);
+        if (codeIndex >= 0) {
+          valid = true;
+          backupCodes.splice(codeIndex, 1);
+          const { adminRun: authRun, adminSave: authSave } = deps;
+          authRun?.("UPDATE user_totp SET backup_codes = ? WHERE user_id = ?", [JSON.stringify(backupCodes), user.id]);
+          authSave?.();
+        }
+      }
+
+      if (!valid) {
+        recordSecurityEvent(req, "login.2fa_failed", {
+          username: trimmed,
+          userId: user.id,
+        });
+        return res.status(401).json({ error: "Invalid 2FA code.", requires2FA: true });
+      }
     }
 
     updateLastSeen(user.id);

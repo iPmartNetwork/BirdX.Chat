@@ -168,6 +168,16 @@ function registerAdminRoutes(app, deps) {
         )
       `);
 
+      adminRun(`
+        CREATE TABLE IF NOT EXISTS user_totp (
+          user_id INTEGER PRIMARY KEY,
+          secret TEXT NOT NULL,
+          backup_codes TEXT DEFAULT '[]',
+          enabled INTEGER NOT NULL DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       adminSave();
     } catch (error) {
       console.warn("[admin] schema self-heal failed:", String(error?.message || error));
@@ -994,6 +1004,21 @@ function registerAdminRoutes(app, deps) {
     adminRun("DELETE FROM sessions WHERE user_id = ?", [userId]);
     adminSave();
     writeAuditLog(req, session, "user.reset_password", "user", userId, { username: target.username });
+    res.json({ ok: true });
+  });
+
+  app.post("/api/admin/users/:id/reset-2fa", (req, res) => {
+    const session = requireAdminSession(req, res, "usersWrite");
+    if (!session) return;
+
+    const userId = toInt(req.params.id);
+    const target = userId ? adminGetRow("SELECT id, username FROM users WHERE id = ?", [userId]) : null;
+    if (!target?.id) return res.status(404).json({ error: "User not found." });
+    if (!requireAdminPassword(req, res, session)) return;
+
+    adminRun("DELETE FROM user_totp WHERE user_id = ?", [userId]);
+    adminSave();
+    writeAuditLog(req, session, "user.reset_2fa", "user", userId, { username: target.username });
     res.json({ ok: true });
   });
 
