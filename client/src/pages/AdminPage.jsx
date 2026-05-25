@@ -1531,25 +1531,45 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
             <div className="space-y-4">
               <section className="rounded-lg border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950">
                 <h2 className="text-sm font-bold">Schedule a message</h2>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Send a message to a chat at a specific time.</p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_2fr_1fr_auto]">
-                  <input value={schedChatId} onChange={(e) => setSchedChatId(e.target.value)} placeholder="Chat ID" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
-                  <input value={schedBody} onChange={(e) => setSchedBody(e.target.value)} placeholder="Message text" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
-                  <input type="datetime-local" value={schedAt} onChange={(e) => setSchedAt(e.target.value)} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
-                  <button type="button" disabled={!schedChatId || !schedBody || !schedAt} onClick={async () => { try { await readJsonResponse(await createAdminScheduledMessage({ chatId: Number(schedChatId), body: schedBody, scheduledAt: new Date(schedAt).toISOString() })); setSchedBody(""); setSchedAt(""); const data = await readJsonResponse(await fetchAdminScheduledMessages()); setScheduledMessages(data.messages || []); } catch (err) { setError(err?.message || "Failed to schedule message."); } }} className="h-10 rounded-lg bg-emerald-500 px-4 text-sm font-semibold text-white disabled:opacity-50">Schedule</button>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Send a message to a chat at a specific time. Select a chat from the dropdown.</p>
+                <div className="mt-4 space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-xs font-bold uppercase text-slate-500">Target Chat</span>
+                      <input value={schedChatId} onChange={(e) => setSchedChatId(e.target.value)} placeholder="Search by name or ID..." className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                      {chats.length > 0 && schedChatId !== "" ? (
+                        <div className="mt-1 max-h-44 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-white/10 dark:bg-slate-900">
+                          {chats.filter((c) => !schedChatId || String(c.id).includes(schedChatId) || (c.name || "").toLowerCase().includes(schedChatId.toLowerCase()) || (c.group_username || "").toLowerCase().includes(schedChatId.toLowerCase())).slice(0, 10).map((c) => (
+                            <button key={c.id} type="button" onClick={() => setSchedChatId(String(c.id))} className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-emerald-50 dark:hover:bg-emerald-500/10 ${String(c.id) === schedChatId ? "bg-emerald-50 font-bold dark:bg-emerald-500/10" : ""}`}>
+                              <span className="truncate">{c.name || `${c.type} #${c.id}`}</span>
+                              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-white/10 dark:text-slate-400">#{c.id} {c.type}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-bold uppercase text-slate-500">Send At</span>
+                      <input type="datetime-local" value={schedAt} onChange={(e) => setSchedAt(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                    </label>
+                  </div>
+                  <div className="flex gap-3">
+                    <input value={schedBody} onChange={(e) => setSchedBody(e.target.value)} placeholder="Message text..." className="h-10 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                    <button type="button" disabled={!schedChatId || !schedBody || !schedAt} onClick={async () => { try { await readJsonResponse(await createAdminScheduledMessage({ chatId: Number(schedChatId), body: schedBody, scheduledAt: new Date(schedAt).toISOString() })); setSchedBody(""); setSchedAt(""); const data = await readJsonResponse(await fetchAdminScheduledMessages()); setScheduledMessages(data.messages || []); } catch (err) { setError(err?.message || "Failed to schedule message."); } }} className="h-10 rounded-lg bg-emerald-500 px-5 text-sm font-semibold text-white disabled:opacity-50">Schedule</button>
+                  </div>
                 </div>
               </section>
               <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-sm font-bold">Pending messages</h3>
-                  <button type="button" onClick={async () => { try { const data = await readJsonResponse(await fetchAdminScheduledMessages()); setScheduledMessages(data.messages || []); } catch (err) { setError(err?.message || "Failed to load."); } }} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold dark:border-white/10"><Refresh size={13} /> Refresh</button>
+                  <button type="button" onClick={async () => { try { const data = await readJsonResponse(await fetchAdminScheduledMessages()); setScheduledMessages(data.messages || []); } catch (err) { setError(err?.message || "Failed to load."); } }} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold dark:border-white/10"><Refresh size={13} />Refresh</button>
                 </div>
                 <div className="mt-3 divide-y divide-slate-100 dark:divide-white/10">
                   {scheduledMessages.length ? scheduledMessages.map((msg) => (
                     <div key={msg.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
                       <div>
-                        <p className="font-semibold">Chat #{msg.chat_id} — {msg.scheduled_at}</p>
-                        <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{msg.body}</p>
+                        <p className="font-semibold">Chat #{msg.chat_id} — <span className="text-emerald-600 dark:text-emerald-300">{msg.scheduled_at}</span></p>
+                        <p className="mt-1 max-w-md truncate text-xs text-slate-500 dark:text-slate-400">{msg.body}</p>
                       </div>
                       <button type="button" onClick={async () => { try { await readJsonResponse(await deleteAdminScheduledMessage(msg.id)); setScheduledMessages((prev) => prev.filter((m) => m.id !== msg.id)); } catch (err) { setError(err?.message || "Failed to delete."); } }} className="inline-flex h-8 items-center gap-1 rounded-lg border border-rose-200 px-2 text-xs font-bold text-rose-600 dark:border-rose-500/30"><Trash size={13} />Cancel</button>
                     </div>
@@ -1565,37 +1585,52 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-sm font-bold">Custom Branding</h2>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Customize the app name, colors, and welcome message.</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Customize the app name, colors, logo, and welcome message.</p>
                   </div>
                   <button type="button" onClick={async () => { try { const data = await readJsonResponse(await fetchAdminBranding()); setBranding(data.branding || {}); setBrandingForm(data.branding || { appName: "", primaryColor: "", accentColor: "", logoUrl: "", welcomeMessage: "", footerText: "" }); } catch (err) { setError(err?.message || "Failed to load branding."); } }} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold dark:border-white/10">Load</button>
                 </div>
                 {branding !== null ? (
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-4 space-y-4">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <label className="block">
                         <span className="text-xs font-bold uppercase text-slate-500">App Name</span>
                         <input value={brandingForm.appName || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, appName: e.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
                       </label>
                       <label className="block">
-                        <span className="text-xs font-bold uppercase text-slate-500">Logo URL</span>
-                        <input value={brandingForm.logoUrl || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, logoUrl: e.target.value }))} placeholder="/birdx-logo.svg" className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                        <span className="text-xs font-bold uppercase text-slate-500">Logo</span>
+                        <div className="mt-1 flex items-center gap-2">
+                          <input value={brandingForm.logoUrl || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, logoUrl: e.target.value }))} placeholder="/birdx-logo.svg or URL" className="h-10 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                          <label className="inline-flex h-10 cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 hover:border-emerald-300 dark:border-white/10 dark:bg-slate-900 dark:text-slate-300">
+                            <Download size={14} />Upload
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setBrandingForm((p) => ({ ...p, logoUrl: reader.result })); reader.readAsDataURL(file); e.target.value = ""; }} />
+                          </label>
+                        </div>
+                        {brandingForm.logoUrl ? <img src={brandingForm.logoUrl} alt="Logo preview" className="mt-2 h-12 w-12 rounded-lg border border-slate-200 object-contain dark:border-white/10" /> : null}
                       </label>
                       <label className="block">
                         <span className="text-xs font-bold uppercase text-slate-500">Primary Color</span>
-                        <input value={brandingForm.primaryColor || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, primaryColor: e.target.value }))} placeholder="#10b981" className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                        <div className="mt-1 flex items-center gap-2">
+                          <input type="color" value={brandingForm.primaryColor || "#10b981"} onChange={(e) => setBrandingForm((p) => ({ ...p, primaryColor: e.target.value }))} className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 p-1 dark:border-white/10" />
+                          <input value={brandingForm.primaryColor || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, primaryColor: e.target.value }))} placeholder="#10b981" className="h-10 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                          <div className="h-8 w-8 rounded-full border border-slate-200 dark:border-white/10" style={{ backgroundColor: brandingForm.primaryColor || "#10b981" }} />
+                        </div>
                       </label>
                       <label className="block">
                         <span className="text-xs font-bold uppercase text-slate-500">Accent Color</span>
-                        <input value={brandingForm.accentColor || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, accentColor: e.target.value }))} placeholder="#6366f1" className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                        <div className="mt-1 flex items-center gap-2">
+                          <input type="color" value={brandingForm.accentColor || "#6366f1"} onChange={(e) => setBrandingForm((p) => ({ ...p, accentColor: e.target.value }))} className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 p-1 dark:border-white/10" />
+                          <input value={brandingForm.accentColor || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, accentColor: e.target.value }))} placeholder="#6366f1" className="h-10 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                          <div className="h-8 w-8 rounded-full border border-slate-200 dark:border-white/10" style={{ backgroundColor: brandingForm.accentColor || "#6366f1" }} />
+                        </div>
                       </label>
                     </div>
                     <label className="block">
                       <span className="text-xs font-bold uppercase text-slate-500">Welcome Message</span>
-                      <textarea value={brandingForm.welcomeMessage || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, welcomeMessage: e.target.value }))} rows={2} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                      <textarea value={brandingForm.welcomeMessage || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, welcomeMessage: e.target.value }))} rows={2} placeholder="Welcome to our community!" className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-900" />
                     </label>
                     <label className="block">
                       <span className="text-xs font-bold uppercase text-slate-500">Footer Text</span>
-                      <input value={brandingForm.footerText || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, footerText: e.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+                      <input value={brandingForm.footerText || ""} onChange={(e) => setBrandingForm((p) => ({ ...p, footerText: e.target.value }))} placeholder="Powered by BirdX" className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900" />
                     </label>
                     <button type="button" onClick={() => confirmAction({ title: "Save branding", body: "Update the app branding settings?", confirmLabel: "Save", requiresPassword: true, run: async ({ adminPassword }) => { const data = await readJsonResponse(await updateAdminBranding({ ...brandingForm, adminPassword })); setBranding(data.branding || {}); setBrandingForm(data.branding || {}); }, refresh: () => Promise.resolve() })} className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-500 px-5 text-sm font-semibold text-white"><Pencil size={15} />Save branding</button>
                   </div>

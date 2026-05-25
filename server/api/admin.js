@@ -3166,12 +3166,26 @@ function registerAdminRoutes(app, deps) {
 
     for (const targetUser of targetUsers) {
       try {
-        const savedChat = adminGetRow(
+        let savedChat = adminGetRow(
           `SELECT chats.id FROM chats
            JOIN chat_members ON chat_members.chat_id = chats.id
            WHERE chats.type = 'saved' AND chat_members.user_id = ?`,
           [targetUser.id],
         );
+        // Create saved chat if it doesn't exist
+        if (!savedChat?.id) {
+          adminRun(
+            "INSERT INTO chats (name, type, created_at) VALUES ('Saved Messages', 'saved', datetime('now'))",
+          );
+          const newChatId = Number(adminGetRow("SELECT last_insert_rowid() AS id")?.id || 0);
+          if (newChatId) {
+            adminRun(
+              "INSERT OR IGNORE INTO chat_members (chat_id, user_id, role) VALUES (?, ?, 'owner')",
+              [newChatId, targetUser.id],
+            );
+            savedChat = { id: newChatId };
+          }
+        }
         if (savedChat?.id) {
           const encBody = storageEncryption?.encryptText
             ? storageEncryption.encryptText(`📢 [Broadcast] ${message}`)
@@ -3182,19 +3196,16 @@ function registerAdminRoutes(app, deps) {
             [savedChat.id, adminUserId, encBody],
           );
           delivered += 1;
+          // Notify user via SSE
+          try {
+            emitSseEvent?.(targetUser.username, { type: "chat_message", chatId: savedChat.id });
+          } catch { /* non-critical */ }
         }
       } catch {
         // skip individual failures
       }
     }
     adminSave();
-
-    // Emit SSE event so online users see the broadcast
-    try {
-      emitSseEvent?.("broadcast", { message, from: session.username, at: new Date().toISOString() });
-    } catch {
-      // non-critical
-    }
 
     writeAuditLog(req, session, "admin.broadcast", "broadcast", "", {
       targetGroup,
