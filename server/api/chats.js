@@ -227,6 +227,7 @@ function registerChatRoutes(app, deps) {
 
     const enrichedChats = chats.map((chat) => ({
       ...chat,
+      required_channel: Boolean(isRequiredChannel?.(chat.id)),
       last_message_files:
         filesByMessageId[Number(chat.last_message_id || 0)] || [],
     }));

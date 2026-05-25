@@ -5555,6 +5555,9 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         normalizeChatSummary,
       );
       list.sort((a, b) => {
+        const aReq = a.required_channel ? 1 : 0;
+        const bReq = b.required_channel ? 1 : 0;
+        if (aReq !== bReq) return bReq - aReq;
         const aTime = a.last_time ? parseServerDate(a.last_time).getTime() : 0;
         const bTime = b.last_time ? parseServerDate(b.last_time).getTime() : 0;
         return bTime - aTime;
@@ -5601,6 +5604,9 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       const dmList = Array.from(dmByPeer.values());
       const merged = [...deduped, ...dmList];
       merged.sort((a, b) => {
+        const aReq = a.required_channel ? 1 : 0;
+        const bReq = b.required_channel ? 1 : 0;
+        if (aReq !== bReq) return bReq - aReq;
         const aTime = a.last_time ? parseServerDate(a.last_time).getTime() : 0;
         const bTime = b.last_time ? parseServerDate(b.last_time).getTime() : 0;
         return bTime - aTime;
