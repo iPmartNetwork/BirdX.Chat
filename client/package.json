@@ -1,6 +1,6 @@
 {
   "name": "birdx-client",
-  "version": "2.5.3-rc3",
+  "version": "2.5.3-rc4",
   "private": true,
   "license": "MIT",
   "description": "BirdX Client - Modern chat UI",

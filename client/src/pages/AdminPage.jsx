@@ -872,7 +872,7 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
           </div>
           <div>
             <p className="text-sm font-bold">BirdX Admin</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">v2.5.3-rc3</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">v2.5.3-rc4</p>
           </div>
         </div>
         <nav className="mt-6 space-y-1">

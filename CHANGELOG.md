@@ -2,6 +2,37 @@
 
 All notable changes to BirdX are documented in this file.
 
+## v2.5.3-rc4 - 2026-05-26
+
+### Added
+
+- Added Advanced Analytics dashboard with user growth, messages per day, hourly activity charts, top users, and top chats.
+- Added Message Scheduling — schedule messages to any chat at a specific time with auto-delivery.
+- Added Custom Branding settings — app name, colors (with color picker), logo upload, welcome message, footer text.
+- Added Webhook integrations — create webhooks with event subscriptions, test, enable/disable, auto-trigger on events.
+- Added Bot API with token-based authentication — create bot tokens with granular permissions.
+- Added Bot API endpoints: `POST /api/bot/send-message`, `GET /api/bot/chats`, `GET /api/bot/chats/:id/messages`, `GET /api/bot/users`.
+- Added Webhook auto-trigger for `message.new`, `user.register`, `user.login`, `user.ban` events.
+- Added Two-Factor Authentication (2FA/TOTP) for all users — setup via Settings > Security with QR code, backup codes.
+- Added 2FA verification step in login flow with support for backup codes.
+- Added admin ability to reset user 2FA from the admin panel.
+- Added dedicated Broadcast channel (`@broadcast` / 📢 اطلاعیه‌ها) — broadcast messages appear as a channel in chat list.
+
+### Fixed
+
+- Fixed critical TDZ crash (`Cannot access 'cs' before initialization`) caused by `effectiveMaxTotalSize` referencing itself.
+- Fixed login handler hanging on errors by wrapping async handler in try/catch.
+- Fixed broadcast not delivering to users without Saved Messages.
+- Fixed JSX sibling error in DesktopSettingsModal with TwoFactorSettings component.
+- Fixed Service Worker stale cache issues with no-cache headers and version guard.
+- Bumped service-worker cache version to `v2.5.3-rc4`.
+
+### Changed
+
+- Broadcast now sends to a dedicated public channel instead of Saved Messages.
+- Required channels are pinned at the top of the chat list.
+- Admin Panel version label updated to v2.5.3-rc4.
+
 ## v2.5.3-rc3 - 2026-05-25
 
 ### Added

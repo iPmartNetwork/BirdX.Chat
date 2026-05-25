@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="./VERSION"><img src="https://img.shields.io/badge/version-2.5.3--rc3-10b981?style=for-the-badge" alt="Version" /></a>
+  <a href="./VERSION"><img src="https://img.shields.io/badge/version-2.5.3--rc4-10b981?style=for-the-badge" alt="Version" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="License" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/node-%3E%3D24.0.0-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" /></a>
 </p>
