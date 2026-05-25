@@ -56,30 +56,14 @@
     <!-- Title -->
     <title>BirdX</title>
 
-    <!-- SW Version Guard — prevents stale cache issues on deploy -->
+    <!-- SW Version Guard -->
     <script>
       (function () {
-        if (!('serviceWorker' in navigator)) return;
-        var EXPECTED_VERSION = "v2.5.3-rc3";
-        navigator.serviceWorker.getRegistrations().then(function (regs) {
-          if (!regs.length) return;
-          regs.forEach(function (reg) {
-            if (reg.active) {
-              var ch = new MessageChannel();
-              ch.port1.onmessage = function (e) {
-                if (e.data && e.data.cacheVersion && e.data.cacheVersion !== EXPECTED_VERSION) {
-                  reg.unregister().then(function () {
-                    caches.keys().then(function (keys) {
-                      return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-                    }).then(function () { window.location.reload(); });
-                  });
-                }
-              };
-              try { reg.active.postMessage({ type: "GET_VERSION" }, [ch.port2]); } catch (_) {}
-            }
-            reg.update();
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (reg) { reg.update(); });
           });
-        });
+        }
       })();
     </script>
   </head>
