@@ -1,118 +1,52 @@
-# BirdX
+<p align="center">
+  <img src="client/public/birdx-logo.svg" alt="BirdX Logo" width="80" height="80" />
+</p>
 
-[![Version](https://img.shields.io/badge/version-2.5.3--rc1-10b981)](./VERSION)
-[![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D24.0.0-339933)](https://nodejs.org/)
+<h1 align="center">BirdX</h1>
 
-BirdX is a modern self-hosted chat, voice call, file sharing, and administration platform for private communities and teams. It is built with React, Vite, Express, Socket.IO, WebRTC, Web Push, and PWA support.
+<p align="center">
+  <strong>Modern self-hosted chat platform for private communities and teams</strong>
+</p>
 
-Repository: https://github.com/iPmartNetwork/BirdX
+<p align="center">
+  <a href="./VERSION"><img src="https://img.shields.io/badge/version-2.5.3--rc3-10b981?style=for-the-badge" alt="Version" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="License" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/node-%3E%3D24.0.0-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" /></a>
+</p>
 
-BirdX is based on the original Songbird project:
+<p align="center">
+  <a href="https://github.com/iPmartNetwork/BirdX/stargazers"><img src="https://img.shields.io/github/stars/iPmartNetwork/BirdX?style=for-the-badge&color=f59e0b" alt="Stars" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX/network/members"><img src="https://img.shields.io/github/forks/iPmartNetwork/BirdX?style=for-the-badge&color=8b5cf6" alt="Forks" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX/issues"><img src="https://img.shields.io/github/issues/iPmartNetwork/BirdX?style=for-the-badge&color=ef4444" alt="Issues" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX"><img src="https://img.shields.io/github/repo-size/iPmartNetwork/BirdX?style=for-the-badge&color=06b6d4" alt="Repo Size" /></a>
+</p>
 
-```text
-https://github.com/bllackbull/Songbird
-```
+<p align="center">
+  <a href="https://github.com/iPmartNetwork/BirdX/releases"><img src="https://img.shields.io/github/downloads/iPmartNetwork/BirdX/total?style=for-the-badge&color=22c55e&label=Downloads" alt="Downloads" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX/commits/master"><img src="https://img.shields.io/github/last-commit/iPmartNetwork/BirdX?style=for-the-badge&color=6366f1" alt="Last Commit" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX/graphs/contributors"><img src="https://img.shields.io/github/contributors/iPmartNetwork/BirdX?style=for-the-badge&color=ec4899" alt="Contributors" /></a>
+</p>
 
-## Current Release
+<p align="center">
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#features">Features</a> •
+  <a href="#admin-panel">Admin Panel</a> •
+  <a href="#tech-stack">Tech Stack</a> •
+  <a href="#deployment">Deployment</a> •
+  <a href="./CHANGELOG.md">Changelog</a>
+</p>
 
-`2.5.3-rc1`
+---
 
-This release fixes critical security and stability bugs, improves real-time reaction updates, and adds a draggable minimized call card.
+## 📋 Overview
 
-## What BirdX Includes
+BirdX is a feature-rich, self-hosted messaging platform built for teams and private communities. It combines real-time chat, voice/video calls, end-to-end encryption, file sharing, and a powerful admin panel into a single deployable application.
 
-### Messaging
+Based on the original [Songbird](https://github.com/bllackbull/Songbird) project by Mr. Pouya Khalili.
 
-- Real-time direct messages, groups, channels, and saved messages
-- Message edit, delete, forward, reply, and read receipts
-- Message reactions with live real-time updates via SSE
-- Typing indicators and user presence
-- Chat search, discovery, public groups/channels, and invite links
-- Channel posting for owner, admin, and moderator roles
-- Voice messages with waveform support
-- File sharing with size, count, retention, and transcoding controls
+---
 
-### Multilingual
-
-- English and Persian language support
-- RTL layout for Persian
-- Language settings panel with per-device persistence
-
-### Voice & Video Calls
-
-- WebRTC voice and video calls for direct messages
-- Socket.IO signaling for call lifecycle, SDP, and ICE candidates
-- Professional incoming/outgoing call screen
-- Minimized call mode with a draggable floating card (repositionable by touch or mouse)
-- Compact video-call controls with auto-hide after 3 seconds
-- Mute, camera toggle, screen sharing (desktop), device selection, and reconnect controls
-- Connection quality feedback for active calls
-- Per-chat call history for accepted, rejected, ended, and missed/disconnected calls
-- Incoming call ringtone while the app is open
-- Push notifications for incoming calls in PWA/background mode
-- TURN/STUN configuration for reliable audio on mobile carriers and restricted networks
-- Best-effort screen wake lock and reconnect grace handling to reduce mobile screen-lock call drops
-- Socket.IO session authentication for secure call signaling
-
-### PWA
-
-- Installable Progressive Web App
-- Android install fallback flow
-- iOS and desktop installation guidance
-- Service worker cache management
-- App shell update recovery
-- Web Push notifications with VAPID support
-
-### Admin Panel
-
-BirdX includes a real admin workspace at:
-
-```text
-/admin
-```
-
-Admin capabilities:
-
-- Owner, admin, moderator, support, and user roles
-- Bootstrap admins with `ADMIN_USERNAMES`
-- Password re-authentication before sensitive admin actions
-- Dashboard metrics for users, chats, messages, files, sessions, and storage
-- User management with role changes, ban/unban, password reset, and deletion
-- User detail drawer with profile metadata, stats, chats, files, active sessions, IP addresses, and user-agent data
-- Session management with single-session revoke and logout-all
-- Chat management with search, filtering, sorting, pagination, and deletion
-- Group/channel detail drawer with visibility, public username, invite-link, member, and manager controls
-- Owner-controlled group/channel member role management with owner, admin, moderator, and member roles
-- Public/private chat visibility filtering
-- File management with owner, type, size, pagination, and deletion
-- Audit logs with filters by action, actor, and target type, plus IP address, user-agent, and success/failure visibility
-- Monitor tab with CPU, memory, disk, runtime, database, uploads, backups, push, TURN, and storage-encryption status
-- Security summary with failed login tracking, banned login attempts, failed admin re-authentication, sensitive admin actions, active admin sessions, top source IPs, and recent security activity
-- Maintenance tab for database backup creation, download, listing, and deletion
-- Professional in-app confirmation modals for sensitive actions
-
-## Tech Stack
-
-- React 19
-- Vite 7
-- Tailwind CSS
-- Express 4
-- Socket.IO 4
-- WebRTC
-- Web Push
-- sql.js
-- PWA manifest and service worker
-
-## Requirements
-
-- Node.js `24+`
-- npm `11+`
-- HTTPS in production
-- A public domain for PWA, push notifications, and WebRTC permissions
-- A TURN server such as `coturn` for reliable voice calls across strict NAT and mobile networks
-
-## Quick Start
+## ⚡ Quick Start
 
 ```bash
 git clone https://github.com/iPmartNetwork/BirdX.git
@@ -122,68 +56,204 @@ npm run build
 npm start
 ```
 
-The production server serves the built client from the Express backend.
-
-## Development
-
-```bash
-npm install
-npm run dev
-```
-
-The root `dev` script starts the client and server together.
-
-## One-Line Install
-
-If you use the bundled install script:
+Or use the one-line installer:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/iPmartNetwork/BirdX/master/scripts/install.sh)
 ```
 
-Review the script before running it on a production server.
+---
 
-## Environment Configuration
+## ✨ Features
 
-Create a `.env` file in the project root. Use `.env.example` as the template.
+### 💬 Messaging
 
-Recommended production baseline:
+| Feature | Description |
+|---------|-------------|
+| Real-time chat | DMs, groups, channels, saved messages |
+| Rich actions | Edit, delete, forward, reply, read receipts |
+| Reactions | Live emoji reactions via SSE |
+| Presence | Typing indicators, online status |
+| Discovery | Search, public groups, invite links |
+| Media | Voice messages, file sharing, video transcoding |
+| Permissions | Channel posting for owner/admin/moderator |
+
+### 🔐 End-to-End Encryption
+
+| Feature | Description |
+|---------|-------------|
+| Protocol | X3DH key agreement + AES-256-GCM |
+| Key exchange | ECDH P-256 with HKDF derivation |
+| Storage | Dedicated IndexedDB key store |
+| UX | Green lock indicator for active E2EE |
+| Automation | Auto session establishment, prekey replenishment |
+
+### 📞 Voice & Video Calls
+
+| Feature | Description |
+|---------|-------------|
+| WebRTC | Peer-to-peer voice and video |
+| Signaling | Socket.IO lifecycle management |
+| UI | Professional call screen, draggable mini card |
+| Controls | Mute, camera, screen share, device select |
+| Reliability | TURN/STUN, wake lock, reconnect grace |
+| History | Per-chat call logs |
+| Notifications | Push + in-app ringtone |
+
+### 🌐 Multilingual
+
+- English and Persian language support
+- Full RTL layout for Persian
+- Per-device language persistence
+
+### 📱 PWA
+
+- Installable on Android, iOS, and desktop
+- Service worker with cache management
+- Web Push notifications with VAPID
+- Offline-ready app shell
+
+---
+
+## 🛡️ Admin Panel
+
+Full admin workspace at `/admin` with role-based access control.
+
+### Roles & Security
+
+- **Roles:** Owner → Admin → Moderator → Support → User
+- **Bootstrap:** `ADMIN_USERNAMES` env variable
+- **Auth:** Password re-confirmation for all sensitive actions
+- **Audit:** Full audit trail with IP, user-agent, success/failure
+
+### Dashboard & Monitoring
+
+- Real-time metrics: users, chats, messages, files, sessions, storage
+- System health: CPU, memory, disk, runtime, services status
+- Security summary: failed logins, banned attempts, top IPs, admin sessions
+
+### User Management
+
+- Search, filter, sort, paginate users
+- Role changes, ban/unban, password reset, deletion
+- User detail: stats, chats, files, sessions, IP/device info
+- **Enhanced activity view:** recent messages, devices, login history
+- Per-user upload policy (enable/disable, custom max size)
+- **Bulk actions:** multi-select with batch ban/unban/delete
+
+### Chat Management
+
+- Search, filter by type/visibility, sort, paginate
+- Group/channel detail: visibility, username, invite links, members
+- Member management: add/remove, role changes
+- **Bulk actions:** multi-select with batch delete
+
+### 📢 Broadcast
+
+- Send messages to all users, online users, or by role
+- Delivered to Saved Messages
+- Delivery count confirmation
+
+### 📦 Data Export
+
+- Export users, chats, files, audit logs
+- CSV and JSON format
+- One-click download
+
+### Maintenance
+
+- Required channels management
+- Database backup: create, download, list, delete
+- File management with owner, type, size controls
+
+---
+
+## 🛠️ Tech Stack
+
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vite-7-646CFF?style=flat-square&logo=vite&logoColor=white" />
+  <img src="https://img.shields.io/badge/Tailwind-3-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" />
+  <img src="https://img.shields.io/badge/Express-4-000000?style=flat-square&logo=express&logoColor=white" />
+  <img src="https://img.shields.io/badge/Socket.IO-4-010101?style=flat-square&logo=socket.io&logoColor=white" />
+  <img src="https://img.shields.io/badge/WebRTC-Enabled-333333?style=flat-square&logo=webrtc&logoColor=white" />
+  <img src="https://img.shields.io/badge/SQLite-sql.js-003B57?style=flat-square&logo=sqlite&logoColor=white" />
+  <img src="https://img.shields.io/badge/PWA-Ready-5A0FC8?style=flat-square&logo=pwa&logoColor=white" />
+</p>
+
+---
+
+## 📋 Requirements
+
+| Requirement | Minimum |
+|-------------|---------|
+| Node.js | `24+` |
+| npm | `11+` |
+| Protocol | HTTPS in production |
+| Domain | Public domain for PWA/Push/WebRTC |
+| TURN | Recommended for reliable calls |
+
+---
+
+## 🚀 Deployment
+
+### Production Deploy
+
+```bash
+git pull origin master
+npm install
+npm run build
+npm start
+```
+
+### With Process Manager
+
+```bash
+# PM2
+pm2 restart all
+
+# systemd
+sudo systemctl restart birdx
+```
+
+### Server Update (Quick)
+
+```bash
+cd /opt/birdx
+git fetch origin && git reset --hard origin/master
+npm --prefix server install
+npm --prefix client install
+npm --prefix client run build
+systemctl restart birdx
+```
+
+---
+
+## ⚙️ Configuration
+
+Create `.env` from `.env.example`:
 
 ```env
 # Server
 SERVER_PORT=5174
 CLIENT_PORT=443
-
-# App
 APP_ENV=production
-APP_DEBUG=false
 
 # Auth
 ACCOUNT_CREATION=true
-ADMIN_USERNAMES=ADMIN
+ADMIN_USERNAMES=admin
 
-# File Upload
+# Upload
 FILE_UPLOAD=true
 FILE_UPLOAD_MAX_SIZE=26214400
-FILE_UPLOAD_MAX_TOTAL_SIZE=78643200
 FILE_UPLOAD_MAX_FILES=10
-FILE_UPLOAD_TRANSCODE_VIDEOS=true
 
-# Message Limits
+# Messages
 MESSAGE_MAX_CHARS=4000
-
-# Retention
 MESSAGE_FILE_RETENTION=7
-MESSAGE_TEXT_RETENTION=0
 
-# Chat Performance
-CHAT_MESSAGE_FETCH_LIMIT=300
-CHAT_MESSAGE_PAGE_SIZE=60
-CHAT_LIST_REFRESH_INTERVAL=20000
-CHAT_PRESENCE_PING_INTERVAL=5000
-
-# Voice Calls / TURN
-APP_TURN_URLS=turn:turn.example.com:3478?transport=udp turn:turn.example.com:3478?transport=tcp
+# Voice Calls
+APP_TURN_URLS=turn:turn.example.com:3478?transport=udp
 APP_TURN_USERNAME=birdx
 APP_TURN_CREDENTIAL=your_turn_password
 
@@ -194,43 +264,25 @@ VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:admin@example.com
 ```
 
-Important:
+> ⚠️ Do not change `STORAGE_ENCRYPTION_KEY` after first run.
 
-- Do not change `STORAGE_ENCRYPTION_KEY` after first run.
-- Use `.env` in production, not `.env.example`.
-- Keep `.env` out of Git.
-- Set `ADMIN_USERNAMES` to the username that should become the first owner/admin.
-- Restart the server after changing `.env`.
+---
 
-## Admin Setup
-
-To make an existing user the bootstrap owner, add the username to `.env`:
+## 👤 Admin Setup
 
 ```env
-ADMIN_USERNAMES=admin
+ADMIN_USERNAMES=admin,admin2
 ```
 
-Then restart the server. On startup, BirdX will bootstrap matching users as owners and unban them if needed.
+Restart the server, then open:
 
-You can add multiple bootstrap owners:
-
-```env
-ADMIN_USERNAMES=admin,admin2,admin3
 ```
-
-After login, open:
-
-```text
 https://your-domain.com/admin
 ```
 
-Admin users also see an Admin Panel entry inside the settings menu.
+---
 
-## Voice Call Reliability
-
-BirdX has built-in public STUN fallback, but production voice calls should use TURN.
-
-Example:
+## 📞 TURN Configuration
 
 ```env
 APP_TURN_URLS=turn:turn.example.com:3478?transport=udp turn:turn.example.com:3478?transport=tcp
@@ -238,123 +290,85 @@ APP_TURN_USERNAME=birdx
 APP_TURN_CREDENTIAL=your_turn_password
 ```
 
-Recommended TURN firewall ports:
+Required firewall ports: `3478 TCP/UDP`, `49152-65535 UDP`
 
-```text
-3478 TCP
-3478 UDP
-49152-65535 UDP
-```
+---
 
-Without TURN, calls may work on normal networks but fail on some mobile carriers, corporate Wi-Fi, or strict NAT connections.
-
-## PWA And Push Notifications
-
-For installable Android/iOS/Desktop PWA behavior:
-
-- Serve BirdX over HTTPS
-- Keep `/manifest.webmanifest` available
-- Keep `/sw.js` available
-- Configure valid VAPID keys
-- Ask users to enable notifications
-- Rebuild and redeploy the client after changing client-side env values
-
-Incoming calls use Web Push when the app is installed or running in the background. When the app is open, BirdX also displays the incoming call screen and plays an in-app ringtone when the browser allows audio playback.
-
-## Database And Backups
-
-BirdX stores application data under the local `data` directory. The Admin Panel Maintenance tab can create, list, download, and delete database backups.
-
-Server-side helper scripts are also available:
+## 💾 Database & Backups
 
 ```bash
-npm --prefix server run db:help
-npm --prefix server run db:backup
-npm --prefix server run db:restore
-npm --prefix server run db:migrate
-npm --prefix server run db:vacuum
+npm --prefix server run db:help      # Show all commands
+npm --prefix server run db:backup    # Create backup
+npm --prefix server run db:restore   # Restore backup
+npm --prefix server run db:migrate   # Run migrations
+npm --prefix server run db:vacuum    # Optimize database
 ```
 
-Always create a backup before upgrading production.
+Backups are also available from the Admin Panel Maintenance tab.
 
-## Build And Deploy
+---
 
-Typical production flow:
+## 📁 Project Structure
 
-```bash
-git pull origin master
-npm install
-npm run build
-npm start
+```
+├── client/          React + Vite + Tailwind (PWA)
+│   ├── src/
+│   │   ├── api/         API client functions
+│   │   ├── components/  UI components
+│   │   ├── pages/       App pages (Chat, Admin, Auth)
+│   │   └── hooks/       Custom React hooks
+│   └── public/          Static assets, SW, manifest
+├── server/          Express + Socket.IO + sql.js
+│   ├── api/             Route handlers
+│   ├── lib/             Utilities and services
+│   ├── migrations/      Database migrations
+│   └── scripts/         CLI tools
+├── data/            Runtime (DB, uploads, backups)
+└── scripts/         Install and ops scripts
 ```
 
-If you use a process manager:
+---
 
-```bash
-pm2 restart all
-```
+## 🗺️ Roadmap
 
-or:
+- [ ] Admin 2FA authentication
+- [ ] Advanced analytics dashboards
+- [ ] Group calls with SFU
+- [ ] E2EE for group chats
+- [ ] More languages and full localization
+- [ ] Webhook integrations and bot API
+- [ ] Message scheduling
+- [ ] Custom themes and branding
 
-```bash
-sudo systemctl restart birdx
-```
+---
 
-## Upgrade Notes
+## 🔒 Security
 
-When upgrading from older BirdX versions:
+- Keep `.env` private and out of Git
+- Use HTTPS in production
+- Configure TURN for reliable calls
+- Protect database backups
+- Restrict admin access to trusted users
+- Rotate credentials if exposed
 
-1. Back up the database.
-2. Pull the latest code.
-3. Update `.env` with new keys such as `ADMIN_USERNAMES` and TURN settings.
-4. Run `npm install`.
-5. Run `npm run build`.
-6. Restart the server.
-7. Log in with the bootstrap admin and open `/admin`.
+---
 
-Database migrations run automatically at startup.
+## 🙏 Credits
 
-## Repository Structure
+BirdX is developed by **[iPmart Network](https://github.com/iPmartNetwork)** and is based on the original open-source Songbird project:
 
-```text
-client/        React, Vite, PWA, UI components
-server/        Express API, Socket.IO, migrations, database helpers
-scripts/       Install and operational scripts
-data/          Runtime database, uploads, backups
-```
+🔗 **Original Project:** [https://github.com/bllackbull/Songbird](https://github.com/bllackbull/Songbird)
 
-## Roadmap
+Special thanks to **Mr. Pouya Khalili** for the original Songbird project and the foundation that made BirdX possible.
 
-Planned areas for future releases:
+---
 
-- Fine-grained admin permissions
-- Admin 2FA
-- Advanced analytics charts
-- Group calls with SFU support
-- End-to-end encryption improvements
-- More languages and full UI localization
+## 📄 License
 
-## Credits
+[MIT](./LICENSE)
 
-BirdX is developed by iPmart Network and is based on the original open-source Songbird project:
+---
 
-[https://github.com/bllackbull/Songbird](https://github.com/bllackbull/Songbird)
-
-Special thanks to Mr. Pouya Khalili for the original Songbird project and the foundation that made BirdX possible.
-
-## Release Notes
-
-See [CHANGELOG.md](CHANGELOG.md).
-
-## Security Notes
-
-- Keep `.env` private.
-- Use HTTPS in production.
-- Configure TURN for reliable calls.
-- Keep backups protected.
-- Give admin access only to trusted users.
-- Rotate VAPID, TURN, and admin credentials if exposed.
-
-## License
-
-MIT
+<p align="center">
+  <sub>Made with ❤️ by <a href="https://github.com/iPmartNetwork">iPmart Network</a></sub>
+</p>
