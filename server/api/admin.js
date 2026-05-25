@@ -135,6 +135,13 @@ function registerAdminRoutes(app, deps) {
         ON security_events(type)
       `);
 
+      if (!adminHasColumn("users", "file_upload_disabled")) {
+        adminRun("ALTER TABLE users ADD COLUMN file_upload_disabled INTEGER DEFAULT 0");
+      }
+      if (!adminHasColumn("users", "file_upload_max_size_bytes")) {
+        adminRun("ALTER TABLE users ADD COLUMN file_upload_max_size_bytes INTEGER DEFAULT NULL");
+      }
+
       adminSave();
     } catch (error) {
       console.warn("[admin] schema self-heal failed:", String(error?.message || error));

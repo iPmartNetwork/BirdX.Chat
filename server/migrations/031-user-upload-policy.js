@@ -4,11 +4,11 @@ export const migration031UserUploadPolicy = {
     if (!tableExists("users")) return;
 
     if (!hasColumn("users", "file_upload_disabled")) {
-      db.run("ALTER TABLE users ADD COLUMN file_upload_disabled INTEGER NOT NULL DEFAULT 0");
+      db.run("ALTER TABLE users ADD COLUMN file_upload_disabled INTEGER DEFAULT 0");
     }
 
     if (!hasColumn("users", "file_upload_max_size_bytes")) {
-      db.run("ALTER TABLE users ADD COLUMN file_upload_max_size_bytes INTEGER");
+      db.run("ALTER TABLE users ADD COLUMN file_upload_max_size_bytes INTEGER DEFAULT NULL");
     }
   },
 };
