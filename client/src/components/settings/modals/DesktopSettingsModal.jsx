@@ -8,6 +8,7 @@ import { InlineError } from "../common/InlineError.jsx";
 import { AboutSettingsPanel } from "../panels/AboutSettingsPanel.jsx";
 import { DataSettingsPanel } from "../panels/DataSettingsPanel.jsx";
 import { LanguageSettingsPanel } from "../panels/LanguageSettingsPanel.jsx";
+import TwoFactorSettings from "../panels/TwoFactorSettings.jsx";
 import { useLanguage } from "../../../i18n/LanguageContext.jsx";
 import ConfirmPasswordModal from "../../modals/ConfirmPasswordModal.jsx";
 import Avatar from "../../common/Avatar.jsx";
@@ -358,6 +359,7 @@ export function DesktopSettingsModal({
             </button>
             <InlineError message={passwordError} />
           </form>
+          <TwoFactorSettings />
         ) : null}
 
         {settingsPanel === "data" ? (

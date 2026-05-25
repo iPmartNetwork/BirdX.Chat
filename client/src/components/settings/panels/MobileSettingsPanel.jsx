@@ -15,6 +15,7 @@ import { AboutSettingsPanel } from "./AboutSettingsPanel.jsx";
 import { DataSettingsPanel } from "./DataSettingsPanel.jsx";
 import { LanguageSettingsPanel } from "./LanguageSettingsPanel.jsx";
 import { NotificationsSettingsPanel } from "./NotificationsSettingsPanel.jsx";
+import TwoFactorSettings from "./TwoFactorSettings.jsx";
 import { useLanguage } from "../../../i18n/LanguageContext.jsx";
 import ConfirmPasswordModal from "../../modals/ConfirmPasswordModal.jsx";
 import Avatar from "../../common/Avatar.jsx";
@@ -447,6 +448,7 @@ export function MobileSettingsPanel({
             </button>
             <InlineError message={passwordError} />
           </form>
+          <TwoFactorSettings />
         </div>
       ) : null}
 
