@@ -345,7 +345,7 @@ function UserDetailDrawer({ detail, onClose, onRevokeSession, onRevokeAllSession
                 </p>
                 <div className="flex items-center gap-2">
                   <select
-                    value={detail.user.fileUploadMaxSizeBytes || ""}
+                    value={String(detail.user.fileUploadMaxSizeBytes || "")}
                     onChange={(e) => {
                       const value = Number(e.target.value) || null;
                       onUpdateUploadPolicy(detail.user, { fileUploadMaxSizeBytes: value });
@@ -353,11 +353,11 @@ function UserDetailDrawer({ detail, onClose, onRevokeSession, onRevokeAllSession
                     className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm dark:border-white/10 dark:bg-slate-800 dark:text-white"
                   >
                     <option value="">Server default (50 MB)</option>
-                    <option value={104857600}>100 MB</option>
-                    <option value={262144000}>250 MB</option>
-                    <option value={524288000}>500 MB</option>
-                    <option value={1073741824}>1 GB</option>
-                    <option value={2147483648}>2 GB</option>
+                    <option value="104857600">100 MB</option>
+                    <option value="262144000">250 MB</option>
+                    <option value="524288000">500 MB</option>
+                    <option value="1073741824">1 GB</option>
+                    <option value="2147483648">2 GB</option>
                   </select>
                 </div>
               </div>
@@ -1310,7 +1310,7 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
         }
         onUpdateUploadPolicy={async (detailUser, payload) => {
           try {
-            await readJsonResponse(await updateAdminUser(detailUser.id, { ...payload, adminPassword: "skip" }));
+            await readJsonResponse(await updateAdminUser(detailUser.id, payload));
             setUserDetail(await readJsonResponse(await fetchAdminUserDetail(detailUser.id)));
           } catch (err) {
             setError(err?.message || "Unable to update upload policy.");
