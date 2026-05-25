@@ -143,6 +143,7 @@ function registerAuthRoutes(app, deps) {
   });
 
   app.post("/api/login", async (req, res) => {
+    try {
     const { username, password } = req.body || {};
 
     if (!username || !password) {
@@ -173,22 +174,22 @@ function registerAuthRoutes(app, deps) {
 
     // Check if 2FA is enabled for this user
     const { adminGetRow: authGetRow } = deps;
-    const totpRow = authGetRow?.("SELECT enabled, secret, backup_codes FROM user_totp WHERE user_id = ? AND enabled = 1", [user.id]);
+    let totpRow = null;
+    try {
+      totpRow = authGetRow?.("SELECT enabled, secret, backup_codes FROM user_totp WHERE user_id = ? AND enabled = 1", [user.id]);
+    } catch { /* table might not exist yet */ }
     if (totpRow && Number(totpRow.enabled || 0)) {
       const totpToken = String(req.body?.totpToken || "").trim();
       if (!totpToken) {
-        // Return a special response indicating 2FA is required
         return res.status(200).json({
           requires2FA: true,
           userId: user.id,
           message: "Two-factor authentication code required.",
         });
       }
-      // Verify TOTP token
       const { verifyTOTP } = await import("../lib/totp.js");
       let valid = verifyTOTP(totpRow.secret, totpToken);
 
-      // Check backup codes if TOTP fails
       if (!valid) {
         let backupCodes = [];
         try { backupCodes = JSON.parse(totpRow.backup_codes || "[]"); } catch { backupCodes = []; }
@@ -233,6 +234,12 @@ function registerAuthRoutes(app, deps) {
         ) ||
         ADMIN_USERNAMES.includes(String(user.username || "").toLowerCase()),
     });
+    } catch (err) {
+      console.error("[login] unexpected error:", err?.message || err);
+      if (!res.headersSent) {
+        return res.status(500).json({ error: "Login failed. Please try again." });
+      }
+    }
   });
 
   app.get("/api/me", (req, res) => {
