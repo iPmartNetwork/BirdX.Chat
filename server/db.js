@@ -1655,7 +1655,9 @@ export function listChatsForUser(userId) {
     LEFT JOIN last_outgoing_message_ids lom ON lom.chat_id = mc.id
     LEFT JOIN visible_messages outgoing_vm ON outgoing_vm.id = lom.last_outgoing_message_id
     LEFT JOIN unread_counts uc ON uc.chat_id = mc.id
-    ORDER BY lvm.last_message_id DESC, mc.created_at DESC
+    ORDER BY
+      CASE WHEN mc.id IN (SELECT chat_id FROM required_channels) THEN 0 ELSE 1 END,
+      lvm.last_message_id DESC, mc.created_at DESC
   `,
     [
       Number(userId),
