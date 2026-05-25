@@ -566,16 +566,18 @@ function registerMessageRoutes(app, deps) {
         }
 
         const userMaxSizeBytes = Number(user.file_upload_max_size_bytes || 0);
-        if (userMaxSizeBytes > 0) {
-          const oversizedFile = uploadedFiles.find(
-            (file) => Number(file.size || 0) > userMaxSizeBytes,
-          );
-          if (oversizedFile) {
-            removeUploadedFiles(uploadedFiles);
-            return res.status(400).json({
-              error: `Each file must be smaller than ${Math.round(userMaxSizeBytes / (1024 * 1024))} MB for your account.`,
-            });
-          }
+        const effectiveMaxSize = userMaxSizeBytes > 0
+          ? userMaxSizeBytes
+          : MESSAGE_FILE_LIMITS.maxFileSizeBytes;
+
+        const oversizedFile = uploadedFiles.find(
+          (file) => Number(file.size || 0) > effectiveMaxSize,
+        );
+        if (oversizedFile) {
+          removeUploadedFiles(uploadedFiles);
+          return res.status(400).json({
+            error: `Each file must be smaller than ${Math.round(effectiveMaxSize / (1024 * 1024))} MB.`,
+          });
         }
 
         if (!isMember(chatId, user.id)) {
@@ -723,8 +725,19 @@ function registerMessageRoutes(app, deps) {
           uploadType,
         });
 
+        let canTranscodeVideos = shouldTranscodeVideos;
         if (shouldTranscodeVideos && hasVideoFiles) {
-          await ensureFfmpegAvailable();
+          try {
+            await ensureFfmpegAvailable();
+          } catch {
+            // ffmpeg not available - skip transcoding, upload video as-is
+            canTranscodeVideos = false;
+            debugLog("api:messages/upload:ffmpeg-unavailable", {
+              chatId,
+              username: user.username,
+              message: "ffmpeg not found, uploading video without transcoding",
+            });
+          }
         }
 
         if (hasVideoFiles && String(uploadType || "").toLowerCase() === "media") {
@@ -843,7 +856,7 @@ function registerMessageRoutes(app, deps) {
 
         let transcodeJobsQueued = 0;
 
-        if (shouldTranscodeVideos && hasVideoFiles) {
+        if (canTranscodeVideos && hasVideoFiles) {
           const insertedRows = listMessageFilesByMessageIds([Number(messageId)]);
           const insertedByStoredName = new Map();
 
@@ -885,7 +898,7 @@ function registerMessageRoutes(app, deps) {
             messageId: Number(messageId),
             username: user.username,
           });
-        } else if (shouldTranscodeVideos && hasVideoFiles && transcodeJobsQueued > 0) {
+        } else if (canTranscodeVideos && hasVideoFiles && transcodeJobsQueued > 0) {
           // Only show pending-conversion videos to the uploader.
           emitSseEvent(user.username, {
             type: "chat_message",

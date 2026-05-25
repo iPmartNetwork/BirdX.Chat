@@ -245,7 +245,7 @@ const avatarUploadRootDir = path.join(dataDir, "uploads", "avatars");
 
 const FILE_UPLOAD_MAX_SIZE = readEnvInt(
   "FILE_UPLOAD_MAX_SIZE",
-  25 * 1024 * 1024,
+  50 * 1024 * 1024,
   { min: 1024 },
 );
 
@@ -255,7 +255,7 @@ const FILE_UPLOAD_MAX_FILES = readEnvInt("FILE_UPLOAD_MAX_FILES", 10, {
 
 const FILE_UPLOAD_MAX_TOTAL_SIZE = readEnvInt(
   "FILE_UPLOAD_MAX_TOTAL_SIZE",
-  78643200,
+  150 * 1024 * 1024,
 );
 
 const MESSAGE_FILE_RETENTION_DAYS = readEnvInt("MESSAGE_FILE_RETENTION", 7, {

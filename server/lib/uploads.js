@@ -83,10 +83,14 @@ export function createUploadTools({
     },
   });
 
+  // Multer hard limit set to 1GB to allow per-user limits to work.
+  // Actual enforcement happens in the route handler based on user policy.
+  const MULTER_HARD_LIMIT = 1024 * 1024 * 1024;
+
   const uploadFiles = multer({
     storage: uploadStorage,
     limits: {
-      fileSize: MESSAGE_FILE_LIMITS.maxFileSizeBytes,
+      fileSize: MULTER_HARD_LIMIT,
       files: MESSAGE_FILE_LIMITS.maxFiles,
     },
   });

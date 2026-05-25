@@ -51,11 +51,11 @@ export const CHAT_PAGE_CONFIG = {
     integer: true,
     min: 1,
   }),
-  maxFileSizeBytes: readEnvNumber("FILE_UPLOAD_MAX_SIZE", 25 * 1024 * 1024, {
+  maxFileSizeBytes: readEnvNumber("FILE_UPLOAD_MAX_SIZE", 50 * 1024 * 1024, {
     integer: true,
     min: 1024,
   }),
-  maxTotalUploadBytes: readEnvNumber("FILE_UPLOAD_MAX_TOTAL_SIZE", 75 * 1024 * 1024, {
+  maxTotalUploadBytes: readEnvNumber("FILE_UPLOAD_MAX_TOTAL_SIZE", 150 * 1024 * 1024, {
     integer: true,
     min: 1024,
   }),

@@ -239,7 +239,7 @@ export function getCurrentSchemaVersion() {
 
 export function findUserByUsername(username) {
   return getRow(
-    `SELECT id, username, nickname, avatar_url, color, status, password_hash, banned, ${USER_ROLE_SELECT_SQL} FROM users WHERE username = ?`,
+    `SELECT id, username, nickname, avatar_url, color, status, password_hash, banned, file_upload_disabled, file_upload_max_size_bytes, ${USER_ROLE_SELECT_SQL} FROM users WHERE username = ?`,
     [username],
   );
 }
