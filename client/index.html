@@ -59,10 +59,24 @@
     <!-- SW Force Update -->
     <script>
       (function () {
-        if ('serviceWorker' in navigator) {
+        var REQUIRED_SW_VERSION = "v2.5.3-rc3";
+        var SW_MIGRATED_KEY = "birdx-sw-migrated-" + REQUIRED_SW_VERSION;
+        if ('serviceWorker' in navigator && !sessionStorage.getItem(SW_MIGRATED_KEY)) {
           navigator.serviceWorker.getRegistrations().then(function (regs) {
-            regs.forEach(function (reg) {
-              reg.update();
+            if (!regs.length) return;
+            var needsReload = false;
+            var promises = regs.map(function (reg) {
+              return reg.unregister().then(function () { needsReload = true; });
+            });
+            Promise.all(promises).then(function () {
+              if (needsReload) {
+                caches.keys().then(function (keys) {
+                  return Promise.all(keys.map(function (key) { return caches.delete(key); }));
+                }).then(function () {
+                  sessionStorage.setItem(SW_MIGRATED_KEY, "1");
+                  window.location.reload();
+                });
+              }
             });
           });
         }
