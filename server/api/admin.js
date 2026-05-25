@@ -885,7 +885,11 @@ function registerAdminRoutes(app, deps) {
       params.push(maxSize > 0 ? maxSize : null);
     }
     if (!updates.length) return res.status(400).json({ error: "No changes provided." });
-    if (!requireAdminPassword(req, res, session)) return;
+
+    // Password required only for role changes and bans (sensitive actions)
+    const isSensitiveChange = req.body?.role !== undefined || req.body?.banned !== undefined;
+    if (isSensitiveChange && !requireAdminPassword(req, res, session)) return;
+
     params.push(userId);
     adminRun(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, params);
     if (req.body?.banned) {

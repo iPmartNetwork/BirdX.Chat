@@ -244,7 +244,7 @@ function ActionModal({ action, onClose, onConfirm, busy }) {
   );
 }
 
-function UserDetailDrawer({ detail, onClose, onRevokeSession, onRevokeAllSessions }) {
+function UserDetailDrawer({ detail, onClose, onRevokeSession, onRevokeAllSessions, onUpdateUploadPolicy }) {
   if (!detail) return null;
   return (
     <div className="fixed inset-0 z-[420] bg-slate-950/40 backdrop-blur-sm">
@@ -311,6 +311,56 @@ function UserDetailDrawer({ detail, onClose, onRevokeSession, onRevokeAllSession
               ) : (
                 <p className="py-3 text-sm text-slate-500">No active sessions.</p>
               )}
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-900">
+            <h3 className="text-sm font-bold">Upload policy</h3>
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">File uploads</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {detail.user.fileUploadDisabled ? "Disabled for this user" : "Enabled (default)"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onUpdateUploadPolicy(detail.user, { fileUploadDisabled: !detail.user.fileUploadDisabled })}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-bold ${
+                    detail.user.fileUploadDisabled
+                      ? "border-emerald-200 text-emerald-600 dark:border-emerald-500/30 dark:text-emerald-300"
+                      : "border-rose-200 text-rose-600 dark:border-rose-500/30 dark:text-rose-300"
+                  }`}
+                >
+                  {detail.user.fileUploadDisabled ? "Enable" : "Disable"}
+                </button>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Max file size</p>
+                <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+                  {detail.user.fileUploadMaxSizeBytes
+                    ? `${Math.round(detail.user.fileUploadMaxSizeBytes / (1024 * 1024))} MB (custom)`
+                    : "Using server default"}
+                </p>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={detail.user.fileUploadMaxSizeBytes || ""}
+                    onChange={(e) => {
+                      const value = Number(e.target.value) || null;
+                      onUpdateUploadPolicy(detail.user, { fileUploadMaxSizeBytes: value });
+                    }}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm dark:border-white/10 dark:bg-slate-800 dark:text-white"
+                  >
+                    <option value="">Server default (50 MB)</option>
+                    <option value={104857600}>100 MB</option>
+                    <option value={262144000}>250 MB</option>
+                    <option value={524288000}>500 MB</option>
+                    <option value={1073741824}>1 GB</option>
+                    <option value={2147483648}>2 GB</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -1258,6 +1308,14 @@ export default function AdminPage({ user, isDark, onToggleTheme, onNavigate }) {
             refresh: loadUsers,
           })
         }
+        onUpdateUploadPolicy={async (detailUser, payload) => {
+          try {
+            await readJsonResponse(await updateAdminUser(detailUser.id, { ...payload, adminPassword: "skip" }));
+            setUserDetail(await readJsonResponse(await fetchAdminUserDetail(detailUser.id)));
+          } catch (err) {
+            setError(err?.message || "Unable to update upload policy.");
+          }
+        }}
       />
       <ChatDetailDrawer
         key={
