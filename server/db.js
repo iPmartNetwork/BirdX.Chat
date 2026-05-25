@@ -224,6 +224,13 @@ const USER_ROLE_QUALIFIED_SELECT_SQL = hasColumn("users", "role")
   : "'user' AS role";
 const SESSIONS_HAS_IP_ADDRESS = hasColumn("sessions", "ip_address");
 const SESSIONS_HAS_USER_AGENT = hasColumn("sessions", "user_agent");
+const HAS_UPLOAD_POLICY_COLUMNS = hasColumn("users", "file_upload_max_size_bytes");
+const UPLOAD_POLICY_SELECT_SQL = HAS_UPLOAD_POLICY_COLUMNS
+  ? "file_upload_disabled, file_upload_max_size_bytes"
+  : "0 AS file_upload_disabled, NULL AS file_upload_max_size_bytes";
+const UPLOAD_POLICY_QUALIFIED_SELECT_SQL = HAS_UPLOAD_POLICY_COLUMNS
+  ? "users.file_upload_disabled, users.file_upload_max_size_bytes"
+  : "0 AS file_upload_disabled, NULL AS file_upload_max_size_bytes";
 
 process.once("beforeExit", () => {
   saveDatabase();
@@ -239,7 +246,7 @@ export function getCurrentSchemaVersion() {
 
 export function findUserByUsername(username) {
   return getRow(
-    `SELECT id, username, nickname, avatar_url, color, status, password_hash, banned, file_upload_disabled, file_upload_max_size_bytes, ${USER_ROLE_SELECT_SQL} FROM users WHERE username = ?`,
+    `SELECT id, username, nickname, avatar_url, color, status, password_hash, banned, ${UPLOAD_POLICY_SELECT_SQL}, ${USER_ROLE_SELECT_SQL} FROM users WHERE username = ?`,
     [username],
   );
 }
@@ -2363,7 +2370,7 @@ export function getSession(token) {
     `
     SELECT sessions.id AS session_id, sessions.token, users.id, users.username, users.nickname,
            users.avatar_url, users.color, users.status, users.banned,
-           users.file_upload_disabled, users.file_upload_max_size_bytes,
+           ${UPLOAD_POLICY_QUALIFIED_SELECT_SQL},
            ${USER_ROLE_QUALIFIED_SELECT_SQL}
     FROM sessions
     JOIN users ON users.id = sessions.user_id
