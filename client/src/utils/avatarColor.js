@@ -1,4 +1,4 @@
-﻿function hexToRgb(hex) {
+function hexToRgb(hex) {
   if (!hex || typeof hex !== "string") return null;
   const normalized = hex.trim().replace("#", "");
   if (normalized.length !== 6 || /[^0-9a-f]/i.test(normalized)) return null;
@@ -24,7 +24,7 @@ export function getAvatarTextColor(backgroundColor) {
   return luminance > 0.56 ? "#0f172a" : "#ffffff";
 }
 
-export function getAvatarStyle(backgroundColor, fallback = "#3b82f6") {
+export function getAvatarStyle(backgroundColor, fallback = "#10b981") {
   const color = backgroundColor || fallback;
   return {
     backgroundColor: color,

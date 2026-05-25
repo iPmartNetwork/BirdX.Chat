@@ -1,4 +1,4 @@
-﻿import { Settings } from "../../../icons/lucide.js";
+import { Settings } from "../../../icons/lucide.js";
 import Avatar from "../../common/Avatar.jsx";
 import { hasPersian } from "../../../utils/fontUtils.js";
 
@@ -14,7 +14,7 @@ export default function SidebarFooter({
   settingsButtonRef,
 }) {
   return (
-    <div className="hidden h-[88px] border-t border-slate-300/80 bg-white px-6 py-4 dark:border-blue-500/20 dark:bg-slate-900 md:absolute md:bottom-0 md:left-0 md:right-0 md:block">
+    <div className="hidden h-[88px] border-t border-slate-300/80 bg-white px-6 py-4 dark:border-emerald-500/20 dark:bg-slate-900 md:absolute md:bottom-0 md:left-0 md:right-0 md:block">
       <div className="flex h-full items-center justify-between">
         <button
           type="button"
@@ -27,11 +27,11 @@ export default function SidebarFooter({
             name={displayName}
             color={userColor}
             initials={displayInitials}
-            className="h-10 w-10 transition group-hover:ring-2 group-hover:ring-blue-300"
+            className="h-10 w-10 transition group-hover:ring-2 group-hover:ring-emerald-300"
           />
           <div className="min-w-0">
             <p
-              className={`truncate text-sm font-semibold text-blue-700 transition group-hover:text-blue-600 dark:text-blue-200 dark:group-hover:text-blue-300 ${hasPersian(displayName) ? "font-fa" : ""}`}
+              className={`truncate text-sm font-semibold text-emerald-700 transition group-hover:text-emerald-600 dark:text-emerald-200 dark:group-hover:text-emerald-300 ${hasPersian(displayName) ? "font-fa" : ""}`}
               dir="auto"
               style={{ unicodeBidi: "plaintext" }}
               title={displayName}
@@ -47,7 +47,7 @@ export default function SidebarFooter({
         <button
           type="button"
           onClick={onOpenSettings}
-          className="flex items-center justify-center rounded-full border border-blue-200 bg-white/80 p-2 text-blue-700 transition hover:border-blue-300 hover:shadow-[0_0_16px_rgba(59,130,246,0.22)] dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200"
+          className="flex items-center justify-center rounded-full border border-emerald-200 bg-white/80 p-2 text-emerald-700 transition hover:border-emerald-300 hover:shadow-[0_0_16px_rgba(16,185,129,0.22)] dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200"
           aria-label="Open settings"
           ref={settingsButtonRef}
         >

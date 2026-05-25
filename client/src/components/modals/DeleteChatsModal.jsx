@@ -1,4 +1,4 @@
-﻿import { createPortal } from "react-dom";
+import { createPortal } from "react-dom";
 
 export default function DeleteChatsModal({
   open,
@@ -28,7 +28,7 @@ export default function DeleteChatsModal({
           <button
             type="button"
             onClick={() => setConfirmDeleteOpen(false)}
-            className="rounded-full border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-700 transition hover:border-blue-300 hover:shadow-[0_0_14px_rgba(59,130,246,0.2)] dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200"
+            className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200"
           >
             Cancel
           </button>

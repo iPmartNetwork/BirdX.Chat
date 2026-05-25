@@ -10,7 +10,7 @@ export default {
         fa: ['"Vazirmatn"', '"DM Sans"', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        glow: '0 20px 60px -30px rgba(59, 130, 246, 0.8)',
+        glow: '0 20px 60px -30px rgba(16, 185, 129, 0.8)',
       },
     },
   },

@@ -935,28 +935,6 @@ if (MESSAGE_TEXT_RETENTION_DAYS > 0) {
 
 bootstrapEnvAdmins();
 backfillStorageEncryption();
-
-// Migrate old avatar colors to new blue palette
-try {
-  const oldColors = ["#10b981", "#6366f1"];
-  const newColor = "#3b82f6";
-  const placeholders = oldColors.map(() => "?").join(", ");
-  const affected = adminGetRow(
-    `SELECT COUNT(*) AS n FROM users WHERE color IN (${placeholders})`,
-    oldColors,
-  );
-  if (Number(affected?.n || 0) > 0) {
-    adminRun(
-      `UPDATE users SET color = ? WHERE color IN (${placeholders})`,
-      [newColor, ...oldColors],
-    );
-    adminSave();
-    console.log(`[colors] migrated ${affected.n} user(s) to ${newColor}`);
-  }
-} catch (error) {
-  console.warn("[colors] migration failed:", String(error?.message || error));
-}
-
 remoteChannelManager.start();
 
 const httpServer = createServer(app);

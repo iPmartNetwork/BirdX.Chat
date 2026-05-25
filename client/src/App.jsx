@@ -1,4 +1,4 @@
-﻿import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import logo from './assets/birdx-logo.svg'
 import { LanguageProvider } from './i18n/LanguageContext.jsx'
@@ -51,7 +51,7 @@ function RouteLoadingFallback({ themeColor, onVisibleChange = null }) {
       className="fixed inset-0 z-[1200] flex min-h-screen w-full items-center justify-center"
       style={{ backgroundColor: themeColor }}
     >
-      <div className="flex flex-col items-center gap-3 text-center text-blue-700 dark:text-blue-300">
+      <div className="flex flex-col items-center gap-3 text-center text-emerald-700 dark:text-emerald-300">
         <img src={logo} alt="birdx logo" className="h-10 w-10 animate-pulse" />
         <p className="text-xs font-semibold tracking-wide">{`Loading${'.'.repeat(dots)}`}</p>
       </div>
@@ -247,7 +247,7 @@ export default function App() {
 
   function refreshThemeColorForSafari(color, allowScrollNudge = true) {
     clearThemeRefreshTimers()
-    const nudgeColor = color === '#ffffff' ? '#fefefe' : '#090d19'
+    const nudgeColor = color === '#ffffff' ? '#fefefe' : '#0e1728'
     commitThemeColor(nudgeColor)
     window.requestAnimationFrame(() => commitThemeColor(color))
 
@@ -283,7 +283,7 @@ export default function App() {
   function getThemeColor(nextIsDark, nextRoute = route) {
     const onChatRoute = nextRoute === 'chat'
     if (nextIsDark) {
-      return onChatRoute ? '#0f172a' : '#0a0e1a'
+      return onChatRoute ? '#0f172a' : '#020617'
     }
     return '#ffffff'
   }
@@ -855,7 +855,7 @@ export default function App() {
   const safeAreaKey = `${route}-${isDark ? 'dark' : 'light'}`
   const safeAreaThemeColor = getThemeColor(isDark, route)
   const appShellClass = isAuthRoute
-    ? 'min-h-screen bg-gradient-to-b from-white via-blue-50/70 to-white text-slate-900 transition-colors duration-300 dark:bg-gradient-to-b dark:from-blue-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-100'
+    ? 'min-h-screen bg-gradient-to-b from-white via-emerald-50/70 to-white text-slate-900 transition-colors duration-300 dark:bg-gradient-to-b dark:from-emerald-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-100'
     : 'h-[100dvh] bg-white text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100'
 
   const appContainerStyle = {
@@ -929,7 +929,7 @@ export default function App() {
         ) : null}
         {isAuthRoute ? (
           <>
-            <div className="pointer-events-none fixed -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-blue-400/30 blur-[130px]" />
+            <div className="pointer-events-none fixed -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-emerald-400/30 blur-[130px]" />
             <div className="pointer-events-none fixed bottom-0 right-0 h-80 w-80 translate-x-1/3 rounded-full bg-lime-400/40 blur-[120px]" />
           </>
         ) : null}

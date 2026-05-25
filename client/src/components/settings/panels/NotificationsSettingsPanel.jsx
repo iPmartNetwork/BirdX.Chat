@@ -1,4 +1,4 @@
-﻿import { Bell, BellOff } from "../../../icons/lucide.js";
+import { Bell, BellOff } from "../../../icons/lucide.js";
 import { useLanguage } from "../../../i18n/LanguageContext.jsx";
 
 export function NotificationsSettingsPanel({
@@ -15,13 +15,13 @@ export function NotificationsSettingsPanel({
   const buttonBase =
     "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-start text-sm font-semibold transition";
   const buttonHover =
-    "hover:border-blue-300 hover:bg-blue-50 hover:shadow-[0_0_18px_rgba(59,130,246,0.18)] dark:hover:bg-blue-500/10";
+    "hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_18px_rgba(16,185,129,0.18)] dark:hover:bg-emerald-500/10";
   const buttonTheme =
-    "border-blue-200/70 bg-white/90 text-blue-700 dark:border-blue-500/30 dark:bg-slate-900/50 dark:text-blue-200";
+    "border-emerald-200/70 bg-white/90 text-emerald-700 dark:border-emerald-500/30 dark:bg-slate-900/50 dark:text-emerald-200";
   const disabledTheme =
     "cursor-not-allowed opacity-60 hover:bg-transparent hover:shadow-none";
   const sentBadgeTheme =
-    "inline-flex items-center gap-1 rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50 hover:shadow-[0_0_14px_rgba(59,130,246,0.2)] dark:border-blue-500/30 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-blue-500/10";
+    "inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10";
   const testButtonBase =
     "inline-flex h-7 min-w-[56px] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold leading-none transition";
   const showDebug =
@@ -51,7 +51,7 @@ export function NotificationsSettingsPanel({
         <span
           className={`relative inline-flex h-6 w-11 items-center rounded-full p-0.5 transition ${
             notificationsActive
-              ? "bg-blue-500 justify-end"
+              ? "bg-emerald-500 justify-end"
               : "bg-slate-300 dark:bg-slate-700 justify-start"
           }`}
         >
@@ -90,7 +90,7 @@ export function NotificationsSettingsPanel({
               ? `${testButtonBase} cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-500`
               : testNotificationSent
                 ? `${testButtonBase} ${sentBadgeTheme} cursor-not-allowed`
-                : `${testButtonBase} bg-blue-500 text-white hover:bg-blue-400`
+                : `${testButtonBase} bg-emerald-500 text-white hover:bg-emerald-400`
           }
         >
           {testNotificationSent

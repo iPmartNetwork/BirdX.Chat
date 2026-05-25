@@ -1,4 +1,4 @@
-﻿import {
+import {
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -140,7 +140,7 @@ export default function ChatWindowPanel({
     activeHeaderPeer?.color ||
     headerAvatarColor ||
     groupAvatarColor ||
-    "#3b82f6";
+    "#10b981";
   const activePeerInitials = getAvatarInitials(activeFallbackTitle || "S");
   const showChannelMuteFooter = Boolean(
     activeChatId &&
@@ -399,7 +399,7 @@ export default function ChatWindowPanel({
           "",
         avatar_url:
           activeChat?.last_sender_avatar_url || sender?.avatar_url || "",
-        color: sender?.color || activeChat?.group_color || groupAvatarColor || "#3b82f6",
+        color: sender?.color || activeChat?.group_color || groupAvatarColor || "#10b981",
         replyTo: null,
         reactions: [],
         seenCount: 1,
@@ -893,9 +893,9 @@ export default function ChatWindowPanel({
   const chatScrollStyle = useMemo(
     () => ({
       backgroundImage: isDark
-        ? "radial-gradient(ellipse at top right, rgba(59,130,246,0.15), transparent 50%), radial-gradient(ellipse at bottom left, rgba(168,85,247,0.12), transparent 45%)"
-        : "radial-gradient(circle at top right, rgba(59,130,246,0.08), transparent 45%), radial-gradient(circle at bottom left, rgba(168,85,247,0.06), transparent 40%)",
-      backgroundColor: isDark ? "#0a0e1a" : "#f8fafc",
+        ? "radial-gradient(circle at top right, rgba(16,185,129,0.22), transparent 48%), radial-gradient(circle at bottom left, rgba(16,185,129,0.20), transparent 44%)"
+        : "radial-gradient(circle at top right, rgba(16,185,129,0.10), transparent 45%), radial-gradient(circle at bottom left, rgba(16,185,129,0.09), transparent 40%)",
+      backgroundColor: isDark ? "#0b1320" : "#dcfce7",
       scrollbarGutter: "stable both-edges",
       overscrollBehaviorY:
         !isDesktop && composerFocused ? "none" : "contain",
@@ -1081,7 +1081,7 @@ export default function ChatWindowPanel({
     <section
       ref={sectionRef}
       className={
-        "fixed inset-0 top-0 md:relative md:inset-auto md:top-auto flex h-full flex-1 flex-col overflow-hidden border-x border-slate-300/80 bg-white shadow-xl shadow-blue-500/10 dark:border-white/5 dark:bg-slate-900 md:border md:w-[65%] md:shadow-2xl md:shadow-blue-500/15 transition-transform duration-300 ease-out will-change-transform " +
+        "fixed inset-0 top-0 md:relative md:inset-auto md:top-auto flex h-full flex-1 flex-col overflow-hidden border-x border-slate-300/80 bg-white shadow-xl shadow-emerald-500/10 dark:border-white/5 dark:bg-slate-900 md:border md:w-[65%] md:shadow-2xl md:shadow-emerald-500/15 transition-transform duration-300 ease-out will-change-transform " +
         (mobileTab === "chat"
           ? "transform-none"
           : "translate-x-full md:transform-none")
@@ -1100,7 +1100,7 @@ export default function ChatWindowPanel({
         <>
           <div className="sticky top-0 z-30 shrink-0">
             <div
-              className="flex h-[72px] items-center justify-between gap-3 border-b border-slate-300/80 bg-white px-6 py-4 dark:border-blue-500/20 dark:bg-slate-900"
+              className="flex h-[72px] items-center justify-between gap-3 border-b border-slate-300/80 bg-white px-6 py-4 dark:border-emerald-500/20 dark:bg-slate-900"
               style={{
                 position: "relative",
               }}
@@ -1108,7 +1108,7 @@ export default function ChatWindowPanel({
             <button
               type="button"
               onClick={closeChat}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 bg-white/80 text-blue-700 transition hover:border-blue-300 hover:shadow-md dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200 md:invisible md:pointer-events-none"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-emerald-700 transition hover:border-emerald-300 hover:shadow-md dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 md:invisible md:pointer-events-none"
               aria-label="Back to chats"
             >
               <ArrowLeft size={18} />
@@ -1134,7 +1134,7 @@ export default function ChatWindowPanel({
                   <button
                     type="button"
                     onClick={onOpenHeaderProfile}
-                    className="min-w-0 max-w-[60vw] text-center text-lg font-semibold transition hover:text-blue-600 dark:hover:text-blue-300 sm:max-w-[40vw] md:max-w-[28vw]"
+                    className="min-w-0 max-w-[60vw] text-center text-lg font-semibold transition hover:text-emerald-600 dark:hover:text-emerald-300 sm:max-w-[40vw] md:max-w-[28vw]"
                     dir="auto"
                     style={{ unicodeBidi: "plaintext" }}
                     title={activeFallbackTitle}
@@ -1164,11 +1164,11 @@ export default function ChatWindowPanel({
                 {showStatus ? (
                   <p className="flex min-w-0 max-w-[70vw] items-center gap-2 text-xs text-slate-500 dark:text-slate-400 sm:max-w-[42vw] md:max-w-[30vw]">
                     {e2eeActive ? (
-                      <Lock size={11} className="shrink-0 text-blue-500" aria-label="End-to-end encrypted" />
+                      <Lock size={11} className="shrink-0 text-emerald-500" aria-label="End-to-end encrypted" />
                     ) : null}
                     {!isConnected ? (
                       <>
-                        <LoaderCircle className="h-4 w-4 animate-spin text-blue-500" />
+                        <LoaderCircle className="h-4 w-4 animate-spin text-emerald-500" />
                         Connecting...
                       </>
                     ) : isTypingActive ? (
@@ -1254,7 +1254,7 @@ export default function ChatWindowPanel({
                         <span
                           className={`h-2 w-2 rounded-full ${
                             peerStatusLabel === "online"
-                              ? "bg-green-400"
+                              ? "bg-emerald-400"
                               : "bg-slate-400"
                           }`}
                         />
@@ -1278,7 +1278,7 @@ export default function ChatWindowPanel({
               <button
                 type="button"
                 onClick={onStartCall}
-                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-blue-200 bg-white/80 text-[0px] text-blue-700 transition hover:border-blue-300 hover:bg-blue-50 hover:shadow-md dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-500/10"
+                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-[0px] text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
                 aria-label="Start voice call"
                 title="Voice call"
               >
@@ -1289,7 +1289,7 @@ export default function ChatWindowPanel({
               <button
                 type="button"
                 onClick={onStartVideoCall}
-                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-blue-200 bg-white/80 text-[0px] text-blue-700 transition hover:border-blue-300 hover:bg-blue-50 hover:shadow-md dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-500/10"
+                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-[0px] text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
                 aria-label="Start video call"
                 title="Video call"
               >
@@ -1330,7 +1330,7 @@ export default function ChatWindowPanel({
                       name={activeFallbackTitle}
                       color={activePeerColor}
                       initials={activePeerInitials}
-                      className="h-9 w-9 flex-shrink-0 transition group-hover:ring-2 group-hover:ring-blue-300"
+                      className="h-9 w-9 flex-shrink-0 transition group-hover:ring-2 group-hover:ring-emerald-300"
                     />
                   </ContextMenuSurface>
                 ) : (
@@ -1353,7 +1353,7 @@ export default function ChatWindowPanel({
                   as="button"
                   type="button"
                   onClick={onOpenHeaderProfile}
-                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition hover:ring-2 hover:ring-blue-300 ${hasPersian(activePeerInitials) ? "font-fa" : ""}`}
+                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition hover:ring-2 hover:ring-emerald-300 ${hasPersian(activePeerInitials) ? "font-fa" : ""}`}
                   style={getAvatarStyle(activePeerColor)}
                   contextMenu={headerPrimaryContextMenu}
                 >
@@ -1381,7 +1381,7 @@ export default function ChatWindowPanel({
                   <img
                     src={groupAvatarUrl}
                     alt={activeFallbackTitle}
-                    className="h-9 w-9 flex-shrink-0 rounded-full object-cover transition group-hover:ring-2 group-hover:ring-blue-300"
+                    className="h-9 w-9 flex-shrink-0 rounded-full object-cover transition group-hover:ring-2 group-hover:ring-emerald-300"
                   />
                 </ContextMenuSurface>
               ) : (
@@ -1401,7 +1401,7 @@ export default function ChatWindowPanel({
                   as="button"
                   type="button"
                   onClick={onOpenHeaderProfile}
-                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition hover:ring-2 hover:ring-blue-300 ${hasPersian(activePeerInitials) ? "font-fa" : ""}`}
+                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition hover:ring-2 hover:ring-emerald-300 ${hasPersian(activePeerInitials) ? "font-fa" : ""}`}
                   style={getAvatarStyle(activePeerColor)}
                   contextMenu={headerPrimaryContextMenu}
                 >
@@ -1462,7 +1462,7 @@ export default function ChatWindowPanel({
         <div className="w-full">
           <div
             ref={permissionBannerRef}
-            className="flex w-full flex-col gap-2 border-y border-blue-200/70 bg-blue-50/70 px-4 py-3 text-xs font-semibold text-blue-700 shadow-sm dark:border-blue-500/30 dark:bg-slate-900/70 dark:text-blue-200"
+            className="flex w-full flex-col gap-2 border-y border-emerald-200/70 bg-emerald-50/70 px-4 py-3 text-xs font-semibold text-emerald-700 shadow-sm dark:border-emerald-500/30 dark:bg-slate-900/70 dark:text-emerald-200"
           >
             {permissionsPrompt?.notification?.show &&
             permissionsPrompt?.mode === "notification" ? (
@@ -1477,7 +1477,7 @@ export default function ChatWindowPanel({
                   <button
                     type="button"
                     onClick={permissionsPrompt.notification.onRequest}
-                    className="inline-flex h-8 items-center rounded-full bg-blue-500 px-4 text-xs font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-400 hover:shadow-blue-500/40"
+                    className="inline-flex h-8 items-center rounded-full bg-emerald-500 px-4 text-xs font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400 hover:shadow-emerald-500/40"
                   >
                     Allow
                   </button>
@@ -1504,7 +1504,7 @@ export default function ChatWindowPanel({
                   <button
                     type="button"
                     onClick={permissionsPrompt.microphone.onRequest}
-                    className="inline-flex h-8 items-center rounded-full bg-blue-500 px-4 text-xs font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-400 hover:shadow-blue-500/40"
+                    className="inline-flex h-8 items-center rounded-full bg-emerald-500 px-4 text-xs font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400 hover:shadow-emerald-500/40"
                   >
                     Allow
                   </button>
@@ -1552,7 +1552,7 @@ export default function ChatWindowPanel({
                   floatingDay,
                 });
               }}
-              className="inline-flex items-center justify-center rounded-full border border-blue-200/60 bg-white/90 px-3 py-1 text-[11px] font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:shadow-md dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200"
+              className="inline-flex items-center justify-center rounded-full border border-emerald-200/60 bg-white/90 px-3 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:shadow-md dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200"
             >
               <span className="leading-none">{floatingDay.label}</span>
             </button>
@@ -1565,7 +1565,7 @@ export default function ChatWindowPanel({
             className="chat-scroll flex h-full items-center justify-center overflow-y-auto overflow-x-hidden px-6 py-6"
             style={chatScrollStyle}
           >
-            <div className="rounded-full border border-blue-200 bg-white/80 px-4 py-2 text-sm font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200">
+            <div className="rounded-full border border-emerald-200 bg-white/80 px-4 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200">
               Select a chat to start
             </div>
           </div>
@@ -1643,7 +1643,7 @@ export default function ChatWindowPanel({
           }}
           aria-hidden={!copyToastVisible}
         >
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-300/70 bg-blue-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-blue-500/30">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/70 bg-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-500/30">
             <Copy size={14} strokeWidth={2.4} className="icon-anim-pop" />
             Copied
           </div>
@@ -1652,7 +1652,7 @@ export default function ChatWindowPanel({
 
       {showChannelMuteFooter ? (
         <div
-          className="sticky bottom-0 z-30 flex min-h-[68px] shrink-0 items-center justify-center border-t border-slate-300/80 bg-white px-4 py-3 dark:border-blue-500/20 dark:bg-slate-900 sm:px-6 md:static md:mt-auto"
+          className="sticky bottom-0 z-30 flex min-h-[68px] shrink-0 items-center justify-center border-t border-slate-300/80 bg-white px-4 py-3 dark:border-emerald-500/20 dark:bg-slate-900 sm:px-6 md:static md:mt-auto"
           style={{
             bottom: isDesktop
               ? undefined
@@ -1665,7 +1665,7 @@ export default function ChatWindowPanel({
           <button
             type="button"
             onClick={() => onToggleChannelMute?.()}
-            className="inline-flex h-11 items-center rounded-2xl border border-blue-200 bg-white px-6 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50 hover:shadow-[0_0_14px_rgba(59,130,246,0.2)] dark:border-blue-500/30 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-blue-500/10"
+            className="inline-flex h-11 items-center rounded-2xl border border-emerald-200 bg-white px-6 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
           >
             {isChannelMuted ? "Unmute" : "Mute"}
           </button>
@@ -1676,7 +1676,7 @@ export default function ChatWindowPanel({
         <button
           type="button"
           onClick={onJumpToLatest}
-          className="absolute inline-flex h-11 w-11 items-center justify-center rounded-full border border-blue-200 bg-white text-blue-700 shadow-lg transition hover:border-blue-300 dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200"
+          className="absolute inline-flex h-11 w-11 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-700 shadow-lg transition hover:border-emerald-300 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200"
           style={{
             bottom: isDesktop
               ? `${jumpButtonBaseBottomPx}px`
@@ -1692,7 +1692,7 @@ export default function ChatWindowPanel({
             <ArrowDown size={18} className="icon-anim-bob" />
           </span>
           {unreadInChat > 0 ? (
-            <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-500 px-2 text-[10px] font-bold text-white">
+            <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-500 px-2 text-[10px] font-bold text-white">
               {unreadInChat > 999 ? "+999" : unreadInChat}
             </span>
           ) : null}

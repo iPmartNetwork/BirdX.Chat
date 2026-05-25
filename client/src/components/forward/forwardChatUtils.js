@@ -1,4 +1,4 @@
-﻿export function canForwardToChat(chat, currentUserId) {
+export function canForwardToChat(chat, currentUserId) {
   const type = String(chat?.type || "").toLowerCase();
   if (type !== "channel") return true;
   const members = Array.isArray(chat?.members) ? chat.members : [];
@@ -15,7 +15,7 @@ export function getForwardChatDisplay(chat, currentUsername) {
     return {
       title: "Saved messages",
       avatarUrl: "",
-      color: "#3b82f6",
+      color: "#10b981",
       kind: "saved",
       initials: "S",
     };
@@ -27,7 +27,7 @@ export function getForwardChatDisplay(chat, currentUsername) {
     return {
       title,
       avatarUrl: String(chat?.group_avatar_url || "").trim(),
-      color: String(chat?.group_color || "#3b82f6"),
+      color: String(chat?.group_color || "#10b981"),
       kind: type,
       initials: title,
     };

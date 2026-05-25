@@ -1,4 +1,4 @@
-﻿import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LoaderCircle, Moon, Sun, Users, LogIn } from "../icons/lucide.js";
 import { getGroupInviteInfo, joinGroupByInvite } from "../api/chatApi.js";
 import { getAvatarStyle } from "../utils/avatarColor.js";
@@ -166,12 +166,12 @@ export default function InvitePage({
   return (
     <section
       ref={cardRef}
-      className={`relative w-full max-w-md rounded-3xl border border-blue-200/70 bg-white/80 p-6 shadow-2xl shadow-blue-500/10 backdrop-blur dark:border-white/5 dark:bg-slate-900/80 sm:p-8 ${
+      className={`relative w-full max-w-md rounded-3xl border border-emerald-200/70 bg-white/80 p-6 shadow-2xl shadow-emerald-500/10 backdrop-blur dark:border-white/5 dark:bg-slate-900/80 sm:p-8 ${
         fitsViewport ? "my-auto self-center" : "my-0 self-start"
       }`}
     >
       <div className="relative text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-blue-600 dark:text-blue-300 sm:text-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-300 sm:text-sm">
           {groupType} Invite
         </p>
         <h1 className="mt-2 text-2xl font-bold sm:mt-3 sm:text-3xl">
@@ -180,7 +180,7 @@ export default function InvitePage({
         <button
           type="button"
           onClick={onToggleTheme}
-          className="absolute right-0 top-0 flex h-8 w-8 items-center justify-center rounded-full border border-blue-200 bg-white/80 text-blue-700 transition dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200 sm:h-10 sm:w-10"
+          className="absolute right-0 top-0 flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-emerald-700 transition dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 sm:h-10 sm:w-10"
           aria-label="Toggle dark mode"
         >
           {isDark ? (
@@ -194,7 +194,7 @@ export default function InvitePage({
       <div className="mt-4 sm:mt-6">
         {loading ? (
           <div className="flex items-center justify-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-            <LoaderCircle className="h-5 w-5 animate-spin text-blue-500" />
+            <LoaderCircle className="h-5 w-5 animate-spin text-emerald-500" />
             Checking invite link...
           </div>
         ) : error ? (
@@ -205,14 +205,14 @@ export default function InvitePage({
             <button
               type="button"
               onClick={onNavigateChat}
-              className="mt-4 w-full rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50 hover:shadow-[0_0_14px_rgba(59,130,246,0.2)] dark:border-blue-500/30 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-blue-500/10"
+              className="mt-4 w-full rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
             >
               Back to chats
             </button>
           </>
         ) : (
           <>
-            <div className="rounded-2xl border border-blue-200/80 bg-blue-50/60 p-4 text-center dark:border-blue-500/30 dark:bg-blue-500/10">
+            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/60 p-4 text-center dark:border-emerald-500/30 dark:bg-emerald-500/10">
               {groupAvatarUrl ? (
                 <img
                   src={groupAvatarUrl}
@@ -222,14 +222,14 @@ export default function InvitePage({
               ) : (
                 <div
                   className={`mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold ${hasPersian(groupInitials) ? "font-fa" : ""}`}
-                  style={getAvatarStyle(group?.color || "#3b82f6")}
+                  style={getAvatarStyle(group?.color || "#10b981")}
                 >
                   {groupInitials}
                 </div>
               )}
               <p className="w-full text-center">
                 <span
-                  className={`mx-auto block w-fit max-w-full truncate text-base font-semibold text-blue-800 dark:text-blue-200 ${
+                  className={`mx-auto block w-fit max-w-full truncate text-base font-semibold text-emerald-800 dark:text-emerald-200 ${
                     groupNameHasPersian ? "font-fa text-right" : "text-center"
                   }`}
                   dir="auto"
@@ -272,7 +272,7 @@ export default function InvitePage({
                   type="button"
                   onClick={handleJoin}
                   disabled={joining}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:opacity-70"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-70"
                 >
                   {joining ? (
                     <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -287,7 +287,7 @@ export default function InvitePage({
                 <button
                   type="button"
                   onClick={handleOpenChats}
-                  className="rounded-xl bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-400"
+                  className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400"
                 >
                   Open chats
                 </button>

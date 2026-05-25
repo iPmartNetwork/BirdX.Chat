@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, Close } from "../../icons/lucide.js";
 import { copyTextToClipboard } from "../../utils/clipboard.js";
@@ -231,14 +231,14 @@ export default function WhatsNewModal({
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="flex max-h-[min(88vh,52rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] border border-blue-100/70 bg-white shadow-2xl outline-none dark:border-blue-500/30 dark:bg-slate-950"
+        className="flex max-h-[min(88vh,52rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] border border-emerald-100/70 bg-white shadow-2xl outline-none dark:border-emerald-500/30 dark:bg-slate-950"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-blue-100/70 px-6 py-5 dark:border-blue-500/20">
+        <div className="flex items-start justify-between gap-4 border-b border-emerald-100/70 px-6 py-5 dark:border-emerald-500/20">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.28em] text-blue-500/80">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-emerald-500/80">
               What's New
             </p>
-            <h3 className="mt-2 text-2xl font-bold text-blue-700 dark:text-blue-200">
+            <h3 className="mt-2 text-2xl font-bold text-emerald-700 dark:text-emerald-200">
               BirdX {activeSection?.heading || version || ""}
             </h3>
           </div>
@@ -268,14 +268,14 @@ export default function WhatsNewModal({
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-4 border-t border-blue-100/70 px-6 py-4 dark:border-blue-500/20">
+        <div className="flex items-center justify-between gap-4 border-t border-emerald-100/70 px-6 py-4 dark:border-emerald-500/20">
           {sections.length > 1 ? (
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
                 disabled={pageIndex === 0}
-                className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-blue-200 bg-white text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-500/10"
+                className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
                 aria-label="Show previous changelog version"
               >
                 <ArrowLeft size={18} />
@@ -291,7 +291,7 @@ export default function WhatsNewModal({
                   )
                 }
                 disabled={pageIndex >= sections.length - 1}
-                className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-blue-200 bg-white text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-blue-500/30 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-500/10"
+                className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
                 aria-label="Show next changelog version"
               >
                 <ArrowRight size={18} />
@@ -303,7 +303,7 @@ export default function WhatsNewModal({
           <button
             type="button"
             onClick={() => onClose?.()}
-            className="rounded-full bg-blue-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-400"
+            className="rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
           >
             Got it!
           </button>

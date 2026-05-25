@@ -1,4 +1,4 @@
-﻿import { Check, Bookmark, Megaphone, Users } from "../../icons/lucide.js";
+import { Check, Bookmark, Megaphone, Users } from "../../icons/lucide.js";
 import { getAvatarInitials } from "../../utils/avatarInitials.js";
 import { hasPersian } from "../../utils/fontUtils.js";
 import Avatar from "../common/Avatar.jsx";
@@ -10,10 +10,10 @@ function ForwardChatGlyph({ kind }) {
 
 function ForwardChatKindIcon({ kind }) {
   if (kind === "channel") {
-    return <Megaphone size={13} className="shrink-0 text-blue-500" />;
+    return <Megaphone size={13} className="shrink-0 text-emerald-500" />;
   }
   if (kind === "group") {
-    return <Users size={13} className="shrink-0 text-blue-500" />;
+    return <Users size={13} className="shrink-0 text-emerald-500" />;
   }
   return null;
 }
@@ -39,7 +39,7 @@ export default function ForwardChatGridItem({
       <span
         className={`relative flex h-[4.15rem] w-[4.15rem] items-center justify-center rounded-full border-[4px] transition ${
           selected
-            ? "border-blue-500 bg-blue-500/8"
+            ? "border-emerald-500 bg-emerald-500/8"
             : "border-transparent bg-transparent p-0"
         }`}
       >
@@ -50,7 +50,7 @@ export default function ForwardChatGridItem({
             src={avatarUrl}
             alt={title}
             name={title}
-            color={color || "#3b82f6"}
+            color={color || "#10b981"}
             initials={initials}
             placeholderContent={
               kind === "saved" ? <ForwardChatGlyph kind={kind} /> : initials
@@ -60,7 +60,7 @@ export default function ForwardChatGridItem({
           />
         </span>
         {selected ? (
-          <span className="absolute bottom-0 right-0 inline-flex h-[1.2rem] w-[1.2rem] items-center justify-center rounded-full bg-blue-500 text-white shadow-lg shadow-blue-500/30">
+          <span className="absolute bottom-0 right-0 inline-flex h-[1.2rem] w-[1.2rem] items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/30">
             <Check size={11} strokeWidth={3.25} />
           </span>
         ) : null}

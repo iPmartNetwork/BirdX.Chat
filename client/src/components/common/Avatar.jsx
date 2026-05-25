@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getAvatarStyle } from "../../utils/avatarColor.js";
 import { getAvatarInitials } from "../../utils/avatarInitials.js";
 import { hasPersian } from "../../utils/fontUtils.js";
@@ -7,7 +7,7 @@ export default function Avatar({
   src,
   alt,
   name,
-  color = "#3b82f6",
+  color = "#10b981",
   initials = null,
   placeholderContent = null,
   className = "",

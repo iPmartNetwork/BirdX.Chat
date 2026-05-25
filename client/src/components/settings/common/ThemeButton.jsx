@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Moon, Sun } from "../../../icons/lucide.js";
 import { useLanguage } from "../../../i18n/LanguageContext.jsx";
 
@@ -32,7 +32,7 @@ export function ThemeButton({ isDark, toggleTheme, setIsDark, thick = false }) {
           setThemeToggleAnimating(false);
         }, 520);
       }}
-      className={`mt-1 flex w-full items-center gap-2 rounded-xl border border-transparent px-3 text-start text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 hover:shadow-[0_0_18px_rgba(59,130,246,0.22)] dark:text-blue-200 dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10 ${
+      className={`mt-1 flex w-full items-center gap-2 rounded-xl border border-transparent px-3 text-start text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-emerald-200 dark:hover:border-emerald-500/30 dark:hover:bg-emerald-500/10 ${
         thick ? "py-3 text-base font-medium" : "py-2 text-sm"
       }`}
     >

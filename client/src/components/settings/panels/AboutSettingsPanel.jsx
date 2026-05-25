@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   Check,
@@ -22,10 +22,10 @@ function WalletRow({ label, address, copyLabel, copiedLabel }) {
   const [copied, setCopied] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-blue-200/70 bg-white/90 p-3 dark:border-blue-500/30 dark:bg-slate-900/50">
+    <div className="rounded-2xl border border-emerald-200/70 bg-white/90 p-3 dark:border-emerald-500/30 dark:bg-slate-900/50">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600 dark:text-blue-300">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-300">
             {label}
           </p>
           <code className="mt-2 block break-all text-xs text-slate-700 dark:text-slate-200">
@@ -40,7 +40,7 @@ function WalletRow({ label, address, copyLabel, copiedLabel }) {
             setCopied(true);
             window.setTimeout(() => setCopied(false), 1400);
           }}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50 hover:shadow-[0_0_14px_rgba(59,130,246,0.2)] dark:border-blue-500/30 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-blue-500/10"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
           aria-label={`Copy ${label} wallet`}
         >
           <Copy size={12} className="icon-anim-pop" />
@@ -74,7 +74,7 @@ export function AboutSettingsPanel({
   const ownerLabel = ABOUT_CONTENT.copyright?.ownerLabel || "iPmartNetwork";
   const year = new Date().getFullYear();
   const rowBase =
-    "flex w-full items-center justify-between gap-3 rounded-2xl border border-blue-200/70 bg-white/90 px-4 py-3 text-start text-sm font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-slate-900/50 dark:text-blue-200";
+    "flex w-full items-center justify-between gap-3 rounded-2xl border border-emerald-200/70 bg-white/90 px-4 py-3 text-start text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-slate-900/50 dark:text-emerald-200";
   const actionButtonBase =
     "inline-flex h-7 min-w-[58px] items-center justify-center gap-1 rounded-full px-3 py-1 text-xs font-semibold leading-none transition";
 
@@ -104,7 +104,7 @@ export function AboutSettingsPanel({
     if (checkState.status === "checking") {
       return {
         className:
-          "cursor-wait border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-blue-700 hover:border-blue-300 hover:bg-blue-50 hover:shadow-[0_0_14px_rgba(59,130,246,0.2)] dark:border-blue-500/30 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-blue-500/10",
+          "cursor-wait border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10",
         label: t("settings.about.checking"),
         icon: <LoaderCircle size={12} className="animate-spin" />,
       };
@@ -128,13 +128,13 @@ export function AboutSettingsPanel({
     if (checkState.status === "up-to-date") {
       return {
         className:
-          "border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200",
+          "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
         label: t("settings.about.upToDate"),
         icon: <Check size={13} />,
       };
     }
     return {
-      className: "bg-blue-500 text-white hover:bg-blue-400",
+      className: "bg-emerald-500 text-white hover:bg-emerald-400",
       label: t("settings.about.check"),
       icon: <Refresh size={13} />,
     };
@@ -202,8 +202,8 @@ export function AboutSettingsPanel({
           </button>
         </div>
 
-        <div className="rounded-2xl border border-blue-200/70 bg-white/90 p-4 dark:border-blue-500/30 dark:bg-slate-900/50">
-          <p className="text-sm font-semibold text-blue-700 dark:text-blue-200">
+        <div className="rounded-2xl border border-emerald-200/70 bg-white/90 p-4 dark:border-emerald-500/30 dark:bg-slate-900/50">
+          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
             {t("settings.about.supportProject")}
           </p>
           <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
@@ -222,7 +222,7 @@ export function AboutSettingsPanel({
           </div>
         </div>
 
-        <div className="border-t border-blue-100/80 pt-4 dark:border-blue-500/20">
+        <div className="border-t border-emerald-100/80 pt-4 dark:border-emerald-500/20">
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             {ABOUT_CONTENT.socials.map((item) => {
               const Icon = SOCIAL_ICONS[item.icon];
@@ -234,9 +234,9 @@ export function AboutSettingsPanel({
                   rel="noreferrer"
                   aria-label={item.icon}
                   title={item.icon}
-                  className="group inline-flex items-center justify-center p-1 text-slate-500 transition hover:text-blue-700 dark:text-slate-400 dark:hover:text-blue-200"
+                  className="group inline-flex items-center justify-center p-1 text-slate-500 transition hover:text-emerald-700 dark:text-slate-400 dark:hover:text-emerald-200"
                 >
-                  <span className="inline-flex items-center justify-center text-slate-600 transition group-hover:text-blue-700 dark:text-slate-300 dark:group-hover:text-blue-200">
+                  <span className="inline-flex items-center justify-center text-slate-600 transition group-hover:text-emerald-700 dark:text-slate-300 dark:group-hover:text-emerald-200">
                     {Icon ? <Icon size={24} /> : null}
                   </span>
                 </a>
@@ -250,7 +250,7 @@ export function AboutSettingsPanel({
               href={ownerHref}
               target="_blank"
               rel="noreferrer"
-              className="font-semibold text-slate-600 underline-offset-4 transition hover:text-blue-700 hover:underline dark:text-slate-300 dark:hover:text-blue-200"
+              className="font-semibold text-slate-600 underline-offset-4 transition hover:text-emerald-700 hover:underline dark:text-slate-300 dark:hover:text-emerald-200"
             >
               {ownerLabel}
             </a>
@@ -269,7 +269,7 @@ export function AboutSettingsPanel({
           <button
             type="button"
             onClick={() => onDone?.()}
-            className="rounded-full bg-blue-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-400"
+            className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-400"
           >
             {t("settings.done")}
           </button>
