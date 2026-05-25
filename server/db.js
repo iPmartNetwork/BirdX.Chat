@@ -2362,7 +2362,9 @@ export function getSession(token) {
   return getRow(
     `
     SELECT sessions.id AS session_id, sessions.token, users.id, users.username, users.nickname,
-           users.avatar_url, users.color, users.status, users.banned, ${USER_ROLE_QUALIFIED_SELECT_SQL}
+           users.avatar_url, users.color, users.status, users.banned,
+           users.file_upload_disabled, users.file_upload_max_size_bytes,
+           ${USER_ROLE_QUALIFIED_SELECT_SQL}
     FROM sessions
     JOIN users ON users.id = sessions.user_id
     WHERE sessions.token = ?

@@ -1,4 +1,4 @@
-import {
+﻿import {
   Component,
   Suspense,
   lazy,
@@ -3062,6 +3062,8 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     }, 280);
   };
 
+  const effectiveMaxFileSize = user?.fileUploadMaxSizeBytes || effectiveMaxFileSize;
+
   const fileUploadInProgress = useMemo(
     () =>
       messages.some(
@@ -5798,10 +5800,10 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     }
     const file = payload.file;
     const sizeBytes = Number(file.size || 0);
-    if (sizeBytes > CHAT_PAGE_CONFIG.maxFileSizeBytes) {
+    if (sizeBytes > effectiveMaxFileSize) {
       setUploadError(
         `Each file must be smaller than ${formatBytesAsMb(
-          CHAT_PAGE_CONFIG.maxFileSizeBytes,
+          effectiveMaxFileSize,
         )}.`,
       );
       return;
@@ -6047,12 +6049,12 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       return;
     }
     const oversize = incoming.find(
-      (file) => Number(file.size || 0) > CHAT_PAGE_CONFIG.maxFileSizeBytes,
+      (file) => Number(file.size || 0) > effectiveMaxFileSize,
     );
     if (oversize) {
       setUploadError(
         `Each file must be smaller than ${formatBytesAsMb(
-          CHAT_PAGE_CONFIG.maxFileSizeBytes,
+          effectiveMaxFileSize,
         )}.`,
       );
       return;
@@ -6482,10 +6484,10 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       event.target.value = "";
       return;
     }
-    if (Number(file.size || 0) > CHAT_PAGE_CONFIG.maxFileSizeBytes) {
+    if (Number(file.size || 0) > effectiveMaxFileSize) {
       setProfileError(
         `Profile photo must be smaller than ${formatBytesAsMb(
-          CHAT_PAGE_CONFIG.maxFileSizeBytes,
+          effectiveMaxFileSize,
         )}.`,
       );
       event.target.value = "";
@@ -7046,10 +7048,10 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       event.target.value = "";
       return;
     }
-    if (Number(file.size || 0) > CHAT_PAGE_CONFIG.maxFileSizeBytes) {
+    if (Number(file.size || 0) > effectiveMaxFileSize) {
       setNewGroupError(
         `Group avatar must be smaller than ${formatBytesAsMb(
-          CHAT_PAGE_CONFIG.maxFileSizeBytes,
+          effectiveMaxFileSize,
         )}.`,
       );
       event.target.value = "";

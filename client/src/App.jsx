@@ -192,6 +192,7 @@ export default function App() {
       status: data.status || 'online',
       role: data.role || 'user',
       isAdmin: Boolean(data.isAdmin),
+      fileUploadMaxSizeBytes: Number(data.fileUploadMaxSizeBytes || 0) || null,
     }
   }
 

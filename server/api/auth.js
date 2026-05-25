@@ -208,6 +208,7 @@ function registerAuthRoutes(app, deps) {
       color: session.color || USER_COLORS[0],
       status: session.status || "online",
       role: session.role || "user",
+      fileUploadMaxSizeBytes: Number(session.file_upload_max_size_bytes || 0) || null,
       isAdmin:
         ["owner", "admin", "moderator", "support"].includes(
           String(session.role || "").toLowerCase(),
