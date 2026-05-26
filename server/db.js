@@ -1692,6 +1692,15 @@ export function createMessage(
     ],
   );
 
+  // Use a reliable query instead of last_insert_rowid() which can be affected by concurrent inserts
+  const row = getRow(
+    `SELECT id FROM chat_messages
+     WHERE chat_id = ? AND user_id = ? AND body = ?
+     ORDER BY id DESC LIMIT 1`,
+    [chatId, userId, storedBody],
+  );
+  if (row?.id) return row.id;
+
   const id = getLastInsertId();
   if (id) return id;
 
