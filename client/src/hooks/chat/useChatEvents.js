@@ -271,6 +271,8 @@ export function useChatEvents({
                   return { ...msg, reactions: payload.reactions };
                 }),
               );
+              // Don't reload messages for reaction-only updates
+              return;
             }
           }
           scheduleMessageRefreshRef.current?.(currentActiveId, {
