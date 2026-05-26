@@ -7455,9 +7455,6 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       }
       const nextReactions = Array.isArray(data?.reactions) ? data.reactions : [];
       applyReactionsToMessage(nextReactions);
-      scheduleMessageRefresh(activeChatIdRef.current || activeChatId, {
-        preserveHistory: true,
-      });
     } catch (error) {
       console.warn("Message reaction failed:", error);
       scheduleMessageRefresh(activeChatIdRef.current || activeChatId, {
