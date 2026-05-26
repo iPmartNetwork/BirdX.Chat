@@ -7402,11 +7402,9 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     const messageId = Number(message?._serverId || message?.id || 0);
     const normalizedReaction = String(reaction || "").trim();
     if (!messageId || !normalizedReaction) return;
-    console.log("[BirdX] handleReactMessage called:", messageId, normalizedReaction);
 
     const applyReactionsToMessage = (nextReactions) => {
       const normalizedReactions = Array.isArray(nextReactions) ? nextReactions : [];
-      console.log("[BirdX] applyReactionsToMessage:", messageId, normalizedReactions);
       setMessages((prev) =>
         prev.map((item) => {
           const itemId = Number(item?._serverId || item?.id || 0);
@@ -7454,12 +7452,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         throw new Error(data?.error || "Unable to react to message.");
       }
       const nextReactions = Array.isArray(data?.reactions) ? data.reactions : [];
-      applyReactionsToMessage(nextReactions);
+      if (nextReactions.length || data?.added === false) {
+        applyReactionsToMessage(nextReactions);
+      }
     } catch (error) {
       console.warn("Message reaction failed:", error);
-      scheduleMessageRefresh(activeChatIdRef.current || activeChatId, {
-        preserveHistory: true,
-      });
     }
   }
 
