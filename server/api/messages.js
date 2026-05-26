@@ -1254,7 +1254,7 @@ function registerMessageRoutes(app, deps) {
       if (!session) return;
 
       const userId = session.id || session.userId || session.user_id;
-      const { messageId, reaction } = req.body || {};
+      const { messageId, reaction, chatId: requestChatId } = req.body || {};
       const numericMessageId = Number(messageId || 0);
       const normalizedReaction = String(reaction || "").trim();
 
@@ -1262,7 +1262,17 @@ function registerMessageRoutes(app, deps) {
         return res.status(400).json({ error: "Invalid data" });
       }
 
-      const message = findMessageById(numericMessageId);
+      let message = findMessageById(numericMessageId);
+      // Fallback: try to find the message in the specified chat (handles ID mismatch from concurrent inserts)
+      if (!message && requestChatId) {
+        const fallbackMsg = deps.adminGetRow?.(
+          "SELECT id, chat_id, user_id FROM chat_messages WHERE chat_id = ? ORDER BY id DESC LIMIT 1",
+          [Number(requestChatId)],
+        );
+        if (fallbackMsg?.id) {
+          message = fallbackMsg;
+        }
+      }
       if (!message) {
         return res.status(404).json({ error: "Message not found" });
       }
@@ -1271,8 +1281,9 @@ function registerMessageRoutes(app, deps) {
         return res.status(403).json({ error: "Not a member of this chat." });
       }
 
-      const result = toggleMessageReaction(numericMessageId, userId, normalizedReaction);
-      const reactions = getMessageReactions([numericMessageId]).map((row) => ({
+      const actualMessageId = Number(message.id);
+      const result = toggleMessageReaction(actualMessageId, userId, normalizedReaction);
+      const reactions = getMessageReactions([actualMessageId]).map((row) => ({
         reaction: row.reaction,
         count: Number(row.count || 0),
       }));

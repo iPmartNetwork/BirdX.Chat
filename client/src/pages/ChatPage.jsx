@@ -7446,6 +7446,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       const res = await toggleMessageReaction({
         messageId,
         reaction: normalizedReaction,
+        chatId: activeChatIdRef.current || activeChatId,
       });
       const data = await res.json();
       if (!res.ok) {
