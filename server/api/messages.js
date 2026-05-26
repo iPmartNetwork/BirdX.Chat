@@ -352,6 +352,19 @@ function registerMessageRoutes(app, deps) {
       hasMore,
     });
 
+    // Hydrate reactions
+    const allReactions = getMessageReactions(messageIds);
+    const reactionsByMessageId = allReactions.reduce((acc, row) => {
+      const id = Number(row.message_id || 0);
+      if (!id) return acc;
+      if (!acc[id]) acc[id] = [];
+      acc[id].push({ reaction: row.reaction, count: Number(row.count || 0) });
+      return acc;
+    }, {});
+    enriched.forEach((msg) => {
+      msg.reactions = reactionsByMessageId[Number(msg.id)] || [];
+    });
+
     res.json({ chatId, messages: enriched, hasMore, totalCount });
   });
 
