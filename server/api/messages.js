@@ -1235,53 +1235,53 @@ function registerMessageRoutes(app, deps) {
   return res.json({ ok: true });
 });
 
-app.post("/api/messages/react", (req, res) => {
-  try {
-    const session = requireSession(req, res);
-    if (!session) return;
+  app.post("/api/messages/react", (req, res) => {
+    try {
+      const session = requireSession(req, res);
+      if (!session) return;
 
-    const userId = session.id || session.userId || session.user_id;
-    const { messageId, reaction } = req.body || {};
-    const numericMessageId = Number(messageId || 0);
-    const normalizedReaction = String(reaction || "").trim();
+      const userId = session.id || session.userId || session.user_id;
+      const { messageId, reaction } = req.body || {};
+      const numericMessageId = Number(messageId || 0);
+      const normalizedReaction = String(reaction || "").trim();
 
-    if (!userId || !numericMessageId || !normalizedReaction) {
-      return res.status(400).json({ error: "Invalid data" });
+      if (!userId || !numericMessageId || !normalizedReaction) {
+        return res.status(400).json({ error: "Invalid data" });
+      }
+
+      const message = findMessageById(numericMessageId);
+      if (!message) {
+        return res.status(404).json({ error: "Message not found" });
+      }
+      const chatId = Number(message.chat_id || 0);
+      if (!chatId || !isMember(chatId, userId)) {
+        return res.status(403).json({ error: "Not a member of this chat." });
+      }
+
+      const result = toggleMessageReaction(numericMessageId, userId, normalizedReaction);
+      const reactions = getMessageReactions([numericMessageId]).map((row) => ({
+        reaction: row.reaction,
+        count: Number(row.count || 0),
+      }));
+
+      emitChatEvent(chatId, {
+        type: "chat_message_updated",
+        chatId,
+        messageId: numericMessageId,
+        username: session.username || "",
+        reactions,
+      });
+
+      return res.json({
+        ...result,
+        messageId: numericMessageId,
+        reactions,
+      });
+    } catch (e) {
+      console.error("reaction failed:", e);
+      return res.status(500).json({ error: "reaction failed" });
     }
-
-    const message = findMessageById(numericMessageId);
-    if (!message) {
-      return res.status(404).json({ error: "Message not found" });
-    }
-    const chatId = Number(message.chat_id || 0);
-    if (!chatId || !isMember(chatId, userId)) {
-      return res.status(403).json({ error: "Not a member of this chat." });
-    }
-
-    const result = toggleMessageReaction(numericMessageId, userId, normalizedReaction);
-    const reactions = getMessageReactions([numericMessageId]).map((row) => ({
-      reaction: row.reaction,
-      count: Number(row.count || 0),
-    }));
-
-    emitChatEvent(chatId, {
-      type: "chat_message_updated",
-      chatId,
-      messageId: numericMessageId,
-      username: session.username || "",
-      reactions,
-    });
-
-    return res.json({
-      ...result,
-      messageId: numericMessageId,
-      reactions,
-    });
-  } catch (e) {
-    console.error("reaction failed:", e);
-    return res.status(500).json({ error: "reaction failed" });
-  }
-});
+  });
 
   app.post("/api/messages/forward", async (req, res) => {
     const session = requireSession(req, res);
