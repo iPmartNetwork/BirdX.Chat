@@ -4,6 +4,7 @@ import AuthFormFields from "../components/auth/AuthFormFields.jsx";
 import AuthHeader from "../components/auth/AuthHeader.jsx";
 import AuthOverlay from "../components/auth/AuthOverlay.jsx";
 import AuthStatusBanner from "../components/auth/AuthStatusBanner.jsx";
+import { useLanguage } from "../i18n/LanguageContext.jsx";
 
 export default function AuthPage({
   mode,
