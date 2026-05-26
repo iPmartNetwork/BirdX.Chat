@@ -7446,18 +7446,18 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       const res = await toggleMessageReaction({
         messageId,
         reaction: normalizedReaction,
-        chatId: activeChatIdRef.current || activeChatId,
       });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.error || "Unable to react to message.");
       }
       const nextReactions = Array.isArray(data?.reactions) ? data.reactions : [];
-      if (nextReactions.length || data?.added === false) {
-        applyReactionsToMessage(nextReactions);
-      }
+      applyReactionsToMessage(nextReactions);
     } catch (error) {
       console.warn("Message reaction failed:", error);
+      scheduleMessageRefresh(activeChatIdRef.current || activeChatId, {
+        preserveHistory: true,
+      });
     }
   }
 

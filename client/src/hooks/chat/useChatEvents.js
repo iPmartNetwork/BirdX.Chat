@@ -271,7 +271,7 @@ export function useChatEvents({
                   return { ...msg, reactions: payload.reactions };
                 }),
               );
-              // Don't reload messages for reaction-only updates
+              // Reactions are already updated in-place, no need for a full refresh
               return;
             }
           }

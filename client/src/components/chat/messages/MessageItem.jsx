@@ -98,6 +98,13 @@ const getSystemEventSignature = (systemEvent) => {
   ].join("::");
 };
 
+const getReactionsSignature = (reactions) => {
+  if (!Array.isArray(reactions) || !reactions.length) return "";
+  return reactions
+    .map((r) => `${r?.reaction || ""}:${Number(r?.count || 0)}`)
+    .join("|");
+};
+
 const getMessageRenderSignature = (msg) => {
   if (!msg) return "";
   return [
@@ -130,6 +137,7 @@ const getMessageRenderSignature = (msg) => {
     getSystemEventSignature(msg?._systemEvent),
     getFileSignature(msg?.files),
     getFileSignature(msg?._files),
+    getReactionsSignature(msg?.reactions),
   ].join("~~");
 };
 
