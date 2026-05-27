@@ -68,7 +68,8 @@ export const parseServerDate = (value) => {
     const normalized = value.includes("T") ? value : value.replace(" ", "T");
     const hasExplicitTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized);
     if (hasExplicitTimezone) return new Date(normalized);
-    return parseAppTimeZoneDate(normalized) || new Date(normalized);
+    // Server stores timestamps in UTC (SQLite datetime('now')), treat as UTC
+    return new Date(normalized + "Z");
   }
   return new Date(value);
 };
