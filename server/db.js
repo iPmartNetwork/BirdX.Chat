@@ -10,6 +10,7 @@ import {
   ensureStorageEncryptionKey,
   storageEncryption,
 } from "./lib/storageEncryption.js";
+import { resolveDatabasePath } from "./lib/dataPaths.js";
 
 const serverDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRootDir = path.resolve(serverDir, "..");
@@ -17,7 +18,7 @@ dotenv.config({ path: path.join(projectRootDir, ".env") });
 dotenv.config({ path: path.join(serverDir, ".env"), override: true });
 ensureStorageEncryptionKey({ projectRootDir, fsImpl: fs, pathImpl: path, cryptoImpl: crypto });
 const dataDir = path.resolve(serverDir, "..", "data");
-const dbPath = path.join(dataDir, "songbird.db");
+const dbPath = resolveDatabasePath(dataDir, fs);
 
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -285,6 +286,203 @@ export function searchUsers(query, excludeUsername) {
     `SELECT id, username, nickname, avatar_url, color, status, banned, ${USER_ROLE_SELECT_SQL} FROM users WHERE username LIKE ? OR nickname LIKE ? ORDER BY username`,
     [like, like],
   );
+}
+
+const HAS_DM_POLICY_COLUMN = hasColumn("users", "dm_policy");
+const HAS_DM_STATUS_COLUMN = hasColumn("chats", "dm_status");
+const DM_POLICY_SELECT_SQL = HAS_DM_POLICY_COLUMN ? "dm_policy" : "'acquaintances' AS dm_policy";
+const DM_CHAT_SELECT_SQL = HAS_DM_STATUS_COLUMN
+  ? "dm_status, dm_initiator_user_id, dm_resolved_at"
+  : "'active' AS dm_status, NULL AS dm_initiator_user_id, NULL AS dm_resolved_at";
+
+export function findUserByExactUsername(username) {
+  const normalized = String(username || "").trim().toLowerCase();
+  if (!normalized) return null;
+  return getRow(
+    `SELECT id, username, nickname, avatar_url, color, status, banned, ${DM_POLICY_SELECT_SQL}, ${USER_ROLE_SELECT_SQL}
+     FROM users WHERE lower(username) = ?`,
+    [normalized],
+  );
+}
+
+export function usersShareNonDmChat(userIdA, userIdB) {
+  const a = Number(userIdA);
+  const b = Number(userIdB);
+  if (!a || !b || a === b) return false;
+  return Boolean(
+    getRow(
+      `
+      SELECT 1 AS shared
+      FROM chat_members m1
+      JOIN chat_members m2 ON m2.chat_id = m1.chat_id
+      JOIN chats c ON c.id = m1.chat_id
+      WHERE m1.user_id = ?
+        AND m2.user_id = ?
+        AND c.type IN ('group', 'channel')
+      LIMIT 1
+    `,
+      [a, b],
+    ),
+  );
+}
+
+export function updateUserDmPolicy(userId, policy) {
+  if (!HAS_DM_POLICY_COLUMN) return;
+  run("UPDATE users SET dm_policy = ? WHERE id = ?", [
+    String(policy || "acquaintances"),
+    Number(userId),
+  ]);
+}
+
+export function blockUser(blockerUserId, blockedUserId) {
+  run(
+    "INSERT OR IGNORE INTO user_blocks (blocker_user_id, blocked_user_id) VALUES (?, ?)",
+    [Number(blockerUserId), Number(blockedUserId)],
+  );
+}
+
+export function unblockUser(blockerUserId, blockedUserId) {
+  run("DELETE FROM user_blocks WHERE blocker_user_id = ? AND blocked_user_id = ?", [
+    Number(blockerUserId),
+    Number(blockedUserId),
+  ]);
+}
+
+export function isBlockedBetween(userIdA, userIdB) {
+  const a = Number(userIdA);
+  const b = Number(userIdB);
+  if (!a || !b) return false;
+  return Boolean(
+    getRow(
+      `
+      SELECT 1 AS blocked
+      FROM user_blocks
+      WHERE (blocker_user_id = ? AND blocked_user_id = ?)
+         OR (blocker_user_id = ? AND blocked_user_id = ?)
+      LIMIT 1
+    `,
+      [a, b, b, a],
+    ),
+  );
+}
+
+export function setChatDmState(chatId, { status, initiatorUserId, resolvedAt = null }) {
+  if (!HAS_DM_STATUS_COLUMN) return;
+  run(
+    `UPDATE chats
+     SET dm_status = ?, dm_initiator_user_id = ?, dm_resolved_at = ?
+     WHERE id = ? AND type = 'dm'`,
+    [
+      String(status || "active"),
+      initiatorUserId ? Number(initiatorUserId) : null,
+      resolvedAt,
+      Number(chatId),
+    ],
+  );
+}
+
+export function getDmChatRow(chatId) {
+  return getRow(
+    `SELECT id, name, type, ${DM_CHAT_SELECT_SQL} FROM chats WHERE id = ?`,
+    [Number(chatId)],
+  );
+}
+
+export function countNonSystemMessagesInChat(chatId) {
+  const row = getRow(
+    `
+    SELECT COUNT(*) AS total
+    FROM chat_messages
+    WHERE chat_id = ?
+      AND body NOT LIKE '[[system:%]]'
+      AND hidden_everyone_at IS NULL
+  `,
+    [Number(chatId)],
+  );
+  return Number(row?.total || 0);
+}
+
+export function countDmInitiationsToday(userId) {
+  const row = getRow(
+    `
+    SELECT COUNT(*) AS total
+    FROM chats
+    WHERE type = 'dm'
+      AND dm_initiator_user_id = ?
+      AND created_at >= datetime('now', '-1 day')
+  `,
+    [Number(userId)],
+  );
+  return Number(row?.total || 0);
+}
+
+export function recordDmRejection(fromUserId, toUserId) {
+  run(
+    `INSERT INTO dm_rejections (from_user_id, to_user_id, rejected_at)
+     VALUES (?, ?, datetime('now'))
+     ON CONFLICT(from_user_id, to_user_id) DO UPDATE SET rejected_at = datetime('now')`,
+    [Number(fromUserId), Number(toUserId)],
+  );
+}
+
+export function isDmRejectionCooldownActive(fromUserId, toUserId, cooldownDays) {
+  const days = Math.max(1, Number(cooldownDays || 7));
+  const row = getRow(
+    `
+    SELECT 1 AS active
+    FROM dm_rejections
+    WHERE from_user_id = ?
+      AND to_user_id = ?
+      AND rejected_at >= datetime('now', ?)
+    LIMIT 1
+  `,
+    [Number(fromUserId), Number(toUserId), `-${days} days`],
+  );
+  return Boolean(row);
+}
+
+export function listDmRequestsForUser(userId) {
+  if (!HAS_DM_STATUS_COLUMN) return [];
+  return getAll(
+    `
+    SELECT
+      c.id,
+      c.dm_status,
+      c.dm_initiator_user_id,
+      c.created_at,
+      initiator.id AS initiator_id,
+      initiator.username AS initiator_username,
+      initiator.nickname AS initiator_nickname,
+      initiator.avatar_url AS initiator_avatar_url,
+      initiator.color AS initiator_color,
+      (
+        SELECT COALESCE(cm.edited_body, cm.body)
+        FROM chat_messages cm
+        WHERE cm.chat_id = c.id
+          AND cm.body NOT LIKE '[[system:%]]'
+          AND cm.hidden_everyone_at IS NULL
+        ORDER BY cm.id DESC
+        LIMIT 1
+      ) AS preview_body,
+      (
+        SELECT cm.created_at
+        FROM chat_messages cm
+        WHERE cm.chat_id = c.id
+          AND cm.body NOT LIKE '[[system:%]]'
+          AND cm.hidden_everyone_at IS NULL
+        ORDER BY cm.id DESC
+        LIMIT 1
+      ) AS preview_at
+    FROM chats c
+    JOIN chat_members recipient ON recipient.chat_id = c.id AND recipient.user_id = ?
+    JOIN users initiator ON initiator.id = c.dm_initiator_user_id
+    WHERE c.type = 'dm'
+      AND c.dm_status = 'pending'
+      AND c.dm_initiator_user_id != ?
+    ORDER BY c.created_at DESC
+  `,
+    [Number(userId), Number(userId)],
+  ).map(decryptMessageRow);
 }
 
 export function createUser(
@@ -1039,7 +1237,7 @@ export function findChatByInviteToken(inviteToken) {
 export function findChatById(chatId) {
   return getRow(
     `SELECT id, name, type, group_username, group_visibility, invite_token, group_color,
-            allow_member_invites, group_avatar_url, created_by_user_id
+            allow_member_invites, group_avatar_url, created_by_user_id, ${DM_CHAT_SELECT_SQL}
      FROM chats WHERE id = ?`,
     [Number(chatId)],
   );
@@ -1572,6 +1770,8 @@ export function listChatsForUser(userId) {
         c.group_avatar_url,
         c.created_by_user_id,
         c.created_at,
+        COALESCE(c.dm_status, 'active') AS dm_status,
+        c.dm_initiator_user_id,
         COALESCE(mu.muted, 0) AS muted
       FROM chats c
       JOIN chat_members m ON m.chat_id = c.id
@@ -1579,6 +1779,15 @@ export function listChatsForUser(userId) {
       LEFT JOIN hidden_chats h ON h.chat_id = c.id AND h.user_id = m.user_id
       WHERE m.user_id = ?
         AND h.chat_id IS NULL
+        AND NOT (
+          c.type = 'dm'
+          AND COALESCE(c.dm_status, 'active') = 'pending'
+          AND COALESCE(c.dm_initiator_user_id, 0) != m.user_id
+        )
+        AND NOT (
+          c.type = 'dm'
+          AND COALESCE(c.dm_status, 'active') = 'rejected'
+        )
     ),
     visible_messages AS (
       SELECT
@@ -1631,6 +1840,8 @@ export function listChatsForUser(userId) {
       mc.group_avatar_url,
       mc.created_by_user_id,
       mc.muted,
+      mc.dm_status,
+      mc.dm_initiator_user_id,
       lvm.last_message_id,
       last_vm.body AS last_message,
       last_vm.created_at AS last_time,
@@ -2381,6 +2592,7 @@ export function getSession(token) {
     `
     SELECT sessions.id AS session_id, sessions.token, users.id, users.username, users.nickname,
            users.avatar_url, users.color, users.status, users.banned,
+           ${HAS_DM_POLICY_COLUMN ? "users.dm_policy" : "'acquaintances' AS dm_policy"},
            ${UPLOAD_POLICY_QUALIFIED_SELECT_SQL},
            ${USER_ROLE_QUALIFIED_SELECT_SQL}
     FROM sessions

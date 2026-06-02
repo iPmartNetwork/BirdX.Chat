@@ -24,6 +24,7 @@ import { getAvatarStyle } from "../../utils/avatarColor.js";
 import { hasPersian } from "../../utils/fontUtils.js";
 import { getAvatarInitials } from "../../utils/avatarInitials.js";
 import Avatar from "../common/Avatar.jsx";
+import { useLanguage } from "../../i18n/LanguageContext.jsx";
 import {
   FocusedMediaModal,
   MessageComposer,
@@ -123,6 +124,7 @@ export default function ChatWindowPanel({
   copyToastVisible = false,
   e2eeActive = false,
 }) {
+  const { t } = useLanguage();
   const MEDIA_CACHE_VERSION = 1;
   const MEDIA_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   const VIDEO_POSTER_CACHE_KEY = MEDIA_POSTER_CACHE_KEY;
@@ -239,7 +241,7 @@ export default function ChatWindowPanel({
       : 24;
   const [hideInsecureTooltip, setHideInsecureTooltip] = useState(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("songbird-insecure-dismissed") === "1";
+    return window.localStorage.getItem("birdx-insecure-dismissed") === "1";
   });
   const isLocalhost =
     typeof window !== "undefined" &&
@@ -270,7 +272,7 @@ export default function ChatWindowPanel({
     if (!insecureConnection) return;
     if (typeof window === "undefined") return;
     const dismissed =
-      window.localStorage.getItem("songbird-insecure-dismissed") === "1";
+      window.localStorage.getItem("birdx-insecure-dismissed") === "1";
     setHideInsecureTooltip(dismissed);
   }, [insecureConnection]);
   useLayoutEffect(() => {
@@ -1440,7 +1442,7 @@ export default function ChatWindowPanel({
               onClick={() => {
                 if (typeof window !== "undefined") {
                   window.localStorage.setItem(
-                    "songbird-insecure-dismissed",
+                    "birdx-insecure-dismissed",
                     "1",
                   );
                 }
@@ -1566,7 +1568,7 @@ export default function ChatWindowPanel({
             style={chatScrollStyle}
           >
             <div className="rounded-full border border-emerald-200 bg-white/80 px-4 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200">
-              Select a chat to start
+              {t("chat.selectToStart")}
             </div>
           </div>
         ) : (

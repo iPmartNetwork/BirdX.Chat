@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { Eye, EyeOff, LoaderCircle } from "../../icons/lucide.js";
+import { useLanguage } from "../../i18n/LanguageContext.jsx";
 import { hasPersian } from "../../utils/fontUtils.js";
 import { NICKNAME_MAX, USERNAME_MAX } from "../../utils/nameLimits.js";
+
+const inputClassName =
+  "w-full rounded-2xl border border-emerald-200/90 bg-white py-2.5 text-xs text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-300/50 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-slate-100 sm:py-3 sm:text-sm";
+
+const labelClassName =
+  "text-xs font-semibold text-slate-700 dark:text-slate-200 sm:text-sm";
 
 export default function AuthFormFields({
   isLogin,
@@ -11,121 +18,83 @@ export default function AuthFormFields({
   setShowPassword,
   showConfirmPassword,
   setShowConfirmPassword,
-  nicknameLength,
-  setNicknameLength,
-  usernameLength,
-  setUsernameLength,
   loading,
   onSubmit,
   onReset,
 }) {
+  const { t } = useLanguage();
   const [nicknameHasPersian, setNicknameHasPersian] = useState(false);
-  const [usernameHasPersian, setUsernameHasPersian] = useState(false);
+
   return (
     <form
-      className="mt-4 space-y-3 sm:mt-6 sm:space-y-4"
+      className="mt-5 space-y-3.5 sm:mt-6 sm:space-y-4"
       onSubmit={onSubmit}
       onReset={(event) => {
         setNicknameHasPersian(false);
-        setUsernameHasPersian(false);
         onReset?.(event);
       }}
     >
       {!isLogin && canSignup ? (
         <label className="block">
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 sm:text-sm">
-            Nickname
-          </span>
-          <div className="relative mt-1 sm:mt-2">
-            <input
-              name="nickname"
-              type="text"
-              required
-              placeholder="BirdX Sage"
-              maxLength={NICKNAME_MAX}
-              onInput={(event) => {
-                const value = String(event.currentTarget.value || "");
-                setNicknameLength(value.length);
-                setNicknameHasPersian(hasPersian(value));
-              }}
-              lang={nicknameHasPersian ? "fa" : "en"}
-              dir={nicknameHasPersian ? "rtl" : "ltr"}
-              className={`w-full rounded-2xl border border-emerald-200 bg-white py-2 text-xs text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-slate-100 sm:py-3 sm:text-sm ${
-                nicknameHasPersian
-                  ? "pl-3 pr-14 sm:pl-4 sm:pr-16"
-                  : "pl-3 pr-14 sm:pl-4 sm:pr-16"
-              } ${
-                nicknameHasPersian ? "font-fa text-right" : "text-left"
-              }`}
-              style={{ unicodeBidi: "plaintext" }}
-            />
-            <span
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 dark:text-slate-500 sm:text-[11px]"
-            >
-              {nicknameLength}/{NICKNAME_MAX}
-            </span>
-          </div>
+          <span className={labelClassName}>{t("auth.nickname")}</span>
+          <input
+            name="nickname"
+            type="text"
+            required
+            placeholder="BirdX"
+            maxLength={NICKNAME_MAX}
+            onInput={(event) => {
+              setNicknameHasPersian(
+                hasPersian(String(event.currentTarget.value || "")),
+              );
+            }}
+            lang={nicknameHasPersian ? "fa" : "en"}
+            dir={nicknameHasPersian ? "rtl" : "ltr"}
+            className={`${inputClassName} mt-1.5 px-3 sm:mt-2 sm:px-4 ${
+              nicknameHasPersian ? "font-fa text-right" : "text-left"
+            }`}
+            style={{ unicodeBidi: "plaintext" }}
+          />
         </label>
       ) : null}
 
       <label className="block">
-        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 sm:text-sm">
-          Username
-        </span>
-        <div className="relative mt-1 sm:mt-2">
-          <input
-            name="username"
-            type="text"
-            required
-            pattern="[a-zA-Z0-9._]+"
-            title="Use english letters, numbers, dot (.), and underscore (_)."
-            autoCapitalize="none"
-            placeholder="birdx.user"
-            maxLength={USERNAME_MAX}
-            onInput={(event) => {
-              const value = String(event.currentTarget.value || "");
-              setUsernameLength(value.length);
-              setUsernameHasPersian(hasPersian(value));
-            }}
-            lang={usernameHasPersian ? "fa" : "en"}
-            dir={usernameHasPersian ? "rtl" : "ltr"}
-            className={`w-full rounded-2xl border border-emerald-200 bg-white py-2 text-xs text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-slate-100 sm:py-3 sm:text-sm ${
-              usernameHasPersian
-                ? "pl-3 pr-14 sm:pl-4 sm:pr-16"
-                : "pl-3 pr-14 sm:pl-4 sm:pr-16"
-            } ${
-              usernameHasPersian ? "font-fa text-right" : "text-left"
-            }`}
-            style={{ unicodeBidi: "plaintext" }}
-          />
-          {!isLogin && canSignup ? (
-            <span
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 dark:text-slate-500 sm:text-[11px]"
-            >
-              {usernameLength}/{USERNAME_MAX}
-            </span>
-          ) : null}
-        </div>
+        <span className={labelClassName}>{t("auth.username")}</span>
+        <input
+          name="username"
+          type="text"
+          required
+          pattern="[a-zA-Z0-9._]+"
+          title={t("auth.usernameHint")}
+          autoCapitalize="none"
+          autoComplete="username"
+          placeholder="birdx.user"
+          maxLength={USERNAME_MAX}
+          dir="ltr"
+          className={`${inputClassName} mt-1.5 px-3 text-left sm:mt-2 sm:px-4`}
+          style={{ unicodeBidi: "plaintext" }}
+        />
       </label>
 
       <label className="block">
-        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 sm:text-sm">
-          Password
-        </span>
-        <div className="relative mt-1 sm:mt-2">
+        <span className={labelClassName}>{t("auth.password")}</span>
+        <div className="relative mt-1.5 sm:mt-2">
           <input
             name="password"
             type={showPassword ? "text" : "password"}
             required
+            autoComplete={isLogin ? "current-password" : "new-password"}
             minLength={isLogin ? undefined : 6}
             placeholder={showPassword ? "12345678" : "********"}
-            className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 pr-16 text-xs text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-slate-100 sm:px-4 sm:py-3 sm:pr-20 sm:text-sm"
+            className={`${inputClassName} px-3 pe-14 sm:px-4 sm:pe-16`}
           />
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
-            className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-emerald-700 transition hover:bg-emerald-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-emerald-200 dark:hover:bg-emerald-500/10 sm:h-9 sm:w-9"
-            aria-label={showPassword ? "Hide password" : "Show password"}
+            className="absolute end-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-emerald-700 transition hover:bg-emerald-100 dark:text-emerald-200 dark:hover:bg-emerald-500/10 sm:h-9 sm:w-9"
+            aria-label={
+              showPassword ? t("auth.hidePassword") : t("auth.showPassword")
+            }
           >
             {showPassword ? (
               <EyeOff size={16} className="icon-anim-peek" />
@@ -138,26 +107,25 @@ export default function AuthFormFields({
 
       {!isLogin && canSignup ? (
         <label className="block">
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 sm:text-sm">
-            Confirm password
-          </span>
-          <div className="relative mt-1 sm:mt-2">
+          <span className={labelClassName}>{t("auth.confirmPassword")}</span>
+          <div className="relative mt-1.5 sm:mt-2">
             <input
               name="confirmPassword"
               type={showConfirmPassword ? "text" : "password"}
               required
+              autoComplete="new-password"
               minLength={6}
               placeholder={showConfirmPassword ? "12345678" : "********"}
-              className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 pr-16 text-xs text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-slate-100 sm:px-4 sm:py-3 sm:pr-20 sm:text-sm"
+              className={`${inputClassName} px-3 pe-14 sm:px-4 sm:pe-16`}
             />
             <button
               type="button"
               onClick={() => setShowConfirmPassword((prev) => !prev)}
-              className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-emerald-700 transition hover:bg-emerald-100 hover:shadow-[0_0_18px_rgba(16,185,129,0.22)] dark:text-emerald-200 dark:hover:bg-emerald-500/10 sm:h-9 sm:w-9"
+              className="absolute end-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-emerald-700 transition hover:bg-emerald-100 dark:text-emerald-200 dark:hover:bg-emerald-500/10 sm:h-9 sm:w-9"
               aria-label={
                 showConfirmPassword
-                  ? "Hide confirm password"
-                  : "Show confirm password"
+                  ? t("auth.hideConfirmPassword")
+                  : t("auth.showConfirmPassword")
               }
             >
               {showConfirmPassword ? (
@@ -172,10 +140,8 @@ export default function AuthFormFields({
 
       {isLogin && requires2FA ? (
         <label className="block">
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 sm:text-sm">
-            2FA Code
-          </span>
-          <div className="relative mt-1 sm:mt-2">
+          <span className={labelClassName}>{t("auth.2faCode")}</span>
+          <div className="relative mt-1.5 sm:mt-2">
             <input
               name="totpToken"
               type="text"
@@ -185,11 +151,11 @@ export default function AuthFormFields({
               maxLength={9}
               placeholder="000000"
               autoFocus
-              className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-center text-lg font-bold tracking-[0.3em] text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-slate-100 sm:px-4 sm:py-3"
+              className={`${inputClassName} px-3 text-center text-lg font-bold tracking-[0.3em] sm:px-4`}
             />
           </div>
-          <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 sm:text-xs">
-            Enter the 6-digit code from your authenticator app, or a backup code.
+          <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400 sm:text-xs">
+            {t("auth.2faHint")}
           </p>
         </label>
       ) : null}
@@ -197,10 +163,12 @@ export default function AuthFormFields({
       <button
         type="submit"
         disabled={loading}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] disabled:cursor-not-allowed disabled:opacity-70 sm:px-4 sm:py-3 sm:text-sm"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-3 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-600 hover:shadow-emerald-500/35 disabled:cursor-not-allowed disabled:bg-emerald-400 disabled:text-white sm:px-4 sm:py-3 sm:text-sm"
       >
-        {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-        {isLogin ? "Sign in" : "Create account"}
+        {loading ? (
+          <LoaderCircle className="h-4 w-4 animate-spin text-white" />
+        ) : null}
+        {isLogin ? t("auth.signIn") : t("auth.createAccount")}
       </button>
     </form>
   );

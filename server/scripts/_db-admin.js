@@ -2,13 +2,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import initSqlJs from 'sql.js'
 import dotenv from 'dotenv'
+import { resolveDatabasePath } from '../lib/dataPaths.js'
 import { dataDir, serverDir } from './_cli.js'
 import { migrations } from '../migrations/index.js'
 
 dotenv.config({ path: path.join(serverDir, '..', '.env') })
 dotenv.config({ path: path.join(serverDir, '.env'), override: true })
 
-export const dbPath = path.join(dataDir, 'songbird.db')
+export const dbPath = resolveDatabasePath(dataDir, fs)
 export const uploadsDir = path.join(dataDir, 'uploads', 'messages')
 export const avatarUploadsDir = path.join(dataDir, 'uploads', 'avatars')
 
@@ -201,7 +202,7 @@ export async function runAdminActionViaServer(action, payload = {}) {
 
   const headers = { 'Content-Type': 'application/json' }
   if (process.env.ADMIN_API_TOKEN) {
-    headers['x-songbird-admin-token'] = process.env.ADMIN_API_TOKEN
+    headers['x-birdx-admin-token'] = process.env.ADMIN_API_TOKEN
   }
 
   const res = await fetch(`http://127.0.0.1:${port}/api/admin/db-tools`, {

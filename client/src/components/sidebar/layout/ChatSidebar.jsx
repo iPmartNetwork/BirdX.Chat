@@ -43,6 +43,11 @@ export default function ChatSidebar({
   discoverChannels,
   discoverSaved,
   isSavedChatActive,
+  dmRequests,
+  dmRequestsLoading,
+  onDmRequestAccept,
+  onDmRequestReject,
+  onOpenDmRequest,
   onOpenDiscoveredUser,
   onOpenDiscoveredGroup,
   onOpenUserProfileContext,
@@ -100,6 +105,8 @@ export default function ChatSidebar({
   settingsButtonRef,
   displayInitials,
   onOpenWhatsNew,
+  dmPolicy,
+  onDmPolicyChange,
 }) {
   const chatsScrollRef = useRef(null);
   const chatsContentRef = useRef(null);
@@ -156,7 +163,7 @@ export default function ChatSidebar({
   return (
     <aside
       className={
-        "relative flex h-full min-h-0 w-full flex-col overflow-hidden border-x border-slate-300/80 bg-white shadow-lg shadow-emerald-500/10 dark:border-white/5 dark:bg-slate-900 md:border md:w-[35%] md:pb-[88px] md:shadow-xl md:shadow-emerald-500/15 " +
+        "relative flex h-full min-h-0 w-full flex-col overflow-x-hidden overflow-y-visible border-x border-slate-300/80 bg-white shadow-lg shadow-emerald-500/10 dark:border-white/5 dark:bg-slate-900 md:border md:w-[35%] md:pb-[88px] md:shadow-xl md:shadow-emerald-500/15 " +
         (mobileTab === "chat" ? "hidden md:block" : "block")
       }
     >
@@ -267,6 +274,8 @@ export default function ChatSidebar({
               appInfoLoading={appInfoLoading}
               appInfoError={appInfoError}
               onOpenWhatsNew={onOpenWhatsNew}
+              dmPolicy={dmPolicy}
+              onDmPolicyChange={onDmPolicyChange}
             />
           </div>
         ) : null}
@@ -275,7 +284,7 @@ export default function ChatSidebar({
           className={
             mobileTab === "settings"
               ? "hidden min-h-0 flex-1"
-              : "flex min-h-0 flex-1 flex-col"
+              : "flex min-h-0 flex-1 flex-col overflow-hidden"
           }
         >
           <div
@@ -316,6 +325,11 @@ export default function ChatSidebar({
                 discoverChannels={discoverChannels}
                 discoverSaved={discoverSaved}
                 isSavedChatActive={isSavedChatActive}
+                dmRequests={dmRequests}
+                dmRequestsLoading={dmRequestsLoading}
+                onDmRequestAccept={onDmRequestAccept}
+                onDmRequestReject={onDmRequestReject}
+                onOpenDmRequest={onOpenDmRequest}
                 onOpenDiscoveredUser={onOpenDiscoveredUser}
                 onOpenDiscoveredGroup={onOpenDiscoveredGroup}
                 onOpenUserProfileContext={onOpenUserProfileContext}

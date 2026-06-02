@@ -1,4 +1,5 @@
 import { Chat, Settings } from "../../icons/lucide.js";
+import { useLanguage } from "../../i18n/LanguageContext.jsx";
 
 export default function MobileTabMenu({
   hidden,
@@ -6,6 +7,8 @@ export default function MobileTabMenu({
   onChats,
   onSettings,
 }) {
+  const { t } = useLanguage();
+
   return (
     <div
       className={`fixed inset-x-0 bottom-0 z-10 px-4 sm:px-6 md:hidden ${
@@ -32,7 +35,7 @@ export default function MobileTabMenu({
           <span className="relative z-10">
             <Chat className="icon-anim-bob" />
           </span>
-          <span className="relative z-10">Chats</span>
+          <span className="relative z-10">{t("chat.chats")}</span>
         </button>
         <button
           type="button"
@@ -49,7 +52,7 @@ export default function MobileTabMenu({
           <span className="relative z-10">
             <Settings className="icon-anim-spin-dir" />
           </span>
-          <span className="relative z-10">Settings</span>
+          <span className="relative z-10">{t("settings.title")}</span>
         </button>
       </div>
     </div>

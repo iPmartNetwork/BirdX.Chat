@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchAppInfo } from "../api/appMetaApi.js";
+import { LANGUAGE_STORAGE_KEY } from "../i18n/LanguageContext.jsx";
+import { hasReleaseNotesForVersion } from "../utils/releaseNotes.js";
 
-const WHATS_NEW_DISMISSED_VERSION_KEY = "songbird-whats-new-dismissed-version";
+const WHATS_NEW_DISMISSED_VERSION_KEY = "birdx-whats-new-dismissed-version";
 
 async function parseJsonResponse(response, fallbackMessage) {
   let payload = null;
@@ -33,10 +35,13 @@ export function useAppReleaseInfo() {
       );
       setAppInfo(payload);
       const currentVersion = String(payload?.version || "").trim();
-      const changelog = String(
-        payload?.currentChangelog || payload?.changelog || "",
-      ).trim();
-      if (!currentVersion || !changelog) {
+      const language = window.localStorage?.getItem(LANGUAGE_STORAGE_KEY) || "en";
+      const hasReleaseNotes = hasReleaseNotesForVersion(
+        payload,
+        currentVersion,
+        language,
+      );
+      if (!currentVersion || !hasReleaseNotes) {
         setWhatsNewOpen(false);
         return payload;
       }

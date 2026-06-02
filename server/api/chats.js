@@ -1,4 +1,11 @@
 import { createInviteToken } from "../lib/inviteTokens.js";
+import {
+  evaluateDmAccess,
+  getDmDiscoveryMode,
+  getDmRejectCooldownDays,
+  getDmRequestsPerDayLimit,
+  recordDmSecurityEvent,
+} from "../lib/dmPrivacy.js";
 
 function registerChatRoutes(app, deps) {
   const {
@@ -19,8 +26,17 @@ function registerChatRoutes(app, deps) {
     findChatById,
     findChatByGroupUsername,
     findChatByInviteToken,
+    adminRun,
+    adminSave,
+    countDmInitiationsToday,
     findDmChat,
+    findUserByExactUsername,
     findUserByUsername,
+    getDmChatRow,
+    isBlockedBetween,
+    isDmRejectionCooldownActive,
+    setChatDmState,
+    usersShareNonDmChat,
     hideChatsForUser,
     hydrateMissingVideoMetadata,
     isGroupMemberRemoved,
@@ -271,18 +287,102 @@ function registerChatRoutes(app, deps) {
     if (!requireSessionUsernameMatch(res, session, from)) return;
 
     const fromUser = findUserByUsername(from.toLowerCase());
-    const toUser = findUserByUsername(to.toLowerCase());
+    const toUser = findUserByExactUsername(to);
     if (!fromUser || !toUser) {
       return res.status(404).json({ error: "User not found." });
+    }
+    if (Number(fromUser.id) === Number(toUser.id)) {
+      return res.status(400).json({ error: "You cannot message yourself." });
     }
 
     const existingId = findDmChat(fromUser.id, toUser.id);
     if (existingId) {
-      // Unhide the chat for both users (in case it was previously deleted)
+      const existing = getDmChatRow?.(existingId);
+      const status = String(existing?.dm_status || "active");
+
+      if (status === "rejected") {
+        const cooldownDays = getDmRejectCooldownDays();
+        if (
+          isDmRejectionCooldownActive?.(
+            fromUser.id,
+            toUser.id,
+            cooldownDays,
+          )
+        ) {
+          recordDmSecurityEvent(adminRun, adminSave, req, "dm.request.cooldown", {
+            username: fromUser.username,
+            userId: fromUser.id,
+            targetUsername: toUser.username,
+            chatId: existingId,
+          });
+          return res.status(403).json({
+            error: "This user recently declined your request. Try again later.",
+          });
+        }
+      } else if (status === "pending" || status === "active") {
+        unhideChat(fromUser.id, existingId);
+        unhideChat(toUser.id, existingId);
+        return res.json({
+          id: existingId,
+          status,
+          pending: status === "pending",
+        });
+      }
+    }
+
+    const blocked = isBlockedBetween?.(fromUser.id, toUser.id);
+    const shareGroup = usersShareNonDmChat?.(fromUser.id, toUser.id);
+    const access = evaluateDmAccess({
+      fromUser,
+      toUser,
+      usersShareGroup: shareGroup,
+      blockedEitherWay: blocked,
+    });
+
+    if (!access.allowed) {
+      recordDmSecurityEvent(adminRun, adminSave, req, `dm.${access.code}`, {
+        username: fromUser.username,
+        userId: fromUser.id,
+        targetUsername: toUser.username,
+      });
+      return res.status(403).json({ error: access.message });
+    }
+
+    const dailyLimit = getDmRequestsPerDayLimit();
+    if (!access.direct && countDmInitiationsToday?.(fromUser.id) >= dailyLimit) {
+      recordDmSecurityEvent(adminRun, adminSave, req, "dm.rate_limited", {
+        username: fromUser.username,
+        userId: fromUser.id,
+        targetUsername: toUser.username,
+        limit: dailyLimit,
+      });
+      return res.status(429).json({
+        error: "Daily limit for new conversation requests reached. Try again tomorrow.",
+      });
+    }
+
+    if (existingId) {
+      const nextStatus = access.status || "active";
+      setChatDmState?.(existingId, {
+        status: nextStatus,
+        initiatorUserId: fromUser.id,
+        resolvedAt: nextStatus === "active" ? new Date().toISOString() : null,
+      });
       unhideChat(fromUser.id, existingId);
       unhideChat(toUser.id, existingId);
-
-      return res.json({ id: existingId });
+      recordDmSecurityEvent(adminRun, adminSave, req, "dm.request.reopened", {
+        username: fromUser.username,
+        userId: fromUser.id,
+        targetUsername: toUser.username,
+        chatId: existingId,
+        status: nextStatus,
+      });
+      return res.json({
+        id: existingId,
+        status: nextStatus,
+        pending: nextStatus === "pending",
+        hint: access.message || null,
+      });
     }
 
     const chatId = createChat(null, "dm");
@@ -290,10 +390,36 @@ function registerChatRoutes(app, deps) {
       return res.status(500).json({ error: "Failed to create chat." });
     }
 
+    const nextStatus = access.status || "active";
+    setChatDmState?.(chatId, {
+      status: nextStatus,
+      initiatorUserId: fromUser.id,
+      resolvedAt: null,
+    });
+
     addChatMember(chatId, fromUser.id, "owner");
     addChatMember(chatId, toUser.id, "member");
 
-    res.json({ id: chatId });
+    recordDmSecurityEvent(
+      adminRun,
+      adminSave,
+      req,
+      nextStatus === "pending" ? "dm.request.created" : "dm.chat.created",
+      {
+        username: fromUser.username,
+        userId: fromUser.id,
+        targetUsername: toUser.username,
+        chatId,
+        status: nextStatus,
+      },
+    );
+
+    res.json({
+      id: chatId,
+      status: nextStatus,
+      pending: nextStatus === "pending",
+      hint: access.message || null,
+    });
   });
 
   app.post("/api/chats", (req, res) => {
@@ -1310,9 +1436,27 @@ function registerChatRoutes(app, deps) {
     const query = req.query.query?.toString();
     if (exclude && !requireSessionUsernameMatch(res, session, exclude)) return;
 
-    const users = query
-      ? searchUsers(query.toLowerCase(), exclude)
-      : listUsers(exclude);
+    const mode = getDmDiscoveryMode();
+    if (mode === "off") {
+      return res.json({ users: [] });
+    }
+
+    let users = [];
+    if (query) {
+      const normalized = query.trim().toLowerCase().replace(/^@+/, "");
+      if (mode === "exact_username") {
+        const exact = findUserByExactUsername(normalized);
+        if (
+          exact &&
+          (!exclude ||
+            String(exact.username).toLowerCase() !== exclude.toLowerCase())
+        ) {
+          users = [exact];
+        }
+      } else {
+        users = searchUsers(normalized, exclude);
+      }
+    }
 
     res.json({
       users: users.map((item) => ({
@@ -1398,13 +1542,6 @@ function registerChatRoutes(app, deps) {
       return res.status(404).json({ error: "User not found." });
     }
 
-    const users = searchUsers(query.toLowerCase(), username)
-      .map((item) => ({
-        ...item,
-        avatar_url: ensureAvatarExists(item.id, item.avatar_url),
-      }))
-      .slice(0, 20);
-
     const groups = searchPublicGroups(query.toLowerCase(), user.id, 20).map((group) => ({
       id: Number(group.id),
       name: group.name || "Group",
@@ -1429,7 +1566,7 @@ function registerChatRoutes(app, deps) {
       type: "channel",
     }));
 
-    return res.json({ users, groups, channels });
+    return res.json({ users: [], groups, channels });
   });
 }
 

@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/dm-sans-v17-latin-regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/dm-sans-v17-latin-700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/vazirmatn-v16-arabic_latin-regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/vazirmatn-v16-arabic_latin-700.woff2') format('woff2');
+}
+
+/* RTL / Persian font size adjustments */
+[dir="rtl"] h1 {
+  font-size: 92%;
+  line-height: 1.3;
+}
+
+[dir="rtl"] h2 {
+  font-size: 96%;
+  line-height: 1.35;
+}
+
+[dir="rtl"] p {
+  font-size: 0.96em;
+  line-height: 1.85;
+}
+
+[dir="rtl"] .btn-primary,
+[dir="rtl"] .btn-secondary {
+  font-size: 0.92rem;
+}
+
+/* English font size refinements */
+[dir="ltr"] h1 {
+  letter-spacing: -0.02em;
+}
+
+[dir="ltr"] h2 {
+  letter-spacing: -0.015em;
+}
+
+[dir="ltr"] p {
+  font-size: 0.94em;
+  line-height: 1.7;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Light mode */
+  body {
+    @apply bg-white text-slate-800 transition-colors duration-300;
+  }
+
+  /* Dark mode */
+  html.dark body {
+    @apply bg-[#020617] text-slate-100;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-[#10b981] px-7 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all duration-300 hover:bg-[#0c9d92] hover:shadow-emerald-500/30 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 bg-transparent px-7 py-3 text-sm font-bold text-slate-700 transition-all duration-300 hover:bg-slate-50 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  html.dark .btn-secondary {
+    @apply border-slate-600 text-slate-200 hover:bg-slate-800/80 hover:border-slate-500;
+  }
+
+  .section-block {
+    @apply relative overflow-hidden py-20 sm:py-28 lg:py-36;
+  }
+
+  .section-block-alt {
+    @apply bg-slate-50;
+  }
+
+  html.dark .section-block-alt {
+    @apply bg-[#0f172a];
+  }
+
+  .glass-card {
+    @apply rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm;
+  }
+
+  html.dark .glass-card {
+    @apply border-slate-700/50 bg-slate-800/60 shadow-none;
+  }
+}
+
+/* Smooth theme transition */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition-duration: 300ms !important;
+}
+
+/* Scrollbar - matching the app */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.35);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.6);
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.45);
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.7);
+}
+
+/* Selection color matching the app */
+::selection {
+  background: rgba(16, 185, 129, 0.3);
+  color: #0f172a;
+}
+
+html.dark ::selection {
+  background: rgba(16, 185, 129, 0.4);
+  color: #f8fafc;
+}
+
+/* Scroll animations */
+.fade-in-section {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.fade-in-section.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}

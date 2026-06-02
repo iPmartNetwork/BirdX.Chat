@@ -3,6 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import {
+  BACKUP_ZIP_PATTERN,
+  BIRDX_DB_FILENAME,
+  detectBackupLayout,
+  resolveServiceName,
+  resolveServiceUser,
+} from "../lib/dataPaths.js";
+import {
   confirmAction,
   getCliArgs,
   getFlagValue,
@@ -15,10 +22,13 @@ const projectRootDir = path.resolve(serverDir, "..");
 const backupDir = path.join(projectRootDir, "data", "backups");
 const rootBackupDir = "/root";
 const unzipBinary = process.env.UNZIP_BIN || "unzip";
-const backupNamePattern = /^songbird-backup-.*\.zip$/i;
-const serviceName = process.env.SONGBIRD_SERVICE_NAME || "songbird.service";
-const serviceUser = process.env.SONGBIRD_SERVICE_USER || "songbird";
-const serviceGroup = process.env.SONGBIRD_SERVICE_GROUP || serviceUser;
+const backupNamePattern = BACKUP_ZIP_PATTERN;
+const serviceName = resolveServiceName();
+const serviceUser = resolveServiceUser();
+const serviceGroup =
+  String(process.env.BIRDX_SERVICE_GROUP || "").trim() ||
+  String(process.env.SONGBIRD_SERVICE_GROUP || "").trim() ||
+  serviceUser;
 
 function listZipFilesInDir(dirPath) {
   if (
@@ -169,34 +179,6 @@ function pathExists(targetPath) {
   return fs.existsSync(targetPath);
 }
 
-function detectBackupLayout(extractedRoot) {
-  const currentEnvSrc = path.join(extractedRoot, ".env");
-  const currentDataSrc = path.join(extractedRoot, "data");
-  const currentDbSrc = path.join(currentDataSrc, "songbird.db");
-  const currentUploadsSrc = path.join(currentDataSrc, "uploads");
-  if (pathExists(currentDbSrc) && pathExists(currentUploadsSrc)) {
-    return {
-      kind: "current",
-      envSrc: pathExists(currentEnvSrc) ? currentEnvSrc : null,
-      dbSrc: currentDbSrc,
-      uploadsSrc: currentUploadsSrc,
-    };
-  }
-
-  const legacyDbSrc = path.join(extractedRoot, "songbird.db");
-  const legacyUploadsSrc = path.join(extractedRoot, "uploads");
-  if (pathExists(legacyDbSrc) && pathExists(legacyUploadsSrc)) {
-    return {
-      kind: "legacy",
-      envSrc: pathExists(currentEnvSrc) ? currentEnvSrc : null,
-      dbSrc: legacyDbSrc,
-      uploadsSrc: legacyUploadsSrc,
-    };
-  }
-
-  return null;
-}
-
 function applyOwnership(installRoot) {
   if (typeof process.getuid !== "function" || process.getuid() !== 0) {
     console.warn(
@@ -230,7 +212,7 @@ function applyOwnership(installRoot) {
   }
 }
 
-function restartSongbirdService() {
+function restartBirdxService() {
   if (typeof process.getuid !== "function" || process.getuid() !== 0) {
     console.warn(
       `Skipping ${serviceName} restart because db:restore is not running as root.`,
@@ -299,7 +281,7 @@ async function main() {
     return;
   }
 
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "songbird-restore-"));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "birdx-restore-"));
   try {
     let password = String(getFlagValue(args, "--password") || "").trim();
     let extractResult = extractBackup(zipPath, tempDir, password);
@@ -331,14 +313,14 @@ async function main() {
     const layout = detectBackupLayout(tempDir);
     if (!layout) {
       console.error(
-        "Backup zip does not contain expected songbird.db and uploads/ contents.",
+        `Backup zip does not contain expected ${BIRDX_DB_FILENAME} (or legacy songbird.db) and uploads/ contents.`,
       );
       process.exit(1);
     }
 
     const envDest = path.join(installRoot, ".env");
     const dataDest = path.join(installRoot, "data");
-    const dbDest = path.join(dataDest, "songbird.db");
+    const dbDest = path.join(dataDest, BIRDX_DB_FILENAME);
     const uploadsDest = path.join(dataDest, "uploads");
 
     fs.rmSync(path.join(installRoot, "data"), { recursive: true, force: true });
@@ -359,7 +341,7 @@ async function main() {
     fs.cpSync(layout.uploadsSrc, uploadsDest, { recursive: true });
 
     applyOwnership(installRoot);
-    restartSongbirdService();
+    restartBirdxService();
 
     console.log(`Backup restored from: ${zipPath}`);
     console.log(`Restored into: ${installRoot}`);

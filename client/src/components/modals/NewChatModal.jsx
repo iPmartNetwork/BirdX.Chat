@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { Close } from "../../icons/lucide.js";
+import { useLanguage } from "../../i18n/LanguageContext.jsx";
 import { hasPersian } from "../../utils/fontUtils.js";
 import { getAvatarInitials } from "../../utils/avatarInitials.js";
 import Avatar from "../common/Avatar.jsx";
@@ -18,6 +19,7 @@ export default function NewChatModal({
   startDirectMessage,
   onClose,
 }) {
+  const { t, isRtl, language } = useLanguage();
   if (!open) return null;
   if (typeof document === "undefined") return null;
   const dmSearchHasPersian = hasPersian(newChatUsername || "");
@@ -34,10 +36,18 @@ export default function NewChatModal({
         paddingRight: "max(1.5rem, env(safe-area-inset-right))",
       }}
     >
-      <div className="w-full max-w-sm rounded-2xl border border-emerald-100/70 bg-white p-6 shadow-xl dark:border-emerald-500/30 dark:bg-slate-950">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-emerald-700 dark:text-emerald-200">
-            New DM
+      <div
+        className="w-full max-w-sm rounded-2xl border border-emerald-100/70 bg-white p-6 shadow-xl dark:border-emerald-500/30 dark:bg-slate-950"
+        lang={language === "fa" ? "fa" : "en"}
+        dir={isRtl ? "rtl" : "ltr"}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h3
+            className={`text-lg font-semibold text-emerald-700 dark:text-emerald-200 ${
+              language === "fa" ? "font-fa" : ""
+            }`}
+          >
+            {t("chat.newDm")}
           </h3>
           <button
             type="button"
@@ -49,7 +59,7 @@ export default function NewChatModal({
         </div>
         <div className="mt-4">
           <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Username
+            {t("auth.username")}
           </label>
           <div className="relative mt-2">
             <input
@@ -59,11 +69,13 @@ export default function NewChatModal({
                 setNewChatError("");
                 setNewChatSelection(null);
               }}
-              placeholder="username"
+              placeholder="@username"
               lang={dmSearchHasPersian ? "fa" : "en"}
               dir={dmSearchHasPersian ? "rtl" : "ltr"}
-              className={`w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 pr-14 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
-                dmSearchHasPersian ? "font-fa text-right" : "text-left"
+              className={`w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
+                dmSearchHasPersian
+                  ? "ps-4 pe-14 font-fa text-right"
+                  : "pe-14 ps-4 text-left"
               }`}
               style={{ unicodeBidi: "plaintext" }}
             />
@@ -75,8 +87,8 @@ export default function NewChatModal({
                   setNewChatSelection(null);
                   setNewChatError("");
                 }}
-                className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-rose-600 transition hover:bg-rose-100 hover:shadow-[0_0_18px_rgba(244,63,94,0.22)] dark:text-rose-200 dark:hover:bg-rose-500/10"
-                aria-label="Clear search"
+                className="absolute end-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-rose-600 transition hover:bg-rose-100 hover:shadow-[0_0_18px_rgba(244,63,94,0.22)] dark:text-rose-200 dark:hover:bg-rose-500/10"
+                aria-label={t("chat.search")}
               >
                 <Close size={16} className="icon-anim-pop" />
               </button>
@@ -85,7 +97,7 @@ export default function NewChatModal({
         </div>
         <div className="mt-3 space-y-2">
           {newChatResults.length ? (
-            <div className="app-scroll max-h-64 space-y-2 overflow-y-auto pr-1">
+            <div className="app-scroll max-h-64 space-y-2 overflow-y-auto pe-1">
               {newChatResults.map((result) => {
                 const label = result.nickname || result.username;
                 const avatarInitials = getAvatarInitials(label);
@@ -97,9 +109,9 @@ export default function NewChatModal({
                       setNewChatSelection(result);
                       setNewChatUsername(result.username);
                     }}
-                    className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-medium transition ${
+                    className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-start text-sm font-medium transition ${
                       newChatSelection?.username === result.username
-                        ? "border-emerald-500 border-2 bg-emerald-50 text-emerald-900 shadow-md dark:border-emerald-400 dark:bg-emerald-500/20 dark:text-emerald-100"
+                        ? "border-2 border-emerald-500 bg-emerald-50 text-emerald-900 shadow-md dark:border-emerald-400 dark:bg-emerald-500/20 dark:text-emerald-100"
                         : "border-emerald-100/70 bg-white/80 text-slate-700 hover:border-emerald-300 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900/50"
                     }`}
                   >
@@ -109,7 +121,7 @@ export default function NewChatModal({
                       name={label}
                       color={result.color || "#10b981"}
                       initials={avatarInitials}
-                      className="h-8 w-8"
+                      className="h-8 w-8 shrink-0"
                     />
                     <div className="min-w-0">
                       <p
@@ -121,7 +133,7 @@ export default function NewChatModal({
                       </p>
                       <p
                         className="truncate text-xs text-slate-500 dark:text-slate-400"
-                        dir="auto"
+                        dir="ltr"
                       >
                         @{result.username}
                       </p>
@@ -132,24 +144,28 @@ export default function NewChatModal({
             </div>
           ) : newChatLoading ? (
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Searching...
+              {t("chat.searching")}
             </p>
           ) : newChatUsername.trim() ? (
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              No users found.
+              {newChatLoading ? t("chat.searching") : t("chat.noUsersFound")}
             </p>
-          ) : null}
+          ) : (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {t("chat.usernameHint")}
+            </p>
+          )}
           {newChatLoading && newChatResults.length ? (
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Searching...
+              {t("chat.searching")}
             </p>
           ) : null}
         </div>
         {!newChatSelection &&
         newChatUsername.trim() &&
         newChatResults.length > 0 ? (
-          <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-            Select a user from the list to start chatting.
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+            {t("chat.selectUserToStart")}
           </p>
         ) : null}
         {newChatError ? (
@@ -163,7 +179,7 @@ export default function NewChatModal({
           disabled={!canStartChat}
           className="mt-4 w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Start chat
+          {t("chat.startChat")}
         </button>
       </div>
     </div>,

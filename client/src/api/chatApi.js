@@ -26,6 +26,52 @@ export const searchUsers = ({ exclude, query }) =>
     )}`,
   );
 
+export const lookupUserExact = ({ exclude, username }) =>
+  apiFetch(
+    `${API_BASE}/api/users/lookup?exclude=${encodeURIComponent(exclude)}&username=${encodeURIComponent(
+      username,
+    )}`,
+  );
+
+export const fetchDmRequests = (username) =>
+  apiFetch(
+    `${API_BASE}/api/dm-requests?username=${encodeURIComponent(username)}`,
+  );
+
+export const acceptDmRequest = ({ username, chatId }) =>
+  apiFetch(`${API_BASE}/api/dm-requests/${encodeURIComponent(chatId)}/accept`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+
+export const rejectDmRequest = ({ username, chatId }) =>
+  apiFetch(`${API_BASE}/api/dm-requests/${encodeURIComponent(chatId)}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+
+export const updateDmPolicy = ({ username, dmPolicy }) =>
+  apiFetch(`${API_BASE}/api/profile/dm-policy`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, dmPolicy }),
+  });
+
+export const blockUser = ({ username, target }) =>
+  apiFetch(`${API_BASE}/api/users/block`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, target }),
+  });
+
+export const unblockUser = ({ username, target }) =>
+  apiFetch(
+    `${API_BASE}/api/users/block/${encodeURIComponent(target)}?username=${encodeURIComponent(username)}`,
+    { method: "DELETE" },
+  );
+
 export const resolveMentions = ({ username, mentions }) =>
   apiFetch(`${API_BASE}/api/mentions/resolve`, {
     method: "POST",

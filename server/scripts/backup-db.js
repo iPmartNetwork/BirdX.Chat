@@ -2,11 +2,16 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import {
+  BIRDX_BACKUP_PREFIX,
+  BIRDX_DB_FILENAME,
+  resolveDatabasePath,
+} from "../lib/dataPaths.js";
 import { getCliArgs, getFlagValue, promptSecret, serverDir } from "./_cli.js";
 
 const projectRootDir = path.resolve(serverDir, "..");
 const dataDir = path.join(projectRootDir, "data");
-const dbPath = path.join(dataDir, "songbird.db");
+const dbPath = resolveDatabasePath(dataDir, fs);
 const uploadsDir = path.join(dataDir, "uploads");
 const envPath = path.join(projectRootDir, ".env");
 const backupDir = path.join(dataDir, "backups");
@@ -31,7 +36,7 @@ async function main() {
   }
   if (!fs.existsSync(dbPath) && !fs.existsSync(uploadsDir)) {
     console.error(
-      `No data found in ${dataDir}. Missing songbird.db and uploads/.`,
+      `No data found in ${dataDir}. Missing ${BIRDX_DB_FILENAME} and uploads/.`,
     );
     process.exit(1);
   }
@@ -41,14 +46,14 @@ async function main() {
 
   const now = new Date();
   const stamp = now.toISOString().replace(/[:.]/g, "-");
-  const backupPath = path.join(backupDir, `songbird-backup-${stamp}.zip`);
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "songbird-backup-"));
+  const backupPath = path.join(backupDir, `${BIRDX_BACKUP_PREFIX}-${stamp}.zip`);
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "birdx-backup-"));
 
   try {
     fs.mkdirSync(path.join(tempDir, "data"), { recursive: true });
     fs.copyFileSync(envPath, path.join(tempDir, ".env"));
     if (fs.existsSync(dbPath)) {
-      fs.copyFileSync(dbPath, path.join(tempDir, "data", "songbird.db"));
+      fs.copyFileSync(dbPath, path.join(tempDir, "data", BIRDX_DB_FILENAME));
     }
     if (fs.existsSync(uploadsDir)) {
       fs.cpSync(uploadsDir, path.join(tempDir, "data", "uploads"), {

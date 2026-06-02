@@ -6,7 +6,7 @@ export const ABOUT_CONTENT = {
   socials: [
     {
       icon: "github",
-      href: "https://github.com/iPmartNetwork/BirdX",
+      href: "https://github.com/iPmartNetwork/BirdX.Chat",
     },
     {
       icon: "telegram",

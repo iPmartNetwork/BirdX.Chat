@@ -48,7 +48,7 @@ DEFAULT_TURN_MAX_PORT="49200"
 DEFAULT_CHAT_VOICE_WAVEFORM_MAX_DECODE_BYTES="5242880"
 DEFAULT_CHAT_VOICE_WAVEFORM_MAX_DECODE_SECONDS="480"
 NODE_MAJOR="24"
-SCRIPT_REMOTE_URL="${SCRIPT_REMOTE_URL:-https://raw.githubusercontent.com/iPmartNetwork/BirdX/master/scripts/install.sh}"
+SCRIPT_REMOTE_URL="${SCRIPT_REMOTE_URL:-https://raw.githubusercontent.com/iPmartNetwork/BirdX.Chat/master/scripts/install.sh}"
 LOG_LINES="${LOG_LINES:-100}"
 CERT_INSTALL_DIR="/etc/ssl/birdx"
 ACME_WEBROOT="/var/lib/birdx/certbot"
@@ -893,8 +893,8 @@ validate_backup_zip() {
     printf "Backup zip appears empty or unreadable.\n"
     return 1
   fi
-  if ! echo "$listing" | grep -qE '(^|/)data/songbird\.db$|(^|/)(songbird\.db)$'; then
-    printf "Backup zip missing songbird.db.\n"
+  if ! echo "$listing" | grep -qE '(^|/)data/(birdx|songbird)\.db$|(^|/)(birdx|songbird)\.db$'; then
+    printf "Backup zip missing birdx.db (or legacy songbird.db).\n"
     return 1
   fi
   if ! echo "$listing" | grep -qE '(^|/)data/uploads(/|$)|(^|/)uploads(/|$)'; then
@@ -950,10 +950,15 @@ extract_backup_zip() {
     source_dir="$tmp_dir/data"
   fi
 
-  local db_src="$source_dir/songbird.db"
+  local db_src=""
+  if [[ -f "$source_dir/birdx.db" ]]; then
+    db_src="$source_dir/birdx.db"
+  elif [[ -f "$source_dir/songbird.db" ]]; then
+    db_src="$source_dir/songbird.db"
+  fi
   local uploads_src="$source_dir/uploads"
 
-  if [[ ! -f "$db_src" || ! -d "$uploads_src" ]]; then
+  if [[ -z "$db_src" || ! -d "$uploads_src" ]]; then
     return 1
   fi
 
@@ -1237,7 +1242,7 @@ find_restore_backup_zip() {
   local dir=""
   for dir in "${candidates[@]}"; do
     local found=""
-    found="$(run_as_root_output bash -lc "find '$dir' -maxdepth 1 -type f -name 'songbird-backup-*.zip' -printf '%T@\t%p\n' 2>/dev/null | sort -nr | head -1 | cut -f2-" | tr -d '\r\n')" || found=""
+    found="$(run_as_root_output bash -lc "find '$dir' -maxdepth 1 -type f \\( -name 'birdx-backup-*.zip' -o -name 'songbird-backup-*.zip' \\) -printf '%T@\t%p\n' 2>/dev/null | sort -nr | head -1 | cut -f2-" | tr -d '\r\n')" || found=""
     if [[ -n "$found" && -f "$found" ]]; then
       printf "%s" "$found"
       return 0

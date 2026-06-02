@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, Close } from "../../icons/lucide.js";
+import { useLanguage } from "../../i18n/LanguageContext.jsx";
 import { copyTextToClipboard } from "../../utils/clipboard.js";
+import { pickReleaseNotes } from "../../utils/releaseNotes.js";
 import { renderMarkdownBlock } from "../../utils/markdown.js";
 
 function normalizeVersionLabel(value) {
   return String(value || "")
     .trim()
     .replace(/^v/i, "");
+}
+
+function versionFromChangelogHeading(heading) {
+  const raw = String(heading || "").trim();
+  const match = raw.match(/v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/i);
+  return match ? normalizeVersionLabel(match[1]) : normalizeVersionLabel(raw);
 }
 
 function getSections(changelogSections, version, changelog) {
@@ -21,7 +29,7 @@ function getSections(changelogSections, version, changelog) {
       .filter((section) => section.heading || section.body);
     const currentIndex = mappedSections.findIndex(
       (section) =>
-        normalizeVersionLabel(section.heading) === normalizedCurrentVersion,
+        versionFromChangelogHeading(section.heading) === normalizedCurrentVersion,
     );
 
     if (currentIndex > 0) {
@@ -48,15 +56,24 @@ function getSections(changelogSections, version, changelog) {
 export default function WhatsNewModal({
   open,
   version,
-  changelog,
-  changelogSections,
+  appInfo,
   onClose,
 }) {
+  const { t, isRtl, language } = useLanguage();
   const panelRef = useRef(null);
   const contentRef = useRef(null);
+  const releaseNotes = useMemo(
+    () => pickReleaseNotes(appInfo, language),
+    [appInfo, language],
+  );
   const sections = useMemo(
-    () => getSections(changelogSections, version, changelog),
-    [changelogSections, version, changelog],
+    () =>
+      getSections(
+        releaseNotes.changelogSections,
+        version,
+        releaseNotes.displayChangelog,
+      ),
+    [releaseNotes.changelogSections, releaseNotes.displayChangelog, version],
   );
   const [pageIndex, setPageIndex] = useState(0);
   const activeSection = sections[pageIndex] || null;
@@ -71,7 +88,7 @@ export default function WhatsNewModal({
       setPageIndex(0);
     });
     return () => window.cancelAnimationFrame(rafId);
-  }, [open, version, changelog, changelogSections]);
+  }, [open, version, releaseNotes.displayChangelog, releaseNotes.changelogSections]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -236,17 +253,20 @@ export default function WhatsNewModal({
         <div className="flex items-start justify-between gap-4 border-b border-emerald-100/70 px-6 py-5 dark:border-emerald-500/20">
           <div>
             <p className="text-[10px] uppercase tracking-[0.28em] text-emerald-500/80">
-              What's New
+              {t("whatsNew.title")}
             </p>
             <h3 className="mt-2 text-2xl font-bold text-emerald-700 dark:text-emerald-200">
-              BirdX {activeSection?.heading || version || ""}
+              {t("whatsNew.versionTitle").replace(
+                "{version}",
+                activeSection?.heading || version || "",
+              )}
             </h3>
           </div>
           <button
             type="button"
             onClick={() => onClose?.()}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
-            aria-label="Close what's new"
+            aria-label={t("whatsNew.close")}
           >
             <Close size={18} />
           </button>
@@ -258,12 +278,14 @@ export default function WhatsNewModal({
         >
           {activeSection?.body ? (
             <div
-              className="sb-markdown break-words text-left text-sm text-slate-700 [overflow-wrap:anywhere] dark:text-slate-100"
+              className={`sb-markdown break-words text-sm text-slate-700 [overflow-wrap:anywhere] dark:text-slate-100 ${
+                isRtl ? "text-right" : "text-left"
+              }`}
               dangerouslySetInnerHTML={{ __html: String(markdownHtml || "") }}
             />
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-300 px-5 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-              No changelog entries are available for this version yet.
+              {t("whatsNew.empty")}
             </div>
           )}
         </div>
@@ -276,9 +298,9 @@ export default function WhatsNewModal({
                 onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
                 disabled={pageIndex === 0}
                 className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
-                aria-label="Show previous changelog version"
+                aria-label={t("whatsNew.prev")}
               >
-                <ArrowLeft size={18} />
+                <ArrowLeft size={18} className={isRtl ? "scale-x-[-1]" : ""} />
               </button>
               <span className="min-w-[5.5rem] text-center text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
                 {pageIndex + 1} / {sections.length}
@@ -292,9 +314,9 @@ export default function WhatsNewModal({
                 }
                 disabled={pageIndex >= sections.length - 1}
                 className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-emerald-200 bg-white text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
-                aria-label="Show next changelog version"
+                aria-label={t("whatsNew.next")}
               >
-                <ArrowRight size={18} />
+                <ArrowRight size={18} className={isRtl ? "scale-x-[-1]" : ""} />
               </button>
             </div>
           ) : (
@@ -305,7 +327,7 @@ export default function WhatsNewModal({
             onClick={() => onClose?.()}
             className="rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
           >
-            Got it!
+            {t("whatsNew.gotIt")}
           </button>
         </div>
       </div>

@@ -1,6 +1,9 @@
 ﻿import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
+import { migrateLegacyStorageKeys } from './utils/legacyStorageMigrate.js'
+
+migrateLegacyStorageKeys()
 
 const rootElement = document.getElementById('root')
 

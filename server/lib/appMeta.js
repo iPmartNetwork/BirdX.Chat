@@ -4,6 +4,12 @@ function normalizeVersion(value) {
     .replace(/^v/i, "");
 }
 
+function versionFromChangelogHeading(heading) {
+  const raw = String(heading || "").trim();
+  const match = raw.match(/v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/i);
+  return match ? normalizeVersion(match[1]) : normalizeVersion(raw);
+}
+
 function parseVersion(value) {
   const normalized = normalizeVersion(value);
   const match = normalized.match(
@@ -129,31 +135,58 @@ function findChangelogVersionSection(changelog, version) {
 
   const sections = parseChangelogSections(changelog);
   return (
-    sections.find(({ heading }) => normalizeVersion(heading) === normalizedVersion) ||
-    null
+    sections.find(
+      ({ heading }) => versionFromChangelogHeading(heading) === normalizedVersion,
+    ) || null
   );
+}
+
+function readChangelogBundle({ fs, path, projectRootDir, version, fileName }) {
+  const changelogPath = path.join(projectRootDir, fileName);
+  const changelog = readTextFile(fs, changelogPath, "").trim();
+  const changelogSections = parseChangelogSections(changelog);
+  const currentVersionSection = findChangelogVersionSection(changelog, version);
+
+  return {
+    changelog,
+    changelogSections,
+    currentChangelog:
+      currentVersionSection?.body || (changelogSections.length ? "" : changelog),
+  };
 }
 
 function readAppMeta({ fs, path, projectRootDir }) {
   const versionPath = path.join(projectRootDir, "VERSION");
-  const changelogPath = path.join(projectRootDir, "CHANGELOG.md");
   const packageJsonPath = path.join(projectRootDir, "package.json");
   const packageJson = readJsonFile(fs, packageJsonPath);
   const repository = parseGitHubRepository(
     packageJson?.repository?.url || packageJson?.homepage || "",
   );
   const version = readTextFile(fs, versionPath).trim();
-  const changelog = readTextFile(fs, changelogPath, "").trim();
-  const changelogSections = parseChangelogSections(changelog);
-  const currentVersionSection = findChangelogVersionSection(changelog, version);
+  const english = readChangelogBundle({
+    fs,
+    path,
+    projectRootDir,
+    version,
+    fileName: "CHANGELOG.md",
+  });
+  const persian = readChangelogBundle({
+    fs,
+    path,
+    projectRootDir,
+    version,
+    fileName: "CHANGELOG.fa.md",
+  });
 
   return {
     version,
     normalizedVersion: normalizeVersion(version),
-    changelog,
-    changelogSections,
-    currentChangelog:
-      currentVersionSection?.body || (changelogSections.length ? "" : changelog),
+    changelog: english.changelog,
+    changelogSections: english.changelogSections,
+    currentChangelog: english.currentChangelog,
+    changelogFa: persian.changelog,
+    changelogSectionsFa: persian.changelogSections,
+    currentChangelogFa: persian.currentChangelog,
     repository,
   };
 }

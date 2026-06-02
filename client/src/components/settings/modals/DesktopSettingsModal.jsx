@@ -8,6 +8,7 @@ import { InlineError } from "../common/InlineError.jsx";
 import { AboutSettingsPanel } from "../panels/AboutSettingsPanel.jsx";
 import { DataSettingsPanel } from "../panels/DataSettingsPanel.jsx";
 import { LanguageSettingsPanel } from "../panels/LanguageSettingsPanel.jsx";
+import { PrivacySettingsPanel } from "../panels/PrivacySettingsPanel.jsx";
 import TwoFactorSettings from "../panels/TwoFactorSettings.jsx";
 import { useLanguage } from "../../../i18n/LanguageContext.jsx";
 import ConfirmPasswordModal from "../../modals/ConfirmPasswordModal.jsx";
@@ -38,6 +39,8 @@ export function DesktopSettingsModal({
   appInfo,
   appInfoLoading,
   appInfoError,
+  dmPolicy,
+  onDmPolicyChange,
 }) {
   const { t } = useLanguage();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -67,6 +70,8 @@ export function DesktopSettingsModal({
               ? t("settings.profile")
               : settingsPanel === "security"
                 ? t("settings.security")
+                : settingsPanel === "privacy"
+                  ? t("settings.privacy")
                 : settingsPanel === "data"
                   ? t("settings.data")
                   : settingsPanel === "language"
@@ -362,6 +367,15 @@ export function DesktopSettingsModal({
           </form>
           <TwoFactorSettings />
           </div>
+        ) : null}
+
+        {settingsPanel === "privacy" ? (
+          <PrivacySettingsPanel
+            user={currentUser}
+            dmPolicy={dmPolicy}
+            onDmPolicyChange={onDmPolicyChange}
+            onDone={handleClosePanel}
+          />
         ) : null}
 
         {settingsPanel === "data" ? (

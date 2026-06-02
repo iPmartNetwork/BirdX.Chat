@@ -1,12 +1,17 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { LEGACY_DB_FILENAME, resolveDatabasePath } from '../lib/dataPaths.js'
 import { dataDir, getCliArgs, hasForceYes, confirmAction } from './_cli.js'
 import { runAdminActionViaServer } from './_db-admin.js'
-const dbPath = path.join(dataDir, 'songbird.db')
+const dbPath = resolveDatabasePath(dataDir, fs)
+const legacyDbPath = path.join(dataDir, LEGACY_DB_FILENAME)
 const uploadsDir = path.join(dataDir, 'uploads', 'messages')
 
 const args = getCliArgs()
-const hasForceFlag = hasForceYes(args) || process.env.SONGBIRD_FORCE_DELETE === '1'
+const hasForceFlag =
+  hasForceYes(args) ||
+  process.env.BIRDX_FORCE_DELETE === '1' ||
+  process.env.SONGBIRD_FORCE_DELETE === '1'
 const confirmed = await confirmAction({
   prompt: 'This will permanently delete database and uploaded message files. Continue?',
   force: hasForceFlag,
@@ -27,10 +32,12 @@ if (remoteResult) {
 let removedDb = false
 let removedUploads = false
 
-if (fs.existsSync(dbPath)) {
-  fs.rmSync(dbPath, { force: true })
-  removedDb = true
-}
+;[dbPath, legacyDbPath].forEach((targetPath) => {
+  if (fs.existsSync(targetPath)) {
+    fs.rmSync(targetPath, { force: true })
+    removedDb = true
+  }
+})
 
 if (fs.existsSync(uploadsDir)) {
   fs.rmSync(uploadsDir, { recursive: true, force: true })

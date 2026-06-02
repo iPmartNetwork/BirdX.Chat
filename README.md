@@ -7,22 +7,22 @@
 </p>
 
 <p align="center">
-  <a href="./VERSION"><img src="https://img.shields.io/badge/version-2.5.3--rc4-10b981?style=for-the-badge" alt="Version" /></a>
+  <a href="./VERSION"><img src="https://img.shields.io/badge/version-1.0.0-10b981?style=for-the-badge" alt="Version" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="License" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/node-%3E%3D24.0.0-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" /></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/iPmartNetwork/BirdX/stargazers"><img src="https://img.shields.io/github/stars/iPmartNetwork/BirdX?style=for-the-badge&color=f59e0b" alt="Stars" /></a>
-  <a href="https://github.com/iPmartNetwork/BirdX/network/members"><img src="https://img.shields.io/github/forks/iPmartNetwork/BirdX?style=for-the-badge&color=8b5cf6" alt="Forks" /></a>
-  <a href="https://github.com/iPmartNetwork/BirdX/issues"><img src="https://img.shields.io/github/issues/iPmartNetwork/BirdX?style=for-the-badge&color=ef4444" alt="Issues" /></a>
-  <a href="https://github.com/iPmartNetwork/BirdX"><img src="https://img.shields.io/github/repo-size/iPmartNetwork/BirdX?style=for-the-badge&color=06b6d4" alt="Repo Size" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX.Chat/stargazers"><img src="https://img.shields.io/github/stars/iPmartNetwork/BirdX.Chat?style=for-the-badge&color=f59e0b" alt="Stars" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX.Chat/network/members"><img src="https://img.shields.io/github/forks/iPmartNetwork/BirdX.Chat?style=for-the-badge&color=8b5cf6" alt="Forks" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX.Chat/issues"><img src="https://img.shields.io/github/issues/iPmartNetwork/BirdX.Chat?style=for-the-badge&color=ef4444" alt="Issues" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX.Chat"><img src="https://img.shields.io/github/repo-size/iPmartNetwork/BirdX.Chat?style=for-the-badge&color=06b6d4" alt="Repo Size" /></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/iPmartNetwork/BirdX/releases"><img src="https://img.shields.io/github/downloads/iPmartNetwork/BirdX/total?style=for-the-badge&color=22c55e&label=Downloads" alt="Downloads" /></a>
-  <a href="https://github.com/iPmartNetwork/BirdX/commits/master"><img src="https://img.shields.io/github/last-commit/iPmartNetwork/BirdX?style=for-the-badge&color=6366f1" alt="Last Commit" /></a>
-  <a href="https://github.com/iPmartNetwork/BirdX/graphs/contributors"><img src="https://img.shields.io/github/contributors/iPmartNetwork/BirdX?style=for-the-badge&color=ec4899" alt="Contributors" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX.Chat/releases"><img src="https://img.shields.io/github/downloads/iPmartNetwork/BirdX.Chat/total?style=for-the-badge&color=22c55e&label=Downloads" alt="Downloads" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX.Chat/commits/master"><img src="https://img.shields.io/github/last-commit/iPmartNetwork/BirdX.Chat?style=for-the-badge&color=6366f1" alt="Last Commit" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX.Chat/graphs/contributors"><img src="https://img.shields.io/github/contributors/iPmartNetwork/BirdX.Chat?style=for-the-badge&color=ec4899" alt="Contributors" /></a>
 </p>
 
 <p align="center">
@@ -38,17 +38,21 @@
 
 ## 📋 Overview
 
-BirdX is a feature-rich, self-hosted messaging platform built for teams and private communities. It combines real-time chat, voice/video calls, end-to-end encryption, file sharing, and a powerful admin panel into a single deployable application.
+**BirdX Chat** is a feature-rich, self-hosted messaging platform built for teams and private communities. It combines real-time chat, voice/video calls, end-to-end encryption, file sharing, and a powerful admin panel into a single deployable application.
 
-Based on the original [Songbird](https://github.com/bllackbull/Songbird) project by Mr. Pouya Khalili.
+| Domain | Purpose |
+|--------|---------|
+| [birdx.chat](https://birdx.chat) | Marketing site (Persian, light theme) |
+| [web.birdx.chat](https://web.birdx.chat) | Web app / PWA (English default) |
+| [app.birdx.chat](https://app.birdx.chat) | Mobile apps & downloads |
 
 ---
 
 ## ⚡ Quick Start
 
 ```bash
-git clone https://github.com/iPmartNetwork/BirdX.git
-cd BirdX
+git clone https://github.com/iPmartNetwork/BirdX.Chat.git
+cd BirdX.Chat
 npm install
 npm run build
 npm start
@@ -57,7 +61,7 @@ npm start
 Or use the one-line installer:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/iPmartNetwork/BirdX/master/scripts/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/iPmartNetwork/BirdX.Chat/master/scripts/install.sh)
 ```
 
 ---
@@ -241,6 +245,12 @@ APP_ENV=production
 ACCOUNT_CREATION=true
 ADMIN_USERNAMES=admin
 
+# Direct messages (privacy)
+DM_DISCOVERY_MODE=exact_username
+DM_MAX_POLICY=everyone
+DM_REQUESTS_PER_DAY=20
+DM_REJECT_COOLDOWN_DAYS=7
+
 # Upload
 FILE_UPLOAD=true
 FILE_UPLOAD_MAX_SIZE=26214400
@@ -309,20 +319,19 @@ Backups are also available from the Admin Panel Maintenance tab.
 ## 📁 Project Structure
 
 ```
-├── client/          React + Vite + Tailwind (PWA)
-│   ├── src/
-│   │   ├── api/         API client functions
-│   │   ├── components/  UI components
-│   │   ├── pages/       App pages (Chat, Admin, Auth)
-│   │   └── hooks/       Custom React hooks
-│   └── public/          Static assets, SW, manifest
+├── client/          React + Vite + Tailwind (PWA → web.birdx.chat)
+├── site/            Astro marketing site (→ birdx.chat)
 ├── server/          Express + Socket.IO + sql.js
-│   ├── api/             Route handlers
-│   ├── lib/             Utilities and services
-│   ├── migrations/      Database migrations
-│   └── scripts/         CLI tools
-├── data/            Runtime (DB, uploads, backups)
+├── deploy/nginx/    Example reverse-proxy configs
+├── data/            Runtime (birdx.db, uploads, backups)
 └── scripts/         Install and ops scripts
+```
+
+Build everything:
+
+```bash
+npm run build:all   # client + site
+npm start           # API + web app
 ```
 
 ---
@@ -353,11 +362,9 @@ Backups are also available from the Admin Panel Maintenance tab.
 
 ## 🙏 Credits
 
-BirdX is developed by **[iPmart Network](https://github.com/iPmartNetwork)** and is based on the original open-source Songbird project:
+**BirdX Chat** is developed by **[iPmart Network](https://github.com/iPmartNetwork)**.
 
-🔗 **Original Project:** [https://github.com/bllackbull/Songbird](https://github.com/bllackbull/Songbird)
-
-Special thanks to **Mr. Pouya Khalili** for the original Songbird project and the foundation that made BirdX possible.
+We are grateful to **Mr. Pouya Khalili** ([@bllackbull](https://github.com/bllackbull)) for the original idea and the valuable open-source foundation that made this project possible. BirdX Chat is an independent product built on that vision.
 
 ---
 

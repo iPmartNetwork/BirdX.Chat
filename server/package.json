@@ -1,17 +1,17 @@
 {
   "name": "birdx-server",
-  "version": "2.5.3-rc4",
+  "version": "1.0.0",
   "private": true,
   "license": "MIT",
   "description": "BirdX Backend - API server for chat and file sharing",
   "repository": {
     "type": "git",
-    "url": "https://github.com/iPmartNetwork/BirdX.git"
+    "url": "https://github.com/iPmartNetwork/BirdX.Chat.git"
   },
   "bugs": {
-    "url": "https://github.com/iPmartNetwork/BirdX/issues"
+    "url": "https://github.com/iPmartNetwork/BirdX.Chat/issues"
   },
-  "homepage": "https://github.com/iPmartNetwork/BirdX#readme",
+  "homepage": "https://github.com/iPmartNetwork/BirdX.Chat#readme",
   "type": "module",
   "scripts": {
     "dev": "node --watch index.js",

@@ -8,6 +8,7 @@ import {
   Rocket,
   ShieldCheck,
   User,
+  Lock,
 } from "../../../icons/lucide.js";
 import { useLanguage } from "../../../i18n/LanguageContext.jsx";
 import { ThemeButton } from "../common/ThemeButton.jsx";
@@ -54,6 +55,14 @@ export function SettingsMenuActions({
       >
         <ShieldCheck size={18} className="icon-anim-sway" />
         {t("settings.security")}
+      </button>
+      <button
+        type="button"
+        onClick={() => setSettingsPanel("privacy")}
+        className={`mt-1 ${buttonBase} ${accentHover}`}
+      >
+        <Lock size={18} className="icon-anim-sway" />
+        {t("settings.privacy")}
       </button>
       <button
         type="button"

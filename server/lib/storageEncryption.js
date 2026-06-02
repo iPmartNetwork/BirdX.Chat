@@ -9,7 +9,7 @@ const FILE_HEADER_LENGTH = FILE_MAGIC.length + 12 + 16;
 const FILE_IV_OFFSET = FILE_MAGIC.length;
 const FILE_TAG_OFFSET = FILE_IV_OFFSET + 12;
 const FILE_DATA_OFFSET = FILE_HEADER_LENGTH;
-const FILE_TEMP_DIR_NAME = "songbird-secure";
+const FILE_TEMP_DIR_NAME = "birdx-secure";
 
 function normalizeEnvSecret(value) {
   const raw = String(value ?? "").trim();

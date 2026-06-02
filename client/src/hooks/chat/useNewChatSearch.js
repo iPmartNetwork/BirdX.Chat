@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 
+const USERNAME_PATTERN = /^[a-z0-9._]{3,32}$/;
+
 export function useNewChatSearch({
   user,
   dmUsernamesRef,
-  searchUsers,
+  lookupUserExact,
   debounceMs,
-  maxResults,
 }) {
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [newChatUsername, setNewChatUsername] = useState("");
@@ -16,7 +17,13 @@ export function useNewChatSearch({
 
   useEffect(() => {
     if (!newChatOpen) return;
-    if (!newChatUsername.trim()) {
+    const normalized = newChatUsername.trim().toLowerCase().replace(/^@+/, "");
+    if (!normalized) {
+      setNewChatResults([]);
+      setNewChatSelection(null);
+      return;
+    }
+    if (!USERNAME_PATTERN.test(normalized)) {
       setNewChatResults([]);
       setNewChatSelection(null);
       return;
@@ -24,24 +31,36 @@ export function useNewChatSearch({
     const handle = setTimeout(async () => {
       try {
         setNewChatLoading(true);
-        const res = await searchUsers({
+        const res = await lookupUserExact({
           exclude: user.username,
-          query: newChatUsername.trim().toLowerCase(),
+          username: normalized,
         });
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data?.error || "Unable to search users.");
+          throw new Error(data?.error || "Unable to look up user.");
         }
         const dmUsernames = dmUsernamesRef.current;
-        const users = (data.users || [])
-          .filter(
-            (candidate) =>
-              !dmUsernames.has(String(candidate.username || "").toLowerCase()),
-          )
-          .slice(0, maxResults);
-        setNewChatResults(users);
+        const candidate = data.user || null;
+        if (
+          candidate &&
+          !dmUsernames.has(String(candidate.username || "").toLowerCase())
+        ) {
+          setNewChatResults([candidate]);
+          if (
+            String(candidate.username || "").toLowerCase() === normalized
+          ) {
+            setNewChatSelection(candidate);
+          } else {
+            setNewChatSelection(null);
+          }
+        } else {
+          setNewChatResults([]);
+          setNewChatSelection(null);
+        }
       } catch (err) {
         setNewChatError(err.message);
+        setNewChatResults([]);
+        setNewChatSelection(null);
       } finally {
         setNewChatLoading(false);
       }
@@ -50,10 +69,9 @@ export function useNewChatSearch({
   }, [
     debounceMs,
     dmUsernamesRef,
-    maxResults,
+    lookupUserExact,
     newChatOpen,
     newChatUsername,
-    searchUsers,
     user.username,
   ]);
 

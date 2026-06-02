@@ -10,6 +10,7 @@
   useState,
 } from "react";
 import MobileTabMenu from "../components/navigation/MobileTabMenu.jsx";
+import { useLanguage } from "../i18n/LanguageContext.jsx";
 import ChatWindowPanel from "../components/chat/ChatWindowPanel.jsx";
 import { ChatSidebar } from "../components/sidebar/index.js";
 import AppContextMenu from "../components/context-menu/AppContextMenu.jsx";
@@ -40,6 +41,7 @@ import { useHealthCheck } from "../hooks/chat/useHealthCheck.js";
 import { useMessagesLoader } from "../hooks/chat/useMessagesLoader.js";
 import { useMobileViewport } from "../hooks/chat/useMobileViewport.js";
 import { useNewChatSearch } from "../hooks/chat/useNewChatSearch.js";
+import { useDmRequests } from "../hooks/chat/useDmRequests.js";
 import { useNewGroupModal } from "../hooks/chat/useNewGroupModal.js";
 import { usePerfTelemetry } from "../hooks/chat/usePerfTelemetry.js";
 import { useResumeRefresh } from "../hooks/chat/useResumeRefresh.js";
@@ -113,6 +115,8 @@ import {
   logout,
   markMessagesRead,
   pingPresence,
+  blockUser,
+  lookupUserExact,
   searchUsers,
   sendTypingIndicator,
   sendMessage,
@@ -495,6 +499,7 @@ const resolveSocketOrigin = () => {
 
 export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme }) {
   /* eslint-disable react-hooks/exhaustive-deps */
+  const { t } = useLanguage();
   const [profileError, setProfileError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [loadingChats, setLoadingChats] = useState(true);
@@ -2425,7 +2430,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const [microphonePermissionSupported, setMicrophonePermissionSupported] =
     useState(false);
   const [permissionPromptDelayUntil, setPermissionPromptDelayUntil] = useState(0);
-  const PERMISSION_DISMISS_PREFIX = "songbird-permission-dismiss-";
+  const PERMISSION_DISMISS_PREFIX = "birdx-permission-dismiss-";
   const PERMISSION_DISMISS_MS = 3 * 24 * 60 * 60 * 1000;
   const PERMISSION_PROMPT_DELAY_MS = 1000;
   const readPermissionDismissed = (kind) => {
@@ -2534,9 +2539,24 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   } = useNewChatSearch({
     user,
     dmUsernamesRef,
-    searchUsers,
+    lookupUserExact,
     debounceMs: NEW_CHAT_SEARCH_DEBOUNCE_MS,
-    maxResults: CHAT_PAGE_CONFIG.newChatSearchMaxResults,
+  });
+  const [dmPolicy, setDmPolicy] = useState(user?.dmPolicy || "acquaintances");
+  useEffect(() => {
+    if (user?.dmPolicy) setDmPolicy(user.dmPolicy);
+  }, [user?.dmPolicy]);
+  const dmRequestsRefreshKey = chats.length;
+  const {
+    requests: dmRequests,
+    loading: dmRequestsLoading,
+    reload: reloadDmRequests,
+    accept: acceptDmRequest,
+    reject: rejectDmRequest,
+  } = useDmRequests({
+    user,
+    enabled: Boolean(user?.username),
+    refreshKey: dmRequestsRefreshKey,
   });
   const {
     chatsSearchQuery,
@@ -6439,7 +6459,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       }
       const matched = newChatSelection;
       if (!matched) {
-        setNewChatError("Pick a user from the search results.");
+        setNewChatError("Enter a valid exact username.");
         return;
       }
       const target = matched.username;
@@ -6456,10 +6476,45 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       setNewChatUsername("");
       setNewChatOpen(false);
       setMobileTab("chat");
+      if (data?.pending && data?.hint) {
+        setNewChatError(data.hint);
+      }
       await loadChats();
+      await reloadDmRequests();
     } catch (err) {
       setNewChatError(err.message);
     }
+  }
+
+  async function handleDmRequestAccept(request) {
+    if (!request?.chatId) return;
+    try {
+      await acceptDmRequest(request.chatId);
+      await loadChats();
+      await reloadDmRequests();
+      setActiveChatId(Number(request.chatId));
+      setActivePeer(request.from || null);
+      setMobileTab("chat");
+    } catch (err) {
+      console.warn("[dm-request] accept failed:", err?.message || err);
+    }
+  }
+
+  async function handleDmRequestReject(request) {
+    if (!request?.chatId) return;
+    try {
+      await rejectDmRequest(request.chatId);
+      await reloadDmRequests();
+    } catch (err) {
+      console.warn("[dm-request] reject failed:", err?.message || err);
+    }
+  }
+
+  function handleOpenDmRequest(request) {
+    if (!request?.chatId) return;
+    setActiveChatId(Number(request.chatId));
+    setActivePeer(request.from || null);
+    setMobileTab("chat");
   }
 
   async function handleStatusUpdate(nextStatus) {
@@ -7260,6 +7315,37 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     }
   }
 
+  async function handleBlockUser(member) {
+    const targetUsername = String(member?.username || "").trim().toLowerCase();
+    if (!targetUsername || !user?.username) return;
+    if (targetUsername === String(user.username || "").toLowerCase()) return;
+
+    const label = member?.nickname || member?.username || targetUsername;
+    const confirmed = window.confirm(
+      t("chat.blockUserConfirm").replace("{name}", label),
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await blockUser({
+        username: user.username,
+        target: targetUsername,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to block user.");
+      }
+      const activeDmPeer = String(activePeer?.username || "").toLowerCase();
+      if (activeDmPeer === targetUsername) {
+        closeChat();
+      }
+      await loadChats();
+      await reloadDmRequests();
+    } catch (err) {
+      setProfileError(err.message || "Unable to block user.");
+    }
+  }
+
   async function openOrCreateDmFromMember(member) {
     const targetUsername = String(member?.username || "").toLowerCase();
     if (!targetUsername) return;
@@ -7476,6 +7562,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     onSaveMessageFiles: handleSaveMessageFiles,
     onOpenOrCreateDm: openOrCreateDmFromMember,
     onOpenProfile: openMemberProfileFromList,
+    onBlockUser: handleBlockUser,
     onRemoveGroupMember: handleRemoveGroupMember,
     onMarkChatSeen: handleMarkChatSeen,
     onToggleChatMute: toggleMuteChat,
@@ -7791,6 +7878,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         discoverChannels={discoverChannels}
         discoverSaved={discoverSaved}
         isSavedChatActive={isActiveSavedChat}
+        dmRequests={dmRequests}
+        dmRequestsLoading={dmRequestsLoading}
+        onDmRequestAccept={handleDmRequestAccept}
+        onDmRequestReject={handleDmRequestReject}
+        onOpenDmRequest={handleOpenDmRequest}
         onOpenDiscoveredUser={openDiscoverUser}
         onOpenDiscoveredGroup={openDiscoverGroup}
         onOpenUserProfileContext={openMemberProfileFromList}
@@ -7848,6 +7940,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         settingsButtonRef={settingsButtonRef}
         displayInitials={displayInitials}
         onOpenWhatsNew={handleOpenWhatsNew}
+        dmPolicy={dmPolicy}
+        onDmPolicyChange={(nextPolicy) => {
+          setDmPolicy(nextPolicy);
+          setUser((prev) => (prev ? { ...prev, dmPolicy: nextPolicy } : prev));
+        }}
       />
 
       <ChatWindowPanel
@@ -8050,7 +8147,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       {newGroupOpen ? (
         <ModalErrorBoundary
           resetKey={`${newGroupOpen ? "open" : "closed"}:${activeChat?.id || "new"}:${groupModalType}`}
-          title={`Unable to open ${groupModalType === "channel" ? "channel" : "group"} editor`}
+          title={
+            groupModalType === "channel"
+              ? t("chat.editChannel")
+              : t("chat.editGroup")
+          }
           onClose={closeNewGroupModal}
         >
           <NewGroupModal
@@ -8070,16 +8171,20 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             onClose={closeNewGroupModal}
             title={
               editingGroup
-                ? `Edit ${groupModalType === "channel" ? "channel" : "group"}`
-                : `New ${groupModalType === "channel" ? "channel" : "group"}`
+                ? groupModalType === "channel"
+                  ? t("chat.editChannel")
+                  : t("chat.editGroup")
+                : groupModalType === "channel"
+                  ? t("chat.newChannel")
+                  : t("chat.newGroup")
             }
-            submitLabel={editingGroup ? "Save" : "Create"}
+            submitLabel={editingGroup ? t("chat.save") : t("chat.create")}
             avatarPreview={groupAvatarPreview}
             avatarColor={editingGroup ? activeChat?.group_color || "#10b981" : "#10b981"}
             avatarName={
               safeNewGroupForm.nickname ||
               safeNewGroupForm.username ||
-              (groupModalType === "channel" ? "Channel" : "Group")
+              groupModalType === "channel" ? t("chat.channel") : t("chat.group")
             }
             onAvatarChange={handleGroupAvatarChange}
             onAvatarRemove={handleGroupAvatarRemove}
@@ -8094,7 +8199,9 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             currentInviteLink={editGroupInviteLink}
             regeneratingInviteLink={regeneratingGroupInviteLink}
             onRegenerateInvite={handleRegenerateGroupInvite}
-            entityLabel={groupModalType === "channel" ? "Channel" : "Group"}
+            entityLabel={
+              groupModalType === "channel" ? t("chat.channel") : t("chat.group")
+            }
             onDeleteChat={editingGroup ? handleDeleteActiveGroup : null}
           />
         </ModalErrorBoundary>
@@ -8201,6 +8308,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             appInfoLoading={appInfoLoading}
             appInfoError={appInfoError}
             onOpenWhatsNew={handleOpenWhatsNew}
+            dmPolicy={dmPolicy}
+            onDmPolicyChange={(nextPolicy) => {
+              setDmPolicy(nextPolicy);
+              setUser((prev) => (prev ? { ...prev, dmPolicy: nextPolicy } : prev));
+            }}
           />
         </Suspense>
       ) : null}
@@ -8210,8 +8322,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     <WhatsNewModal
       open={whatsNewOpen}
       version={appInfo?.version || ""}
-      changelog={appInfo?.currentChangelog || appInfo?.changelog || ""}
-      changelogSections={appInfo?.changelogSections || []}
+      appInfo={appInfo}
       onClose={() => dismissWhatsNew(true)}
     />
   </Suspense>

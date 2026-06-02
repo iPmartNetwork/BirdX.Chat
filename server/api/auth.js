@@ -266,6 +266,7 @@ function registerAuthRoutes(app, deps) {
           String(session.role || "").toLowerCase(),
         ) ||
         ADMIN_USERNAMES.includes(String(session.username || "").toLowerCase()),
+      dmPolicy: String(session.dm_policy || "acquaintances"),
     });
   });
 

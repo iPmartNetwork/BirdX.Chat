@@ -21,7 +21,9 @@ function registerMessageRoutes(app, deps) {
     ensureAvatarExists,
     ensureFfmpegAvailable,
     fs,
+    countNonSystemMessagesInChat,
     findChatById,
+    getDmChatRow,
     findMessageIdByClientRequestId,
     findMessageById,
     findUserById,
@@ -1037,6 +1039,28 @@ function registerMessageRoutes(app, deps) {
         return res
           .status(403)
           .json({ error: "Only channel owner, admin, or moderator can send messages." });
+      }
+    }
+
+    if (chat.type === "dm") {
+      const dmMeta = getDmChatRow?.(Number(chatId)) || chat;
+      const dmStatus = String(dmMeta?.dm_status || "active");
+      const initiatorId = Number(dmMeta?.dm_initiator_user_id || 0);
+      if (dmStatus === "pending") {
+        if (Number(user.id) !== initiatorId) {
+          return res.status(403).json({
+            error: "Accept the conversation request before replying.",
+          });
+        }
+        const sentCount = countNonSystemMessagesInChat?.(Number(chatId)) || 0;
+        if (sentCount >= 1) {
+          return res.status(403).json({
+            error: "You can send only one message until the request is accepted.",
+          });
+        }
+      }
+      if (dmStatus === "rejected") {
+        return res.status(403).json({ error: "This conversation request was declined." });
       }
     }
 

@@ -19,6 +19,7 @@ import {
   getMessageFiles,
   hasMessageText,
 } from "../../utils/messageContent.js";
+import { useLanguage } from "../../i18n/LanguageContext.jsx";
 
 export function useAppContextMenu({
   activeChatId,
@@ -35,11 +36,13 @@ export function useAppContextMenu({
   onSaveMessageFiles,
   onOpenOrCreateDm,
   onOpenProfile,
+  onBlockUser,
   onRemoveGroupMember,
   onMarkChatSeen,
   onToggleChatMute,
   onDeleteChats,
 }) {
+  const { t } = useLanguage();
   const [contextMenu, setContextMenu] = useState(null);
 
   const closeContextMenu = useCallback(() => {
@@ -196,6 +199,16 @@ export function useAppContextMenu({
           });
         }
 
+        if (!isSelf && username && onBlockUser) {
+          items.push({
+            id: "block",
+            label: t("chat.blockUser"),
+            icon: Ban,
+            danger: true,
+            onSelect: () => onBlockUser?.(targetUser),
+          });
+        }
+
         if (isRemovableGroupMember) {
           items.push({
             id: "remove",
@@ -256,7 +269,9 @@ export function useAppContextMenu({
       onSaveMessageFiles,
       onOpenOrCreateDm,
       onOpenProfile,
+      onBlockUser,
       onRemoveGroupMember,
+      t,
       onReplyToMessage,
       onToggleChatMute,
       canDeleteMessageForEveryone,

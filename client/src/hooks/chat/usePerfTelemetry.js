@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { APP_CONFIG } from "../../settings/appConfig.js";
 
-const PERF_TELEMETRY_KEY = "songbird-perf-telemetry-v1";
+const PERF_TELEMETRY_KEY = "birdx-perf-telemetry-v1";
 const PERF_MAX_ENTRIES = 120;
 
 const readTelemetry = () => {

@@ -11,6 +11,9 @@ function registerAppRoutes(app, deps) {
       changelog: appMeta.changelog,
       changelogSections: appMeta.changelogSections,
       currentChangelog: appMeta.currentChangelog,
+      changelogFa: appMeta.changelogFa,
+      changelogSectionsFa: appMeta.changelogSectionsFa,
+      currentChangelogFa: appMeta.currentChangelogFa,
       repository: appMeta.repository,
       remoteChannels: {
         enabled: Boolean(

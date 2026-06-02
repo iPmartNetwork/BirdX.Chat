@@ -1,0 +1,30 @@
+---
+import { WEB_APP_URL } from '../config/urls.js'
+
+const { t } = Astro.props
+---
+
+<section class="section-block">
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+    <div class="text-center">
+      <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white sm:text-3xl lg:text-4xl">
+        {t.cta.title}
+      </h2>
+      <p class="mx-auto mt-3 max-w-xl text-sm text-slate-500 dark:text-slate-400 sm:text-base">
+        {t.cta.description}
+      </p>
+    </div>
+
+    <div class="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+      <a href="https://github.com/iPmartNetwork/BirdX.Chat/releases" target="_blank" rel="noopener" class="btn-primary">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        {t.cta.button}
+      </a>
+      <a href={WEB_APP_URL} class="btn-secondary">
+        {t.cta.buttonSecondary}
+      </a>
+    </div>
+  </div>
+</section>

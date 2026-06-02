@@ -1,4 +1,4 @@
-export const CLIPBOARD_COPY_EVENT = "songbird:clipboard-copy";
+export const CLIPBOARD_COPY_EVENT = "birdx:clipboard-copy";
 
 const dispatchCopyEvent = (text) => {
   if (typeof window === "undefined") return;

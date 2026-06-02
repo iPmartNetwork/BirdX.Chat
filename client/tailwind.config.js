@@ -4,6 +4,13 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      colors: {
+        birdx: {
+          DEFAULT: '#10b981',
+          dark: '#0c9d92',
+          light: '#d1fae5',
+        },
+      },
       fontFamily: {
         display: ['"Fraunces"', 'serif'],
         body: ['"DM Sans"', 'system-ui', 'sans-serif'],

@@ -30,6 +30,7 @@ import { migration029RemoteChannelQueue } from "./029-remote-channel-queue.js";
 import { migration030RequiredChannels } from "./030-required-channels.js";
 import { migration031UserUploadPolicy } from "./031-user-upload-policy.js";
 import { migration032E2eeKeys } from "./032-e2ee-keys.js";
+import { migration033DmPrivacy } from "./033-dm-privacy.js";
 
 export const migrations = [
   migration001InitialSchema,
@@ -64,4 +65,5 @@ export const migrations = [
   migration030RequiredChannels,
   migration031UserUploadPolicy,
   migration032E2eeKeys,
+  migration033DmPrivacy,
 ];

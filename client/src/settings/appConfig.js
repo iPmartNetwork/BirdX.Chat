@@ -31,7 +31,7 @@ export const APP_CONFIG = {
     name: "iPmartNetwork",
     label: "@iPmartNetwork",
     url: "https://github.com/iPmartNetwork",
-    repo: "https://github.com/iPmartNetwork/BirdX",
+    repo: "https://github.com/iPmartNetwork/BirdX.Chat",
   },
 
   debugEnabled: readEnvBool("APP_DEBUG", false),

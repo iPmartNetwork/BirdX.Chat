@@ -1,0 +1,88 @@
+---
+const { lang } = Astro.props
+
+const content = {
+  en: {
+    title: 'Frequently Asked Questions',
+    items: [
+      {
+        q: 'Is BirdX free?',
+        a: 'Yes, completely free and open-source under the MIT license. No hidden fees, no premium tiers.',
+      },
+      {
+        q: 'How do I install BirdX on my own server?',
+        a: 'Clone the repository, run npm install && npm run build && npm start. Or use our one-line installer script. Full docs available on GitHub.',
+      },
+      {
+        q: 'Are messages encrypted?',
+        a: 'Yes. BirdX supports end-to-end encryption using X3DH key agreement and AES-256-GCM for direct messages.',
+      },
+      {
+        q: 'Can I use BirdX without self-hosting?',
+        a: 'Absolutely. Open web.birdx.chat in your browser, sign up, and start chatting. This site (birdx.chat) is our homepage and docs.',
+      },
+      {
+        q: 'What platforms are supported?',
+        a: 'BirdX works on Web (any browser), Android, iOS, and Windows. Mobile apps are coming soon.',
+      },
+      {
+        q: 'Is there voice and video calling?',
+        a: 'Yes. BirdX includes WebRTC-based peer-to-peer voice and video calls with screen sharing support.',
+      },
+    ],
+  },
+  fa: {
+    title: 'سوالات متداول',
+    items: [
+      {
+        q: 'آیا بردایکس رایگانه؟',
+        a: 'بله، کاملاً رایگان و اوپن‌سورس با لایسنس MIT. بدون هزینه پنهان، بدون پلن پولی.',
+      },
+      {
+        q: 'چطور روی سرور خودم نصب کنم؟',
+        a: 'ریپازیتوری رو کلون کنید، npm install و npm run build و npm start بزنید. یا از اسکریپت نصب یک‌خطی ما استفاده کنید. مستندات کامل تو گیت‌هاب هست.',
+      },
+      {
+        q: 'آیا پیام‌ها رمزنگاری میشن؟',
+        a: 'بله. بردایکس از رمزنگاری سرتاسری با پروتکل X3DH و AES-256-GCM برای چت‌های خصوصی پشتیبانی میکنه.',
+      },
+      {
+        q: 'میتونم بدون سرور شخصی استفاده کنم؟',
+        a: 'بله. در مرورگر web.birdx.chat را باز کنید، ثبت‌نام کنید و شروع کنید. birdx.chat فقط سایت معرفی و راهنماست.',
+      },
+      {
+        q: 'چه پلتفرم‌هایی پشتیبانی میشن؟',
+        a: 'بردایکس روی وب (هر مرورگری)، اندروید، iOS و ویندوز کار میکنه. اپ‌های موبایل به زودی منتشر میشن.',
+      },
+      {
+        q: 'آیا تماس صوتی و تصویری داره؟',
+        a: 'بله. بردایکس شامل تماس صوتی و تصویری WebRTC با قابلیت اشتراک صفحه هست.',
+      },
+    ],
+  },
+}
+
+const data = content[lang] || content.en
+---
+
+<section id="security" class="section-block section-block-alt">
+  <div class="mx-auto max-w-5xl px-6 lg:px-8">
+    <div class="text-center">
+      <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white sm:text-3xl lg:text-4xl">
+        {data.title}
+      </h2>
+    </div>
+
+    <div class="mt-12 space-y-4">
+      {data.items.map((item) => (
+        <details class="group rounded-xl border border-slate-200 bg-white px-6 py-4 transition-all hover:border-emerald-200 dark:border-slate-700/40 dark:bg-slate-800/40 dark:hover:border-emerald-500/30">
+          <summary class="flex cursor-pointer items-center justify-between text-sm font-bold text-slate-900 dark:text-white sm:text-base">
+            {item.q}
+            <svg class="h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <p class="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{item.a}</p>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>

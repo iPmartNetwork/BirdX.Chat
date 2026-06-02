@@ -1,4 +1,4 @@
-const DB_NAME = "songbird-cache";
+const DB_NAME = "birdx-cache";
 const DB_VERSION = 2;
 
 const STORES = {

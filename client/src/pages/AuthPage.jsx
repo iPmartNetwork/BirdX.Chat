@@ -4,8 +4,6 @@ import AuthFormFields from "../components/auth/AuthFormFields.jsx";
 import AuthHeader from "../components/auth/AuthHeader.jsx";
 import AuthOverlay from "../components/auth/AuthOverlay.jsx";
 import AuthStatusBanner from "../components/auth/AuthStatusBanner.jsx";
-import { useLanguage } from "../i18n/LanguageContext.jsx";
-
 export default function AuthPage({
   mode,
   isDark,
@@ -23,8 +21,6 @@ export default function AuthPage({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [themeToggleAnimating, setThemeToggleAnimating] = useState(false);
-  const [nicknameLength, setNicknameLength] = useState(0);
-  const [usernameLength, setUsernameLength] = useState(0);
   const themeAnimTimeoutRef = useRef(null);
   const cardRef = useRef(null);
   const [fitsViewport, setFitsViewport] = useState(true);
@@ -86,7 +82,7 @@ export default function AuthPage({
   return (
     <section
       ref={cardRef}
-      className={`relative w-full max-w-md rounded-3xl border border-emerald-200/70 bg-white/80 p-6 shadow-2xl shadow-emerald-500/10 backdrop-blur dark:border-white/5 dark:bg-slate-900/80 sm:p-8 ${
+      className={`relative w-full max-w-[26rem] rounded-3xl border border-emerald-200/80 bg-white/90 p-6 text-slate-900 shadow-2xl shadow-emerald-500/15 ring-1 ring-emerald-500/10 backdrop-blur-md dark:border-emerald-500/15 dark:bg-slate-900/90 dark:text-slate-100 dark:ring-emerald-400/10 sm:p-8 ${
         fitsViewport ? "my-auto self-center" : "my-0 self-start"
       }`}
     >
@@ -105,16 +101,8 @@ export default function AuthPage({
         setShowPassword={setShowPassword}
         showConfirmPassword={showConfirmPassword}
         setShowConfirmPassword={setShowConfirmPassword}
-        nicknameLength={nicknameLength}
-        setNicknameLength={setNicknameLength}
-        usernameLength={usernameLength}
-        setUsernameLength={setUsernameLength}
         loading={loading}
         onSubmit={onSubmit}
-        onReset={() => {
-          setNicknameLength(0);
-          setUsernameLength(0);
-        }}
       />
 
       <AuthStatusBanner status={status} />

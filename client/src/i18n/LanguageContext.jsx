@@ -29,8 +29,20 @@ export const SUPPORTED_LANGUAGES = [
 const TRANSLATIONS = {
   en: {
     // Settings
+    "settings.title": "Settings",
     "settings.profile": "Edit profile",
     "settings.security": "Security",
+    "settings.privacy": "Privacy",
+    "settings.privacy.intro":
+      "Choose who can start a direct conversation with you. Others can still find you only by exact username.",
+    "settings.privacy.acquaintances": "Acquaintances",
+    "settings.privacy.acquaintances.hint":
+      "Shared group or channel members can message directly; everyone else sends a request.",
+    "settings.privacy.everyone": "Everyone",
+    "settings.privacy.everyone.hint":
+      "Anyone who knows your exact username can start a direct chat.",
+    "settings.privacy.nobody": "Nobody",
+    "settings.privacy.nobody.hint": "No new direct messages unless you already have a chat.",
     "settings.data": "Data",
     "settings.language": "Language",
     "settings.savedMessages": "Saved messages",
@@ -85,11 +97,17 @@ const TRANSLATIONS = {
     "settings.about.copy": "Copy",
     "settings.about.copied": "Copied",
     // Auth
-    "auth.welcome": "Welcome to BirdX",
-    "auth.subtitle": "Secure chat & file sharing platform",
+    "auth.brand": "BirdX Chat",
+    "auth.welcome": "Welcome back",
+    "auth.joinTitle": "Create your account",
+    "auth.subtitle": "Secure chat and file sharing on your server",
+    "auth.joinSubtitle": "Sign up to start messaging in seconds",
     "auth.signIn": "Sign in",
     "auth.createAccount": "Create account",
+    "auth.createNewAccount": "Create new account",
+    "auth.backToSignIn": "Back to sign in",
     "auth.username": "Username",
+    "auth.usernameHint": "Use English letters, numbers, dot (.), and underscore (_).",
     "auth.password": "Password",
     "auth.confirmPassword": "Confirm password",
     "auth.nickname": "Nickname",
@@ -97,13 +115,56 @@ const TRANSLATIONS = {
     "auth.haveAccount": "Already have an account?",
     "auth.2faCode": "2FA Code",
     "auth.2faHint": "Enter the 6-digit code from your authenticator app, or a backup code.",
+    "auth.signingIn": "Signing in...",
+    "auth.showPassword": "Show password",
+    "auth.hidePassword": "Hide password",
+    "auth.showConfirmPassword": "Show confirm password",
+    "auth.hideConfirmPassword": "Hide confirm password",
+    "auth.toggleTheme": "Toggle theme",
+    "auth.language": "Language",
+    // What's new
+    "whatsNew.title": "What's new",
+    "whatsNew.versionTitle": "BirdX {version}",
+    "whatsNew.gotIt": "Got it!",
+    "whatsNew.empty": "No release notes are available for this version yet.",
+    "whatsNew.close": "Close",
+    "whatsNew.prev": "Previous version",
+    "whatsNew.next": "Next version",
     // Chat
+    "chat.chats": "Chats",
+    "chat.edit": "Edit",
+    "chat.connecting": "Connecting...",
+    "chat.updating": "Updating...",
+    "chat.createMenu": "Create",
+    "chat.newDm": "New DM",
+    "chat.unnamed": "Chat",
     "chat.newChat": "New chat",
     "chat.newGroup": "New group",
     "chat.newChannel": "New channel",
+    "chat.editGroup": "Edit group",
+    "chat.editChannel": "Edit channel",
+    "chat.create": "Create",
+    "chat.save": "Save",
+    "chat.group": "Group",
+    "chat.channel": "Channel",
+    "chat.startChat": "Start chat",
+    "chat.searching": "Searching...",
+    "chat.noUsersFound": "No user with this exact username.",
+    "chat.usernameHint": "Enter the full username (e.g. jane_doe). Partial search is disabled.",
+    "chat.selectUserToStart": "Confirm the username above to start chatting.",
+    "chat.dmRequests": "Requests",
+    "chat.dmRequestAccept": "Accept",
+    "chat.dmRequestReject": "Decline",
+    "chat.dmRequestPendingHint": "Your message was sent as a conversation request.",
+    "chat.discoverHint": "Search public groups and channels.",
+    "chat.blockUser": "Block user",
+    "chat.blockUserConfirm": "Block {name}? They will not be able to message you.",
     "chat.search": "Search",
     "chat.searchChats": "Search chats",
     "chat.noChats": "No chats yet",
+    "chat.emptyListTitle": "Your conversation list is empty.",
+    "chat.emptyListHint": "Press + to start a new conversation.",
+    "chat.selectToStart": "Select a conversation to start",
     "chat.typeMessage": "Type a message...",
     "chat.send": "Send",
     "chat.reply": "Reply",
@@ -170,8 +231,20 @@ const TRANSLATIONS = {
   },
   fa: {
     // Settings
+    "settings.title": "تنظیمات",
     "settings.profile": "ویرایش پروفایل",
     "settings.security": "امنیت",
+    "settings.privacy": "حریم خصوصی",
+    "settings.privacy.intro":
+      "مشخص کنید چه کسی می‌تواند گفتگوی خصوصی با شما شروع کند. پیدا کردن شما فقط با نام کاربری دقیق است.",
+    "settings.privacy.acquaintances": "آشنایان",
+    "settings.privacy.acquaintances.hint":
+      "اعضای گروه یا کانال مشترک مستقیم پیام می‌دهند؛ بقیه درخواست گفتگو می‌فرستند.",
+    "settings.privacy.everyone": "همه",
+    "settings.privacy.everyone.hint":
+      "هر کسی که نام کاربری دقیق شما را بداند می‌تواند گفتگو شروع کند.",
+    "settings.privacy.nobody": "هیچ‌کس",
+    "settings.privacy.nobody.hint": "گفتگوی خصوصی جدید پذیرفته نمی‌شود.",
     "settings.data": "داده‌ها",
     "settings.language": "زبان",
     "settings.savedMessages": "پیام‌های ذخیره‌شده",
@@ -200,7 +273,7 @@ const TRANSLATIONS = {
     "settings.language.saved": "روی همین دستگاه ذخیره می‌شود",
     "settings.language.note": "پیام‌ها همچنان جهت متن خودشان را به صورت خودکار حفظ می‌کنند.",
     "settings.data.cachedSize": "حجم کش",
-    "settings.data.chatEntries": "فهرست چت‌ها",
+    "settings.data.chatEntries": "فهرست گفتگوها",
     "settings.data.messageCache": "کش پیام‌ها",
     "settings.data.mediaThumbnails": "تصویرک‌های رسانه",
     "settings.data.videoPosters": "پوسترهای ویدیو",
@@ -226,11 +299,17 @@ const TRANSLATIONS = {
     "settings.about.copy": "کپی",
     "settings.about.copied": "کپی شد",
     // Auth
-    "auth.welcome": "به BirdX خوش آمدید",
-    "auth.subtitle": "پلتفرم امن چت و اشتراک فایل",
+    "auth.brand": "BirdX Chat",
+    "auth.welcome": "خوش آمدید",
+    "auth.joinTitle": "ساخت حساب کاربری",
+    "auth.subtitle": "گفتگو و اشتراک فایل امن روی سرور شما",
+    "auth.joinSubtitle": "ثبت‌نام کنید و در چند ثانیه شروع به گفتگو کنید",
     "auth.signIn": "ورود",
     "auth.createAccount": "ساخت حساب",
+    "auth.createNewAccount": "ساخت حساب جدید",
+    "auth.backToSignIn": "بازگشت به ورود",
     "auth.username": "نام کاربری",
+    "auth.usernameHint": "فقط حروف انگلیسی، عدد، نقطه (.) و زیرخط (_) مجاز است.",
     "auth.password": "رمز عبور",
     "auth.confirmPassword": "تکرار رمز عبور",
     "auth.nickname": "نام نمایشی",
@@ -238,13 +317,56 @@ const TRANSLATIONS = {
     "auth.haveAccount": "حساب کاربری دارید؟",
     "auth.2faCode": "کد احراز هویت دو مرحله‌ای",
     "auth.2faHint": "کد ۶ رقمی از اپلیکیشن احراز هویت یا کد پشتیبان را وارد کنید.",
+    "auth.signingIn": "در حال ورود...",
+    "auth.showPassword": "نمایش رمز عبور",
+    "auth.hidePassword": "پنهان کردن رمز عبور",
+    "auth.showConfirmPassword": "نمایش تکرار رمز",
+    "auth.hideConfirmPassword": "پنهان کردن تکرار رمز",
+    "auth.toggleTheme": "تغییر پوسته",
+    "auth.language": "زبان",
+    // What's new
+    "whatsNew.title": "تازه‌ها",
+    "whatsNew.versionTitle": "BirdX {version}",
+    "whatsNew.gotIt": "متوجه شدم",
+    "whatsNew.empty": "برای این نسخه هنوز یادداشت انتشار ثبت نشده است.",
+    "whatsNew.close": "بستن",
+    "whatsNew.prev": "نسخه قبلی",
+    "whatsNew.next": "نسخه بعدی",
     // Chat
-    "chat.newChat": "چت جدید",
+    "chat.chats": "گفتگوها",
+    "chat.edit": "ویرایش",
+    "chat.connecting": "در حال اتصال...",
+    "chat.updating": "در حال بروزرسانی...",
+    "chat.createMenu": "ساخت",
+    "chat.newDm": "گفتگوی خصوصی جدید",
+    "chat.unnamed": "گفتگو",
+    "chat.newChat": "گفتگوی جدید",
     "chat.newGroup": "گروه جدید",
     "chat.newChannel": "کانال جدید",
+    "chat.editGroup": "ویرایش گروه",
+    "chat.editChannel": "ویرایش کانال",
+    "chat.create": "ساخت",
+    "chat.save": "ذخیره",
+    "chat.group": "گروه",
+    "chat.channel": "کانال",
+    "chat.startChat": "شروع گفتگو",
+    "chat.searching": "در حال جستجو...",
+    "chat.noUsersFound": "کاربری با این نام دقیق پیدا نشد.",
+    "chat.usernameHint": "نام کاربری کامل را وارد کنید (مثلاً jane_doe). جستجوی جزئی غیرفعال است.",
+    "chat.selectUserToStart": "برای شروع، نام کاربری بالا را تأیید کنید.",
+    "chat.dmRequests": "درخواست‌ها",
+    "chat.dmRequestAccept": "قبول",
+    "chat.dmRequestReject": "رد",
+    "chat.dmRequestPendingHint": "پیام شما به‌صورت درخواست گفتگو ارسال شد.",
+    "chat.discoverHint": "گروه‌ها و کانال‌های عمومی را جستجو کنید.",
+    "chat.blockUser": "مسدود کردن",
+    "chat.blockUserConfirm": "«{name}» مسدود شود؟ دیگر نمی‌تواند به شما پیام بدهد.",
     "chat.search": "جستجو",
-    "chat.searchChats": "جستجوی چت‌ها",
-    "chat.noChats": "هنوز چتی ندارید",
+    "chat.searchChats": "جستجوی گفتگوها",
+    "chat.noChats": "هنوز گفتگویی ندارید",
+    "chat.emptyListTitle": "فهرست گفتگوهای شما خالی است.",
+    "chat.emptyListHint": "برای ایجاد گفتگوی جدید + را بزنید.",
+    "chat.selectToStart": "برای شروع گفتگو، یکی را انتخاب کنید",
     "chat.typeMessage": "پیام بنویسید...",
     "chat.send": "ارسال",
     "chat.reply": "پاسخ",
@@ -277,7 +399,7 @@ const TRANSLATIONS = {
     "chat.ended": "تماس پایان یافت",
     "chat.noMessages": "هنوز پیامی نیست",
     "chat.unreadMessages": "پیام‌های خوانده‌نشده",
-    "chat.deleteChat": "حذف چت",
+    "chat.deleteChat": "حذف گفتگو",
     "chat.clearHistory": "پاک‌کردن تاریخچه",
     // Admin
     "admin.title": "پنل مدیریت",
@@ -285,7 +407,7 @@ const TRANSLATIONS = {
     "admin.analytics": "آنالیتیکس",
     "admin.monitor": "مانیتور",
     "admin.users": "کاربران",
-    "admin.chats": "چت‌ها",
+    "admin.chats": "گفتگوها",
     "admin.files": "فایل‌ها",
     "admin.broadcast": "پیام همگانی",
     "admin.scheduled": "زمان‌بندی",
@@ -307,7 +429,7 @@ const TRANSLATIONS = {
     "admin.cancel": "لغو",
     "admin.loading": "در حال بارگذاری پنل مدیریت...",
     "admin.accessRequired": "دسترسی مدیریت لازم است",
-    "admin.backToChat": "بازگشت به چت",
+    "admin.backToChat": "بازگشت به گفتگو",
   },
 };
 
@@ -329,6 +451,11 @@ function readStoredLanguage() {
   }
 }
 
+export function getTranslation(language, key) {
+  const normalized = normalizeLanguage(language);
+  return TRANSLATIONS[normalized]?.[key] || TRANSLATIONS.en[key] || key;
+}
+
 export function LanguageProvider({ children }) {
   const [language, setLanguageState] = useState(readStoredLanguage);
   const currentLanguage = useMemo(
@@ -348,10 +475,7 @@ export function LanguageProvider({ children }) {
     }
   }, []);
 
-  const t = useCallback(
-    (key) => TRANSLATIONS[language]?.[key] || TRANSLATIONS.en[key] || key,
-    [language],
-  );
+  const t = useCallback((key) => getTranslation(language, key), [language]);
 
   useLayoutEffect(() => {
     if (typeof document === "undefined") return;

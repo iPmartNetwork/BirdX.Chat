@@ -1,0 +1,108 @@
+---
+import { WEB_APP_URL } from '../config/urls.js'
+
+const { t, lang } = Astro.props
+const homeUrl = lang === 'fa' ? '/' : '/en'
+const otherLangUrl = lang === 'en' ? '/' : '/en'
+const otherLangLabel = lang === 'en' ? 'فارسی' : 'English'
+---
+
+<header id="site-header" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+  <nav class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
+    <!-- Logo -->
+    <a href={homeUrl} class="flex items-center gap-2.5 group">
+      <img src="/birdx-logo.svg" alt="BirdX" class="h-7 transition-transform duration-300 group-hover:scale-105" />
+    </a>
+
+    <!-- Desktop Nav Links -->
+    <div class="hidden items-center gap-8 lg:flex">
+      <a href="#features" class="text-sm font-medium text-gray-600 transition-colors hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-400">
+        {t.nav.features}
+      </a>
+      <a href="#download" class="text-sm font-medium text-gray-600 transition-colors hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-400">
+        {t.nav.download}
+      </a>
+      <a href="#security" class="text-sm font-medium text-gray-600 transition-colors hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-400">
+        {t.nav.security}
+      </a>
+      <a href="https://github.com/iPmartNetwork/BirdX.Chat" target="_blank" rel="noopener" class="text-sm font-medium text-gray-600 transition-colors hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-400">
+        GitHub
+      </a>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center gap-2">
+      <!-- Language Switch -->
+      <a href={otherLangUrl} class="flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800" title={otherLangLabel}>
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
+        <span>{otherLangLabel}</span>
+      </a>
+
+      <!-- Theme Toggle -->
+      <button id="theme-toggle-btn" class="flex items-center justify-center rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800" aria-label="Toggle theme">
+        <!-- Sun (shown in dark mode) -->
+        <svg class="hidden h-5 w-5 dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        <!-- Moon (shown in light mode) -->
+        <svg class="block h-5 w-5 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+      </button>
+
+      <!-- Open App Button -->
+      <a href={WEB_APP_URL} class="hidden rounded-full bg-[#10b981] px-5 py-2 text-sm font-bold text-white transition-all duration-200 hover:bg-[#0c9d92] sm:inline-flex">
+        {t.nav.openApp}
+      </a>
+
+      <!-- Mobile Menu Button -->
+      <button id="mobile-menu-btn" class="flex lg:hidden rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800" aria-label="Menu">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu -->
+  <div id="mobile-menu" class="hidden lg:hidden border-t border-gray-100 bg-white/95 backdrop-blur-xl dark:border-slate-700/50 dark:bg-[#020617]/95">
+    <div class="flex flex-col gap-1 px-6 py-4">
+      <a href="#features" class="rounded-lg px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800">{t.nav.features}</a>
+      <a href="#download" class="rounded-lg px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800">{t.nav.download}</a>
+      <a href="#security" class="rounded-lg px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800">{t.nav.security}</a>
+      <a href="https://github.com/iPmartNetwork/BirdX.Chat" target="_blank" rel="noopener" class="rounded-lg px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800">GitHub</a>
+      <a href={WEB_APP_URL} class="mt-2 rounded-full bg-[#10b981] px-5 py-2.5 text-center text-sm font-bold text-white">{t.nav.openApp}</a>
+    </div>
+  </div>
+</header>
+
+<script>
+  // Mobile menu toggle
+  const btn = document.getElementById('mobile-menu-btn')
+  const menu = document.getElementById('mobile-menu')
+  btn?.addEventListener('click', () => menu?.classList.toggle('hidden'))
+  menu?.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => menu?.classList.add('hidden'))
+  })
+
+  // Theme toggle
+  const themeBtn = document.getElementById('theme-toggle-btn')
+  themeBtn?.addEventListener('click', () => {
+    const root = document.documentElement
+    root.classList.add('theme-switching')
+    root.classList.toggle('dark')
+    const isDark = root.classList.contains('dark')
+    localStorage.setItem('birdx-site-theme', isDark ? 'dark' : 'light')
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) meta.setAttribute('content', isDark ? '#020617' : '#ffffff')
+    setTimeout(() => root.classList.remove('theme-switching'), 350)
+  })
+
+  // Header background on scroll
+  const header = document.getElementById('site-header')
+  const updateHeader = () => {
+    if (window.scrollY > 20) {
+      header?.classList.add('bg-white/90', 'dark:bg-[#020617]/90', 'backdrop-blur-xl', 'shadow-sm', 'dark:shadow-none', 'border-b', 'border-gray-200/50', 'dark:border-slate-700/50')
+    } else {
+      header?.classList.remove('bg-white/90', 'dark:bg-[#020617]/90', 'backdrop-blur-xl', 'shadow-sm', 'dark:shadow-none', 'border-b', 'border-gray-200/50', 'dark:border-slate-700/50')
+    }
+  }
+  updateHeader()
+  window.addEventListener('scroll', updateHeader, { passive: true })
+</script>

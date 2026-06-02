@@ -14,6 +14,7 @@ import { SettingsMenuActions } from "../menus/SettingsMenuActions.jsx";
 import { AboutSettingsPanel } from "./AboutSettingsPanel.jsx";
 import { DataSettingsPanel } from "./DataSettingsPanel.jsx";
 import { LanguageSettingsPanel } from "./LanguageSettingsPanel.jsx";
+import { PrivacySettingsPanel } from "./PrivacySettingsPanel.jsx";
 import { NotificationsSettingsPanel } from "./NotificationsSettingsPanel.jsx";
 import TwoFactorSettings from "./TwoFactorSettings.jsx";
 import { useLanguage } from "../../../i18n/LanguageContext.jsx";
@@ -65,6 +66,8 @@ export function MobileSettingsPanel({
   appInfoLoading,
   appInfoError,
   onOpenWhatsNew,
+  dmPolicy,
+  onDmPolicyChange,
 }) {
   const { t } = useLanguage();
   const handleClosePanel = useCallback(
@@ -476,6 +479,30 @@ export function MobileSettingsPanel({
               variant="mobile"
             />
           </div>
+        </div>
+      ) : null}
+
+      {settingsPanel === "privacy" ? (
+        <div className="md:hidden">
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-emerald-100/70 bg-white/80 p-4 dark:border-emerald-500/30 dark:bg-slate-950/60">
+            <button
+              type="button"
+              onClick={() => setSettingsPanel(null)}
+              className="inline-flex items-center justify-center rounded-full border border-emerald-200 p-2 text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+              aria-label={t("settings.back")}
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
+              {t("settings.privacy")}
+            </h4>
+          </div>
+          <PrivacySettingsPanel
+            user={user}
+            dmPolicy={dmPolicy}
+            onDmPolicyChange={onDmPolicyChange}
+            onDone={handleClosePanel}
+          />
         </div>
       ) : null}
 

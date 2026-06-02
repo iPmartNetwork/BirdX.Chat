@@ -395,7 +395,7 @@ function registerAdminRoutes(app, deps) {
   };
 
   const backupDir = path.join(projectRootDir, "data", "backups");
-  const dbFilePath = path.join(projectRootDir, "data", "songbird.db");
+  const dbFilePath = path.join(projectRootDir, "data", "birdx.db");
 
   const ensureBackupDir = () => {
     if (!fs.existsSync(backupDir)) {
@@ -1722,7 +1722,11 @@ function registerAdminRoutes(app, deps) {
     const expectedToken = process.env.ADMIN_API_TOKEN;
 
     if (expectedToken) {
-      const provided = String(req.headers["x-songbird-admin-token"] || "");
+      const provided = String(
+        req.headers["x-birdx-admin-token"] ||
+          req.headers["x-songbird-admin-token"] ||
+          "",
+      );
 
       if (!provided || provided !== expectedToken) {
         return res.status(401).json({ error: "Invalid admin token." });
@@ -2869,7 +2873,7 @@ function registerAdminRoutes(app, deps) {
         if (!chatId) {
           const row = adminGetRow(
             `SELECT id FROM chats WHERE name = ? ORDER BY id ASC LIMIT 1`,
-            ["Songbird Demo"],
+            ["BirdX Demo"],
           );
           chatId = Number(row?.id || 0);
         }
@@ -2878,12 +2882,12 @@ function registerAdminRoutes(app, deps) {
           adminRun(
             `INSERT INTO chats (name, type, created_at)
              VALUES (?, ?, datetime('now'))`,
-            ["Songbird Demo", "group"],
+            ["BirdX Demo", "group"],
           );
 
           chatId = Number(
             adminGetRow("SELECT id FROM chats WHERE name = ?", [
-              "Songbird Demo",
+              "BirdX Demo",
             ])?.id || 0,
           );
         }

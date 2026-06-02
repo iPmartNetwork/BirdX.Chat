@@ -195,6 +195,7 @@ export default function App() {
       role: data.role || 'user',
       isAdmin: Boolean(data.isAdmin),
       fileUploadMaxSizeBytes: Number(data.fileUploadMaxSizeBytes || 0) || null,
+      dmPolicy: data.dmPolicy || 'acquaintances',
     }
   }
 
@@ -975,20 +976,7 @@ export default function App() {
             zIndex: routeChunkLoading ? '70' : 'var(--app-z, 20)',
           }}
         >
-          {isAuthRoute ? (
-            <header className="flex flex-wrap items-center justify-center gap-3 text-center sm:gap-4">
-              <div className="flex items-center gap-1 text-black dark:text-white">
-                <div className="flex h-8 w-8 items-center justify-center sm:h-9 sm:w-9">
-                  <img src={logo} alt="birdx logo" className="h-8 w-8" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold tracking-tight sm:text-2xl">birdx</p>
-                </div>
-              </div>
-            </header>
-          ) : null}
-
-          <main className={isAuthRoute ? 'flex flex-1 items-center justify-center px-1 py-6 sm:mt-0 sm:px-0 sm:py-8' : 'flex min-h-0 flex-1'}>
+          <main className={isAuthRoute ? 'flex flex-1 items-center justify-center px-1 py-8 sm:px-0 sm:py-10' : 'flex min-h-0 flex-1'}>
             <Suspense
               fallback={
                 <RouteLoadingFallback

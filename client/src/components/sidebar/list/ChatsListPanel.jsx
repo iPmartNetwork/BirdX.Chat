@@ -21,6 +21,8 @@ import { getAvatarInitials } from "../../../utils/avatarInitials.js";
 import { renderMarkdownInlinePlain } from "../../../utils/markdown.js";
 import { summarizeFiles } from "../../../utils/messagePreview.js";
 import Avatar from "../../common/Avatar.jsx";
+import { useLanguage } from "../../../i18n/LanguageContext.jsx";
+import DmRequestsSection from "../sections/DmRequestsSection.jsx";
 
 export default function ChatsListPanel({
   loadingChats,
@@ -47,6 +49,11 @@ export default function ChatsListPanel({
   discoverChannels,
   discoverSaved,
   isSavedChatActive,
+  dmRequests,
+  dmRequestsLoading,
+  onDmRequestAccept,
+  onDmRequestReject,
+  onOpenDmRequest,
   onOpenDiscoveredUser,
   onOpenDiscoveredGroup,
   onOpenUserProfileContext,
@@ -54,6 +61,7 @@ export default function ChatsListPanel({
   onOpenUserContextMenu,
   onOpenChatContextMenu,
 }) {
+  const { t } = useLanguage();
   const SIDEBAR_INITIAL_RENDER = 40;
   const SIDEBAR_RENDER_BATCH = 24;
   const loadMoreRef = useRef(null);
@@ -185,7 +193,7 @@ export default function ChatsListPanel({
           ) : null}
           {showSearchEmptyState ? (
             <div className="text-center text-sm text-slate-500 dark:text-slate-400">
-              <p>Type to search users, groups, and channels.</p>
+              <p>{t("chat.discoverHint")}</p>
             </div>
           ) : null}
           {!showSearchEmptyState &&
@@ -441,6 +449,15 @@ export default function ChatsListPanel({
           ) : null}
         </div>
       ) : null}
+      {!showSearchMode ? (
+        <DmRequestsSection
+          requests={dmRequests}
+          loading={dmRequestsLoading}
+          onAccept={onDmRequestAccept}
+          onReject={onDmRequestReject}
+          onOpenRequest={onOpenDmRequest}
+        />
+      ) : null}
       {!showSearchMode && loadingChats && !visibleChats.length ? (
         Array.from({ length: 6 }).map((_, index) => (
           <div
@@ -480,8 +497,8 @@ export default function ChatsListPanel({
                 other?.username ||
                 (isDeletedDm ? "Deleted account" : "Direct message")
               : isSaved
-                ? conv.name || "Saved messages"
-                : conv.name || "Chat";
+                ? conv.name || t("chat.savedMessages")
+                : conv.name || t("chat.unnamed");
           const avatarColor =
             isGroup || isChannel
               ? conv.group_color || "#10b981"
@@ -818,8 +835,8 @@ export default function ChatsListPanel({
       ) : !showSearchMode ? (
         <div className="flex min-h-full items-center justify-center py-8">
           <div className="text-center text-sm text-slate-500 dark:text-slate-400">
-            <p>Your chat list is empty.</p>
-            <p className="mt-1">Search or use + button to start chatting.</p>
+            <p>{t("chat.emptyListTitle")}</p>
+            <p className="mt-1">{t("chat.emptyListHint")}</p>
           </div>
         </div>
       ) : null}
