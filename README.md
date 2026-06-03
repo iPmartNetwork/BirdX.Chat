@@ -86,6 +86,8 @@ Serve over **HTTPS** on your hostname (e.g. `https://chat.example.com`). Default
 
 ### Development
 
+**Git (optional):** To avoid `cursoragent` appearing as a GitHub contributor, turn off **Cursor Settings → Agents → Attribution**, then run `bash scripts/setup-git-hooks.sh` once per clone (strips `Co-authored-by: Cursor` from commit messages).
+
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Client + API (local) |
