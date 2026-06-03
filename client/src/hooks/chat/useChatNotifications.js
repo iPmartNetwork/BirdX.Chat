@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLanguage } from "../../i18n/LanguageContext.jsx";
 import { NOTIFICATIONS_ENABLED_KEY } from "../../utils/chatPageConstants.js";
 
 const PUSH_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -37,6 +38,7 @@ export function useChatNotifications({
   unsubscribePush,
   sendPushTest,
 }) {
+  const { t } = useLanguage();
   const [notificationsModalOpen, setNotificationsModalOpen] = useState(false);
   const [testNotificationSent, setTestNotificationSent] = useState(false);
   const [pushSwReady, setPushSwReady] = useState(false);
@@ -79,13 +81,13 @@ export function useChatNotifications({
   const notificationsAllowed = notificationPermission === "granted";
   const notificationsActive = notificationsEnabled && notificationsAllowed;
   const notificationStatusLabel = !isSecureContext
-    ? "Connection is not secure."
+    ? t("settings.notifications.notSecure")
     : mobileRequiresStandalone
-      ? "Require Home screen installation."
+      ? t("settings.notifications.needInstall")
       : !hasNotificationApi
-        ? "Not supported in this browser."
+        ? t("settings.notifications.unsupported")
         : notificationPermission === "denied"
-          ? "Blocked in browser settings."
+          ? t("settings.notifications.denied")
           : "";
   const notificationsDisabled = Boolean(notificationStatusLabel);
   const notificationsDebugLine = `secure:${isSecureContext ? "yes" : "no"} | support:${

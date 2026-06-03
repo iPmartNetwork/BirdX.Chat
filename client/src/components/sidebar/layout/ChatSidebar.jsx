@@ -1,11 +1,13 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import ChatsListPanel from "../list/ChatsListPanel.jsx";
+import CallsListPanel from "../list/CallsListPanel.jsx";
 import {
   MobileSettingsPanel,
   SettingsMenuPopover,
 } from "../../settings/index.js";
 import SidebarFooter from "../footer/SidebarFooter.jsx";
 import SidebarHeader from "../header/SidebarHeader.jsx";
+import { userHasAdminAccess } from "../../../utils/adminAccess.js";
 
 export default function ChatSidebar({
   mobileTab,
@@ -106,7 +108,35 @@ export default function ChatSidebar({
   displayInitials,
   onOpenWhatsNew,
   dmPolicy,
+  contactRequestPolicy = "everyone",
   onDmPolicyChange,
+  onContactRequestPolicyChange,
+  onUserUpdate,
+  archivedChats = [],
+  loadingArchivedChats = false,
+  onOpenArchivedChat,
+  onUnarchiveChat,
+  dndUntil = null,
+  dndBusy = false,
+  onSetDndUntil,
+  callHistory = [],
+  loadingCallHistory = false,
+  callContacts = [],
+  loadingContacts = false,
+  contactRequests = [],
+  outgoingContactRequests = [],
+  loadingContactRequests = false,
+  onOpenCallHistory,
+  onOpenCallContact,
+  onAcceptContactRequest,
+  onRejectContactRequest,
+  onCancelContactRequest,
+  onOpenContactRequest,
+  onOpenOutgoingContactRequest,
+  onStartVoiceCallFromHistory,
+  onStartVideoCallFromHistory,
+  onSelectChatsTab,
+  onSelectCallsTab,
 }) {
   const chatsScrollRef = useRef(null);
   const chatsContentRef = useRef(null);
@@ -190,6 +220,8 @@ export default function ChatSidebar({
         onScrollToTop={() => {
           chatsScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
         }}
+        onSelectChatsTab={onSelectChatsTab}
+        onSelectCallsTab={onSelectCallsTab}
       />
 
       <SettingsMenuPopover
@@ -209,7 +241,7 @@ export default function ChatSidebar({
         onOpenNotifications={onOpenNotifications}
         onOpenSavedMessages={onOpenSavedMessages}
         onOpenAdmin={onOpenAdmin}
-        showAdminPanel={Boolean(user?.isAdmin)}
+        showAdminPanel={userHasAdminAccess(user)}
         onOpenWhatsNew={onOpenWhatsNew}
       />
 
@@ -264,6 +296,9 @@ export default function ChatSidebar({
               onTestPush={onTestPush}
               testNotificationSent={testNotificationSent}
               notificationsDebugLine={notificationsDebugLine}
+              dndUntil={dndUntil}
+              dndBusy={dndBusy}
+              onSetDndUntil={onSetDndUntil}
               onClearCache={onClearCache}
               dataCacheStats={dataCacheStats}
               onOpenOwnProfile={onOpenOwnProfile}
@@ -275,7 +310,10 @@ export default function ChatSidebar({
               appInfoError={appInfoError}
               onOpenWhatsNew={onOpenWhatsNew}
               dmPolicy={dmPolicy}
+              contactRequestPolicy={contactRequestPolicy}
               onDmPolicyChange={onDmPolicyChange}
+              onContactRequestPolicyChange={onContactRequestPolicyChange}
+              onUserUpdate={onUserUpdate}
             />
           </div>
         ) : null}
@@ -288,8 +326,8 @@ export default function ChatSidebar({
           }
         >
           <div
-            key={`chats-scroll-${scrollEpoch}`}
-            ref={chatsScrollRef}
+            key={`${mobileTab}-scroll-${scrollEpoch}`}
+            ref={mobileTab === "calls" ? undefined : chatsScrollRef}
             className="app-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 pb-[calc(104px+env(safe-area-inset-bottom))] md:pb-6"
             style={{
               overscrollBehaviorY: "contain",
@@ -297,9 +335,29 @@ export default function ChatSidebar({
               WebkitOverflowScrolling: "touch",
               scrollbarGutter: "stable both-edges",
             }}
-            onScroll={handleChatsScroll}
+            onScroll={mobileTab === "calls" ? undefined : handleChatsScroll}
           >
-            <div ref={chatsContentRef} className="min-h-0">
+            <div ref={mobileTab === "calls" ? undefined : chatsContentRef} className="min-h-0">
+              {mobileTab === "calls" ? (
+                <CallsListPanel
+                  loading={loadingCallHistory}
+                  loadingContacts={loadingContacts}
+                  calls={callHistory}
+                  contacts={callContacts}
+                  contactRequests={contactRequests}
+                  outgoingContactRequests={outgoingContactRequests}
+                  loadingContactRequests={loadingContactRequests}
+                  onOpenCall={onOpenCallHistory}
+                  onOpenContact={onOpenCallContact}
+                  onStartVoiceCall={onStartVoiceCallFromHistory}
+                  onStartVideoCall={onStartVideoCallFromHistory}
+                  onAcceptContactRequest={onAcceptContactRequest}
+                  onRejectContactRequest={onRejectContactRequest}
+                  onCancelContactRequest={onCancelContactRequest}
+                  onOpenContactRequest={onOpenContactRequest}
+                  onOpenOutgoingContactRequest={onOpenOutgoingContactRequest}
+                />
+              ) : (
               <ChatsListPanel
                 loadingChats={loadingChats}
                 visibleChats={visibleChats}
@@ -336,7 +394,12 @@ export default function ChatSidebar({
                 onOpenSavedMessages={onOpenSavedMessages}
                 onOpenUserContextMenu={onOpenUserContextMenu}
                 onOpenChatContextMenu={onOpenChatContextMenu}
+                archivedChats={archivedChats}
+                loadingArchivedChats={loadingArchivedChats}
+                onOpenArchivedChat={onOpenArchivedChat}
+                onUnarchiveChat={onUnarchiveChat}
               />
+              )}
             </div>
           </div>
         </div>
@@ -351,6 +414,8 @@ export default function ChatSidebar({
         userColor={userColor}
         onOpenSettings={onOpenSettings}
         onOpenOwnProfile={onOpenOwnProfile}
+        onOpenAdmin={onOpenAdmin}
+        showAdminPanel={userHasAdminAccess(user)}
         settingsButtonRef={settingsButtonRef}
       />
     </aside>

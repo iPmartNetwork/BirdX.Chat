@@ -1,5 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLanguage } from "../../i18n/LanguageContext.jsx";
+import { useLongPress } from "../../hooks/useLongPress.js";
+import { normalizeProfileUser } from "../../utils/profileUser.js";
+import AvatarLightbox from "./AvatarLightbox.jsx";
 import ContextMenuSurface from "../context-menu/ContextMenuSurface.jsx";
 import {
   ArrowDown,
@@ -13,6 +17,8 @@ import {
   Pencil,
   PhoneCall,
   ShieldCheck,
+  UserMinus,
+  UserPlus,
   Volume2,
   VolumeX,
 } from "../../icons/lucide.js";
@@ -42,22 +48,45 @@ function ChatProfileModal({
   onEditGroup,
   onEditSelfProfile,
   onChangeMemberRole,
+  groupE2eeEnabled = false,
+  groupE2eeKeyReady = false,
+  groupE2eeBusy = false,
+  groupE2eeError = "",
+  canManageGroupE2ee = false,
+  onEnableGroupE2ee,
+  onDisableGroupE2ee,
+  onRedistributeGroupE2ee,
   callLogs = [],
   callLogsLoading = false,
   showJoinAction = false,
   onJoinChat,
   showMembers = true,
   readOnly = false,
+  peerContactStatus = null,
+  contactActionBusy = false,
+  onSendContactRequest,
+  onAcceptContactRequest,
+  onRejectContactRequest,
+  onCancelContactRequest,
+  onRemoveContact,
+  onBlockUser,
+  onUnblockUser,
+  inCall = false,
   membersBatchSize = MEMBERS_BATCH_SIZE,
+  profileLoading = false,
 }) {
+  const { t } = useLanguage();
   const [memberQuery, setMemberQuery] = useState("");
   const [memberLimit, setMemberLimit] = useState(membersBatchSize);
   const [copiedInviteLink, setCopiedInviteLink] = useState(false);
+  const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
   const membersListRef = useRef(null);
+  const normalizedTarget = normalizeProfileUser(targetUser);
   const handleClose = () => {
     setMemberQuery("");
     setMemberLimit(membersBatchSize);
     setCopiedInviteLink(false);
+    setAvatarLightboxOpen(false);
     onClose?.();
   };
 
@@ -68,32 +97,41 @@ function ChatProfileModal({
     !isGroup &&
     !isChannel &&
     !isSaved &&
-    String(targetUser?.username || "").toLowerCase() ===
+    String(normalizedTarget?.username || "").toLowerCase() ===
       String(currentUser?.username || "").toLowerCase();
   const profileName =
     isGroup || isChannel
       ? chat?.name || (isChannel ? "Channel" : "Group")
       : isSaved
         ? "Saved messages"
-        : targetUser?.nickname || targetUser?.username || "User";
+        : normalizedTarget?.nickname || normalizedTarget?.username || "User";
   const profileUsername =
     isGroup || isChannel
       ? chat?.group_username || ""
       : isSaved
         ? ""
-        : targetUser?.username || "";
+        : normalizedTarget?.username || "";
   const profileAvatarUrl =
     isGroup || isChannel
       ? chat?.group_avatar_url || null
       : isSaved
         ? null
-        : targetUser?.avatar_url || null;
+        : normalizedTarget?.avatar_url || null;
   const profileColor =
     isGroup || isChannel
-      ? chat?.group_color || "#10b981"
+      ? chat?.group_color || "var(--birdx-accent)"
       : isSaved
         ? "#10b981"
-        : targetUser?.color || "#10b981";
+        : normalizedTarget?.color || "#10b981";
+  const profileStatus =
+    !isGroup && !isChannel && !isSaved && normalizedTarget?.status
+      ? normalizedTarget.status
+      : "";
+  const canPreviewAvatar = Boolean(String(profileAvatarUrl || "").trim());
+  const avatarLongPress = useLongPress({
+    disabled: !canPreviewAvatar,
+    onLongPress: () => setAvatarLightboxOpen(true),
+  });
   const initials = getAvatarInitials(profileName);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const members = Array.isArray(chat?.members) ? chat.members : [];
@@ -174,6 +212,7 @@ function ChatProfileModal({
   if (typeof document === "undefined") return null;
 
   return createPortal(
+    <>
     <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-5">
       <div className="app-scroll max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-3xl border border-emerald-100/70 bg-white p-5 shadow-xl dark:border-emerald-500/30 dark:bg-slate-950">
         <div className="mb-3 flex items-center justify-between">
@@ -209,19 +248,37 @@ function ChatProfileModal({
         </div>
 
         <div className="text-center">
-          <Avatar
-            src={profileAvatarUrl}
-            alt={profileName}
-            name={profileName}
-            color={profileColor}
-            initials={initials}
-            placeholderContent={
-              isSaved ? <Bookmark size={24} className="text-white" /> : initials
-            }
-            className="mx-auto h-20 w-20 text-2xl font-bold"
-          />
+          <div
+            className={`mx-auto inline-flex touch-manipulation select-none ${
+              canPreviewAvatar ? "cursor-zoom-in" : ""
+            }`}
+            {...(canPreviewAvatar ? avatarLongPress : {})}
+            title={canPreviewAvatar ? t("profile.holdAvatar") : undefined}
+          >
+            <Avatar
+              src={profileAvatarUrl}
+              alt={profileName}
+              name={profileName}
+              color={profileColor}
+              initials={initials}
+              placeholderContent={
+                isSaved ? <Bookmark size={24} className="text-white" /> : initials
+              }
+              className="h-24 w-24 text-2xl font-bold ring-2 ring-emerald-100/80 dark:ring-emerald-500/30"
+            />
+          </div>
+          {canPreviewAvatar ? (
+            <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+              {t("profile.holdAvatar")}
+            </p>
+          ) : null}
+          {profileLoading ? (
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              {t("profile.loading")}
+            </p>
+          ) : null}
           <p
-            className={`mt-3 text-lg font-semibold ${hasPersian(profileName) ? "font-fa" : ""}`}
+            className={`mt-2 text-lg font-semibold ${hasPersian(profileName) ? "font-fa" : ""}`}
             dir="auto"
             style={{ unicodeBidi: "plaintext" }}
           >
@@ -230,10 +287,21 @@ function ChatProfileModal({
           {profileUsername ? (
             <p
               className="max-w-full truncate text-sm text-slate-500 dark:text-slate-400"
-              dir="auto"
+              dir="ltr"
               title={profileUsername}
             >
               @{profileUsername}
+            </p>
+          ) : null}
+          {profileStatus && !isSelfProfile ? (
+            <p className="mt-1 text-xs capitalize text-emerald-600 dark:text-emerald-300">
+              {inCall
+                ? t("calls.inCall")
+                : profileStatus === "online"
+                  ? t("chat.online")
+                  : profileStatus === "offline"
+                    ? t("chat.offline")
+                    : profileStatus}
             </p>
           ) : null}
           {isGroup || isChannel ? (
@@ -309,6 +377,86 @@ function ChatProfileModal({
           </div>
         ) : null}
 
+        {!isReadOnly &&
+        !isSelfProfile &&
+        !isSaved &&
+        normalizedTarget?.username &&
+        !showJoinAction ? (
+          <div className="mt-4 space-y-2 rounded-2xl border border-emerald-200/80 bg-emerald-50/60 p-3 dark:border-emerald-500/25 dark:bg-emerald-500/10">
+            {peerContactStatus?.isContact ? (
+              <button
+                type="button"
+                disabled={contactActionBusy}
+                onClick={() => onRemoveContact?.()}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-slate-900 dark:text-rose-200"
+              >
+                <UserMinus size={14} />
+                {t("contacts.remove")}
+              </button>
+            ) : peerContactStatus?.incomingRequestId ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={contactActionBusy}
+                  onClick={() => onAcceptContactRequest?.(peerContactStatus.incomingRequestId)}
+                  className="flex-1 rounded-xl bg-emerald-500 px-3 py-2 text-xs font-semibold text-white"
+                >
+                  {t("contacts.banner.accept")}
+                </button>
+                <button
+                  type="button"
+                  disabled={contactActionBusy}
+                  onClick={() => onRejectContactRequest?.(peerContactStatus.incomingRequestId)}
+                  className="flex-1 rounded-xl border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 dark:border-rose-500/30 dark:text-rose-200"
+                >
+                  {t("contacts.banner.decline")}
+                </button>
+              </div>
+            ) : peerContactStatus?.outgoingRequestId ? (
+              <div className="flex gap-2">
+                <span className="flex flex-1 items-center justify-center rounded-xl border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-200">
+                  {t("contacts.banner.pending")}
+                </span>
+                <button
+                  type="button"
+                  disabled={contactActionBusy}
+                  onClick={() => onCancelContactRequest?.(peerContactStatus.outgoingRequestId)}
+                  className="rounded-xl border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 dark:border-rose-500/30 dark:text-rose-200"
+                >
+                  {t("contacts.banner.cancel")}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={contactActionBusy}
+                onClick={() => onSendContactRequest?.()}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3 py-2 text-xs font-semibold text-white"
+              >
+                <UserPlus size={14} />
+                {t("contacts.banner.addButton")}
+              </button>
+            )}
+            {peerContactStatus?.blockedByMe ? (
+              <button
+                type="button"
+                onClick={() => onUnblockUser?.(normalizedTarget)}
+                className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200"
+              >
+                {t("contacts.profile.unblock")}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onBlockUser?.(normalizedTarget)}
+                className="w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-slate-900 dark:text-rose-200"
+              >
+                {t("contacts.profile.block")}
+              </button>
+            )}
+          </div>
+        ) : null}
+
         {!isReadOnly && (isGroup || isChannel) && canViewInvite ? (
           <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
             <div className="flex items-center justify-between gap-2">
@@ -337,6 +485,59 @@ function ChatProfileModal({
             <p className="mt-1 break-all text-xs text-slate-600 dark:text-slate-300">
               {inviteLink}
             </p>
+          </div>
+        ) : null}
+
+        {!isReadOnly && isGroup ? (
+          <div className="mt-4 rounded-2xl border border-emerald-200/80 p-3 dark:border-emerald-500/30">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-200">
+                  <ShieldCheck size={13} className="icon-anim-bob" />
+                  {t("chat.groupE2ee.title")}
+                </p>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                  {groupE2eeEnabled
+                    ? groupE2eeKeyReady
+                      ? t("chat.groupE2ee.ready")
+                      : t("chat.groupE2ee.waitingKey")
+                    : t("chat.groupE2ee.off")}
+                </p>
+              </div>
+              {canManageGroupE2ee ? (
+                <button
+                  type="button"
+                  disabled={groupE2eeBusy}
+                  onClick={() =>
+                    groupE2eeEnabled ? onDisableGroupE2ee?.() : onEnableGroupE2ee?.()
+                  }
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold transition disabled:opacity-50 ${
+                    groupE2eeEnabled
+                      ? "border border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-200 dark:hover:bg-rose-500/10"
+                      : "bg-emerald-500 text-white hover:bg-emerald-400"
+                  }`}
+                >
+                  {groupE2eeBusy
+                    ? t("chat.saving")
+                    : groupE2eeEnabled
+                      ? t("chat.groupE2ee.disable")
+                      : t("chat.groupE2ee.enable")}
+                </button>
+              ) : null}
+            </div>
+            {groupE2eeError ? (
+              <p className="mt-2 text-xs text-rose-600 dark:text-rose-300">{groupE2eeError}</p>
+            ) : null}
+            {canManageGroupE2ee && groupE2eeEnabled ? (
+              <button
+                type="button"
+                disabled={groupE2eeBusy}
+                onClick={() => onRedistributeGroupE2ee?.()}
+                className="mt-3 text-[11px] font-semibold text-emerald-700 underline-offset-2 hover:underline disabled:opacity-50 dark:text-emerald-200"
+              >
+                {t("chat.groupE2ee.redistribute")}
+              </button>
+            ) : null}
           </div>
         ) : null}
 
@@ -491,10 +692,9 @@ function ChatProfileModal({
                                 : "bg-slate-400"
                             }`}
                           />
-                          {String(member.status || "").toLowerCase() ===
-                          "online"
-                            ? "online"
-                            : "offline"}
+                          {String(member.status || "").toLowerCase() === "online"
+                            ? t("chat.online")
+                            : t("chat.offline")}
                         </p>
                       </div>
                     </button>
@@ -556,7 +756,14 @@ function ChatProfileModal({
           </div>
         ) : null}
       </div>
-    </div>,
+    </div>
+    <AvatarLightbox
+      open={avatarLightboxOpen}
+      src={profileAvatarUrl}
+      alt={profileName}
+      onClose={() => setAvatarLightboxOpen(false)}
+    />
+    </>,
     document.body,
   );
 }

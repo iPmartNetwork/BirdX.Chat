@@ -46,6 +46,80 @@
   --vv-bottom-offset: 0px;
   --mobile-bottom-offset: 0px;
   --vv-top-offset: 0px;
+  --birdx-accent: #10b981;
+  --birdx-accent-rgb: 16 185 129;
+  --birdx-accent-light: #6ee7b7;
+  --birdx-accent-deep: #047857;
+  --birdx-accent-icon-bg: linear-gradient(145deg, #34d399 0%, #10b981 52%, #059669 100%);
+  --birdx-accent-icon-shadow: 0 4px 14px -3px rgba(16, 185, 129, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  --birdx-chat-bg-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+}
+
+@layer components {
+  .birdx-chat-scroll-bg {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .birdx-chat-scroll-bg::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.04;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.78' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.42'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+  }
+
+  html.dark .birdx-chat-scroll-bg::after {
+    opacity: 0.065;
+    mix-blend-mode: overlay;
+  }
+
+  .birdx-accent-icon {
+    background: var(--birdx-accent-icon-bg);
+    box-shadow: var(--birdx-accent-icon-shadow);
+    outline: 1px solid rgba(255, 255, 255, 0.2);
+    outline-offset: -1px;
+  }
+
+  .birdx-empty-chat-pill {
+    position: relative;
+    z-index: 1;
+    backdrop-filter: blur(14px) saturate(1.15);
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.82) 0%,
+      rgba(255, 255, 255, 0.62) 100%
+    );
+    border: 1px solid color-mix(in srgb, var(--birdx-accent) 28%, transparent);
+    box-shadow:
+      0 10px 36px -14px var(--birdx-glow, rgba(16, 185, 129, 0.22)),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    color: var(--birdx-accent-deep, var(--birdx-accent));
+    letter-spacing: 0.01em;
+  }
+
+  html.dark .birdx-empty-chat-pill {
+    background: linear-gradient(
+      135deg,
+      rgba(15, 23, 42, 0.82) 0%,
+      rgba(15, 23, 42, 0.62) 100%
+    );
+    border-color: color-mix(in srgb, var(--birdx-accent) 38%, transparent);
+    box-shadow:
+      0 14px 42px -18px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    color: var(--birdx-accent-light, var(--birdx-accent));
+  }
+
+  .birdx-saved-messages-card {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
 }
 
 * {

@@ -121,8 +121,9 @@ self.addEventListener("push", (event) => {
   }
   const data = payload.data || {};
   const isIncomingCall = data.type === "incoming_call";
-  const title = payload.title || (isIncomingCall ? "Incoming voice call" : "BirdX");
-  const body = payload.body || (isIncomingCall ? "Someone is calling..." : "New message");
+  const isContactRequest = data.type === "contact_request";
+  const title = payload.title || (isIncomingCall ? "Incoming voice call" : isContactRequest ? "Contact request" : "BirdX");
+  const body = payload.body || (isIncomingCall ? "Someone is calling..." : isContactRequest ? "Someone wants to add you" : "New message");
   const options = {
     body,
     data,
@@ -130,8 +131,10 @@ self.addEventListener("push", (event) => {
     icon: "/icons/icon-192.png",
     tag: isIncomingCall
       ? `birdx-call-${data.roomId || data.chatId || "incoming"}`
-      : data.tag || undefined,
-    renotify: isIncomingCall,
+      : isContactRequest
+        ? `birdx-contact-${data.requestId || "request"}`
+        : data.tag || undefined,
+    renotify: isIncomingCall || isContactRequest,
     requireInteraction: isIncomingCall,
     actions: isIncomingCall
       ? [

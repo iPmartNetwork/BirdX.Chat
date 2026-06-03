@@ -24,6 +24,7 @@ Users:
   npm run db:user:create -- "BirdX Sage" birdx.sage "12345678"
   npm run db:user:generate -- --count=50 --password="12345678"
   npm run db:user:edit -- birdx.sage --nickname "BirdX Sage" --color "#ff6b6b"
+  npm run db:user:edit -- birdxchat --role owner
   npm run db:user:ban -- birdx.sage -y
 
 Chats:

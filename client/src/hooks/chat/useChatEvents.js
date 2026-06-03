@@ -44,6 +44,8 @@ export function useChatEvents({
   onTypingUpdate,
   onChatListChanged,
   onSessionRevoked,
+  onContactsUpdated,
+  onCallPresence,
 }) {
   const onIncomingMessageRef = useRef(onIncomingMessage);
   const onMessageDeletedRef = useRef(onMessageDeleted);
@@ -52,6 +54,8 @@ export function useChatEvents({
   const onTypingUpdateRef = useRef(onTypingUpdate);
   const onChatListChangedRef = useRef(onChatListChanged);
   const onSessionRevokedRef = useRef(onSessionRevoked);
+  const onContactsUpdatedRef = useRef(onContactsUpdated);
+  const onCallPresenceRef = useRef(onCallPresence);
   const loadChatsTimerRef = useRef(null);
   const loadChatsScheduledRef = useRef(false);
 
@@ -84,6 +88,11 @@ export function useChatEvents({
   }, [onSessionRevoked]);
 
   useEffect(() => {
+    onContactsUpdatedRef.current = onContactsUpdated;
+    onCallPresenceRef.current = onCallPresence;
+  }, [onContactsUpdated, onCallPresence]);
+
+  useEffect(() => {
     if (!username) return;
     let source = null;
     let isMounted = true;
@@ -114,6 +123,18 @@ export function useChatEvents({
           return;
         }
         if (!payload?.type) return;
+        if (
+          payload.type === "contacts_updated" ||
+          payload.type === "contact_request_received" ||
+          payload.type === "contact_request_rejected"
+        ) {
+          onContactsUpdatedRef.current?.(payload);
+          return;
+        }
+        if (payload.type === "call_presence") {
+          onCallPresenceRef.current?.(payload);
+          return;
+        }
         if (
           payload.type !== "chat_message" &&
           payload.type !== "chat_read" &&
@@ -271,7 +292,17 @@ export function useChatEvents({
                   return { ...msg, reactions: payload.reactions };
                 }),
               );
-              // Reactions are already updated in-place, no need for a full refresh
+              return;
+            }
+            if (payload?.poll && payload?.messageId) {
+              const pollMessageId = Number(payload.messageId);
+              setMessages((prev) =>
+                prev.map((msg) => {
+                  const msgId = Number(msg?._serverId || msg?.id || 0);
+                  if (msgId !== pollMessageId) return msg;
+                  return { ...msg, poll: payload.poll };
+                }),
+              );
               return;
             }
           }

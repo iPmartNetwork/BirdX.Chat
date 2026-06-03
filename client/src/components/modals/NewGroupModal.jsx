@@ -16,6 +16,13 @@ import { getAvatarInitials } from "../../utils/avatarInitials.js";
 import { NICKNAME_MAX, USERNAME_MAX } from "../../utils/nameLimits.js";
 import ConfirmPasswordModal from "./ConfirmPasswordModal.jsx";
 import Avatar from "../common/Avatar.jsx";
+import { useLanguage } from "../../i18n/LanguageContext.jsx";
+
+function formatTemplate(template, vars = {}) {
+  return String(template || "").replace(/\{(\w+)\}/g, (_, key) =>
+    vars[key] !== undefined && vars[key] !== null ? String(vars[key]) : `{${key}}`,
+  );
+}
 
 export default function NewGroupModal({
   open,
@@ -47,15 +54,24 @@ export default function NewGroupModal({
   regeneratingInviteLink = false,
   onRegenerateInvite,
   entityLabel = "Group",
+  entityType = "group",
   onDeleteChat,
   showRemoteChannelSettings = false,
   remoteChannelAvailable = true,
 }) {
+  const { t, isRtl, language } = useLanguage();
   const [copiedRegenerateLink, setCopiedRegenerateLink] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const groupSearchInputRef = useRef(null);
   if (!open) return null;
   if (typeof document === "undefined") return null;
+
+  const resolvedEntityType =
+    entityType === "channel" || entityType === "group" ? entityType : "group";
+  const entityName = t(
+    resolvedEntityType === "channel" ? "chat.channel" : "chat.group",
+  );
+  const tf = (key, vars = {}) => formatTemplate(t(key), { entity: entityName, ...vars });
 
   const safeGroupForm = {
     nickname: String(groupForm?.nickname || ""),
@@ -77,8 +93,16 @@ export default function NewGroupModal({
   const safeSelectedMembers = Array.isArray(selectedGroupMembers)
     ? selectedGroupMembers.filter((item) => item && typeof item === "object")
     : [];
-  const safeEntityLabel = String(entityLabel || "Group");
-  const safeAvatarName = String(avatarName || safeEntityLabel || "Group");
+  const safeEntityLabel = String(entityLabel || entityName);
+  const safeAvatarName = String(avatarName || safeEntityLabel || entityName);
+  const namePlaceholder =
+    resolvedEntityType === "channel"
+      ? t("chat.form.placeholderNameChannel")
+      : t("chat.form.placeholderNameGroup");
+  const userPlaceholder =
+    resolvedEntityType === "channel"
+      ? t("chat.form.placeholderUserChannel")
+      : t("chat.form.placeholderUserGroup");
 
   const selectedMemberNames = new Set(
     safeSelectedMembers.map((member) => String(member?.username || "")),
@@ -95,26 +119,37 @@ export default function NewGroupModal({
 
   return createPortal(
     <>
-      <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/40 px-6">
-        <div className="app-scroll max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-emerald-100/70 bg-white p-6 shadow-xl dark:border-emerald-500/30 dark:bg-slate-950">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-emerald-700 dark:text-emerald-200">
+      <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/40 px-4 py-6 sm:px-6">
+        <div
+          className={`app-scroll max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-3xl border border-emerald-100/80 bg-white p-5 shadow-2xl shadow-emerald-900/5 dark:border-emerald-500/25 dark:bg-slate-950 sm:p-6 ${
+            language === "fa" ? "font-fa" : ""
+          }`}
+          lang={language === "fa" ? "fa" : "en"}
+          dir={isRtl ? "rtl" : "ltr"}
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-emerald-100/70 pb-4 dark:border-emerald-500/20">
+            <h3
+              className={`text-lg font-semibold text-emerald-700 dark:text-emerald-200 ${
+                language === "fa" ? "font-fa" : ""
+              }`}
+            >
               {title}
             </h3>
             <button
               type="button"
               onClick={onClose}
-              className="flex items-center justify-center rounded-full border border-rose-200 p-2 text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 hover:shadow-[0_0_16px_rgba(244,63,94,0.2)] dark:border-rose-500/30 dark:text-rose-200 dark:hover:bg-rose-500/10"
+              className="flex shrink-0 items-center justify-center rounded-full border border-rose-200 p-2 text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 hover:shadow-[0_0_16px_rgba(244,63,94,0.2)] dark:border-rose-500/30 dark:text-rose-200 dark:hover:bg-rose-500/10"
+              aria-label={t("chat.form.close")}
             >
               <Close size={18} className="icon-anim-pop" />
             </button>
           </div>
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-5 space-y-4">
             {showAvatarField ? (
-              <div className="rounded-2xl border border-emerald-200 p-3 dark:border-emerald-500/30">
+              <div className="rounded-2xl border border-emerald-100/80 bg-emerald-50/30 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/5">
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  {safeEntityLabel} photo
+                  {tf("chat.form.photo")}
                 </p>
                 <div className="mt-3 flex items-center gap-4">
                   {avatarPreview ? (
@@ -141,7 +176,7 @@ export default function NewGroupModal({
                       }`}
                     >
                       <Upload size={18} className="icon-anim-lift" />
-                      <span>Upload Photo</span>
+                      <span>{t("chat.form.uploadPhoto")}</span>
                     </label>
                     <input
                       id="groupPhotoInput"
@@ -161,7 +196,7 @@ export default function NewGroupModal({
                           onAvatarRemove?.();
                         }}
                         className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 hover:shadow-md dark:border-rose-500/30 dark:bg-rose-900/40 dark:text-rose-200 dark:hover:bg-rose-800/50"
-                        aria-label={`Remove ${safeEntityLabel.toLowerCase()} photo`}
+                        aria-label={t("chat.form.removePhoto")}
                       >
                         <Trash size={18} className="icon-anim-sway" />
                       </button>
@@ -171,11 +206,11 @@ export default function NewGroupModal({
               </div>
             ) : null}
 
-            <div>
+            <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {safeEntityLabel} nickname
+                {t("chat.form.displayName")}
               </label>
-              <div className="relative mt-2">
+              <div className="relative">
                 <input
                   value={safeGroupForm.nickname}
                   onChange={(event) => {
@@ -186,25 +221,22 @@ export default function NewGroupModal({
                     setGroupError?.("");
                   }}
                   maxLength={NICKNAME_MAX}
-                  placeholder={`My ${safeEntityLabel.toLowerCase()}`}
+                  placeholder={namePlaceholder}
                   lang={nicknameHasPersian ? "fa" : "en"}
                   dir={nicknameHasPersian ? "rtl" : "ltr"}
-                  className={`w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
-                    nicknameHasPersian ? "font-fa text-right" : "text-left"
+                  className={`w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
+                    nicknameHasPersian ? "font-fa" : ""
                   }`}
                   style={{ unicodeBidi: "plaintext" }}
                 />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 dark:text-slate-500">
-                  {safeGroupForm.nickname.length}/{NICKNAME_MAX}
-                </span>
               </div>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {safeEntityLabel} username
+                {t("chat.form.username")}
               </label>
-              <div className="relative mt-2">
+              <div className="relative">
                 <input
                   value={safeGroupForm.username}
                   onChange={(event) => {
@@ -215,39 +247,34 @@ export default function NewGroupModal({
                     setGroupError?.("");
                   }}
                   maxLength={USERNAME_MAX}
-                  placeholder={`my${safeEntityLabel.toLowerCase()}`}
-                  lang={usernameHasPersian ? "fa" : "en"}
-                  dir={usernameHasPersian ? "rtl" : "ltr"}
-                  className={`w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
-                    usernameHasPersian ? "font-fa text-right" : "text-left"
-                  }`}
+                  placeholder={userPlaceholder}
+                  lang="en"
+                  dir="ltr"
+                  className="w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-start text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100"
                   style={{ unicodeBidi: "plaintext" }}
                 />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 dark:text-slate-500">
-                  {safeGroupForm.username.length}/{USERNAME_MAX}
-                </span>
               </div>
             </div>
 
-            <div>
+            <div className="rounded-2xl border border-emerald-100/80 bg-slate-50/50 p-3 dark:border-emerald-500/25 dark:bg-slate-900/40">
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                Visibility
+                {t("chat.form.visibility")}
               </p>
-              <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-emerald-200 p-1 dark:border-emerald-500/30">
+              <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-emerald-200/80 bg-white p-1 dark:border-emerald-500/30 dark:bg-slate-950">
                 <button
                   type="button"
                   onClick={() =>
                     setGroupForm?.((prev) => ({ ...prev, visibility: "public" }))
                   }
-                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                  className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
                     safeGroupForm.visibility === "public"
-                      ? "bg-emerald-500 text-white"
+                      ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/25"
                       : "text-slate-700 hover:bg-emerald-50 dark:text-slate-200 dark:hover:bg-emerald-500/10"
                   }`}
                 >
-                  <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-flex items-center justify-center gap-1.5">
                     <Globe size={14} className="icon-anim-bob" />
-                    Public
+                    {t("chat.form.public")}
                   </span>
                 </button>
                 <button
@@ -255,25 +282,25 @@ export default function NewGroupModal({
                   onClick={() =>
                     setGroupForm?.((prev) => ({ ...prev, visibility: "private" }))
                   }
-                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                  className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
                     safeGroupForm.visibility === "private"
-                      ? "bg-emerald-500 text-white"
+                      ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/25"
                       : "text-slate-700 hover:bg-emerald-50 dark:text-slate-200 dark:hover:bg-emerald-500/10"
                   }`}
                 >
-                  <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-flex items-center justify-center gap-1.5">
                     <Lock size={14} className="icon-anim-bob" />
-                    Private
+                    {t("chat.form.private")}
                   </span>
                 </button>
               </div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                 {safeGroupForm.visibility === "public"
-                  ? `Anyone can discover and join this ${safeEntityLabel.toLowerCase()}.`
-                  : `Private ${safeEntityLabel.toLowerCase()}s can only be joined via invite link.`}
+                  ? tf("chat.form.publicHint")
+                  : tf("chat.form.privateHint")}
               </p>
               {safeGroupForm.visibility === "private" ? (
-                <label className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                <label className="mt-3 flex cursor-pointer items-center gap-2 rounded-xl border border-emerald-100/80 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-emerald-500/20 dark:bg-slate-950 dark:text-slate-200">
                   <input
                     type="checkbox"
                     checked={safeGroupForm.allowMemberInvites !== false}
@@ -283,27 +310,29 @@ export default function NewGroupModal({
                         allowMemberInvites: event.target.checked,
                       }))
                     }
-                    className="h-4 w-4 rounded-full border border-emerald-300 bg-white accent-emerald-500 focus:ring-2 focus:ring-emerald-300 dark:border-emerald-500/40 dark:bg-slate-900 dark:accent-emerald-400"
+                    className="h-4 w-4 shrink-0 rounded border border-emerald-300 bg-white accent-emerald-500 focus:ring-2 focus:ring-emerald-300 dark:border-emerald-500/40 dark:bg-slate-900 dark:accent-emerald-400"
                   />
-                  Allow members to invite others
+                  <span>{t("chat.form.allowInvites")}</span>
                 </label>
               ) : null}
             </div>
 
             {showInviteManagement ? (
-              <div className="rounded-2xl border border-emerald-200 p-3 dark:border-emerald-500/30">
+              <div className="rounded-2xl border border-emerald-100/80 bg-emerald-50/30 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/5">
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Invite link
+                  {t("chat.form.inviteLink")}
                 </p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  Regenerating creates a new link and expires the previous one.
+                <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                  {t("chat.form.inviteRegenerateHint")}
                 </p>
-                <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
-                  <span className="break-all">
-                    {currentInviteLink || "No invite link available."}
+                <div className="mt-2 rounded-xl border border-emerald-200 bg-white p-3 text-xs text-emerald-800 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200">
+                  <span className="break-all" dir="ltr">
+                    {currentInviteLink || t("chat.form.noInviteLink")}
                   </span>
                 </div>
-                <div className="mt-3 flex items-center justify-end gap-2">
+                <div
+                  className={`mt-3 flex items-center gap-2 ${isRtl ? "flex-row-reverse justify-start" : "justify-end"}`}
+                >
                   <button
                     type="button"
                     onClick={async () => {
@@ -323,7 +352,7 @@ export default function NewGroupModal({
                     className="inline-flex h-8 items-center gap-1 rounded-full border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-[0_0_14px_rgba(16,185,129,0.2)] dark:border-emerald-500/30 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
                   >
                     <Copy size={12} className="icon-anim-pop" />
-                    {copiedRegenerateLink ? "Copied" : "Copy"}
+                    {copiedRegenerateLink ? t("chat.form.copied") : t("chat.form.copy")}
                   </button>
                   <button
                     type="button"
@@ -334,21 +363,21 @@ export default function NewGroupModal({
                     {regeneratingInviteLink ? (
                       <LoaderCircle size={12} className="animate-spin" />
                     ) : null}
-                    Regenerate
+                    {t("chat.form.regenerate")}
                   </button>
                 </div>
               </div>
             ) : null}
 
             {showRemoteChannelSettings ? (
-              <div className="rounded-2xl border border-emerald-200 p-3 dark:border-emerald-500/30">
+              <div className="rounded-2xl border border-emerald-100/80 bg-slate-50/50 p-4 dark:border-emerald-500/25 dark:bg-slate-900/40">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      Remote Channel
+                      {t("chat.form.remoteChannel")}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      Mirror posts from a Telegram channel into this channel.
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                      {t("chat.form.remoteChannelHint")}
                     </p>
                   </div>
                   <button
@@ -380,13 +409,13 @@ export default function NewGroupModal({
                 </div>
                 {!remoteChannelAvailable ? (
                   <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                    Remote Channel is not configured on this server.
+                    {t("chat.form.remoteNotConfigured")}
                   </p>
                 ) : null}
                 {safeGroupForm.remoteChannelLoading ? (
                   <p className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                     <LoaderCircle size={13} className="animate-spin" />
-                    Loading Remote Channel settings...
+                    {t("chat.form.remoteLoading")}
                   </p>
                 ) : null}
                 {remoteLastError ? (
@@ -398,7 +427,7 @@ export default function NewGroupModal({
                   <div className="mt-3 space-y-3">
                     <div>
                       <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                        Telegram source
+                        {t("chat.form.remoteSource")}
                       </label>
                       <input
                         value={safeGroupForm.remoteChannelSource}
@@ -408,7 +437,7 @@ export default function NewGroupModal({
                             remoteChannelSource: event.target.value,
                           }))
                         }
-                        placeholder="@channel or https://t.me/channel"
+                        placeholder={t("chat.form.remoteSourcePlaceholder")}
                         lang={remoteSourceHasPersian ? "fa" : "en"}
                         dir={remoteSourceHasPersian ? "rtl" : "ltr"}
                         className={`mt-2 w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
@@ -418,7 +447,7 @@ export default function NewGroupModal({
                       />
                     </div>
                     <label className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-slate-200">
-                      <span>Sync Telegram title when saving</span>
+                      <span>{t("chat.form.remoteSyncTitle")}</span>
                       <input
                         type="checkbox"
                         checked={safeGroupForm.remoteChannelSyncMetadata}
@@ -432,7 +461,7 @@ export default function NewGroupModal({
                       />
                     </label>
                     <label className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-slate-200">
-                      <span>Allow media streaming when supported</span>
+                      <span>{t("chat.form.remoteStreamMedia")}</span>
                       <input
                         type="checkbox"
                         checked={safeGroupForm.remoteChannelStreamMedia}
@@ -455,12 +484,22 @@ export default function NewGroupModal({
               </div>
             ) : null}
 
-            <div className="rounded-2xl border border-emerald-200 p-3 dark:border-emerald-500/30">
+            <div className="rounded-2xl border border-emerald-100/80 bg-slate-50/50 p-4 dark:border-emerald-500/25 dark:bg-slate-900/40">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Members
+                  {t("chat.form.addMembers")}
                 </p>
+                {safeSelectedMembers.length > 0 ? (
+                  <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-200">
+                    {tf("chat.form.membersCount", {
+                      count: safeSelectedMembers.length,
+                    })}
+                  </span>
+                ) : null}
               </div>
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                {t("chat.form.memberSearchHint")}
+              </p>
               <div className="relative mt-2">
                 <input
                   ref={groupSearchInputRef}
@@ -469,20 +508,18 @@ export default function NewGroupModal({
                     setGroupSearchQuery?.(event.target.value);
                     setGroupError?.("");
                   }}
-                  placeholder="username"
-                  lang={groupSearchHasPersian ? "fa" : "en"}
-                  dir={groupSearchHasPersian ? "rtl" : "ltr"}
-                  className={`w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 pr-14 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 ${
-                    groupSearchHasPersian ? "font-fa text-right" : "text-left"
-                  }`}
+                  placeholder={t("chat.form.memberSearchPlaceholder")}
+                  lang="en"
+                  dir="ltr"
+                  className="w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 pe-12 ps-4 text-start text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100"
                   style={{ unicodeBidi: "plaintext" }}
                 />
                 {safeSearchQuery.trim() ? (
                   <button
                     type="button"
                     onClick={() => setGroupSearchQuery?.("")}
-                    className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-rose-600 transition hover:bg-rose-100 hover:shadow-[0_0_18px_rgba(244,63,94,0.22)] dark:text-rose-200 dark:hover:bg-rose-500/10"
-                    aria-label="Clear member search"
+                    className="absolute end-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-transparent text-rose-600 transition hover:bg-rose-100 hover:shadow-[0_0_18px_rgba(244,63,94,0.22)] dark:text-rose-200 dark:hover:bg-rose-500/10"
+                    aria-label={t("chat.search")}
                   >
                     <Close size={16} className="icon-anim-pop" />
                   </button>
@@ -520,7 +557,7 @@ export default function NewGroupModal({
                             setGroupSearchQuery?.("");
                             groupSearchInputRef.current?.focus?.();
                           }}
-                          className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-medium transition ${
+                          className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-start text-sm font-medium transition ${
                             selected
                               ? "border-emerald-500 border-2 bg-emerald-50 text-emerald-900 shadow-md dark:border-emerald-400 dark:bg-emerald-500/20 dark:text-emerald-100"
                               : "border-emerald-100/70 bg-white/80 text-slate-700 hover:border-emerald-300 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900/50"
@@ -555,11 +592,11 @@ export default function NewGroupModal({
                   </div>
                 ) : groupSearchLoading ? (
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Searching...
+                    {t("chat.searching")}
                   </p>
                 ) : safeSearchQuery.trim() ? (
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    No users found.
+                    {t("chat.noUsersFound")}
                   </p>
                 ) : null}
               </div>
@@ -604,8 +641,8 @@ export default function NewGroupModal({
                   })}
                 </div>
               ) : !hideSelectedMemberChips ? (
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  No members selected yet.
+                <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                  {t("chat.form.noMembersYet")}
                 </p>
               ) : null}
             </div>
@@ -624,28 +661,32 @@ export default function NewGroupModal({
               className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200/80 bg-rose-50/70 px-4 py-3 text-xs font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 dark:border-rose-500/40 dark:bg-rose-900/30 dark:text-rose-200 dark:hover:bg-rose-900/50"
             >
               <Trash size={16} className="icon-anim-sway" />
-              Delete {safeEntityLabel.toLowerCase()}
+              {tf("chat.form.deleteEntity")}
             </button>
           ) : null}
 
-          <div className="mt-4 flex items-center justify-end gap-2">
+          <div
+            className={`mt-5 flex items-center gap-2 border-t border-emerald-100/70 pt-4 dark:border-emerald-500/20 ${
+              isRtl ? "flex-row-reverse justify-start" : "justify-end"
+            }`}
+          >
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_0_14px_rgba(148,163,184,0.2)] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/70"
+              className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/70"
             >
-              Cancel
+              {t("chat.cancel")}
             </button>
             <button
               type="button"
               onClick={onCreate}
               disabled={creatingGroup}
-              className="inline-flex min-w-[88px] items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-70"
+              className="inline-flex min-w-[6.5rem] items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 disabled:opacity-70"
             >
               {creatingGroup ? (
                 <>
                   <LoaderCircle size={14} className="animate-spin" />
-                  Saving...
+                  {t("chat.saving")}
                 </>
               ) : (
                 submitLabel
@@ -657,10 +698,10 @@ export default function NewGroupModal({
 
       <ConfirmPasswordModal
         open={deleteModalOpen}
-        title={`Delete ${safeEntityLabel.toLowerCase()}`}
-        description={`This permanently deletes the ${safeEntityLabel.toLowerCase()}, removes all members, and erases all messages.`}
-        confirmLabel="Continue"
-        deleteLabel={`Delete ${safeEntityLabel.toLowerCase()}`}
+        title={tf("chat.form.deleteEntityTitle")}
+        description={tf("chat.form.deleteEntityDesc")}
+        confirmLabel={t("chat.form.deleteContinue")}
+        deleteLabel={tf("chat.form.deleteConfirm")}
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={async (password) => {
           await onDeleteChat?.(password);

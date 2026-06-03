@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { parseStickerBody } from "../../utils/stickers.js";
 
 const SILENT_FETCH_TRACK_MAX_CHATS = 40;
 
@@ -277,15 +278,18 @@ export function useMessagesLoader({
           systemSuffix && isolatedTargetName
             ? `${isolatedTargetName} ${systemSuffix}`
             : "";
+        const sticker = parseStickerBody(bodyText);
         return {
           ...msg,
           body: normalizedBody,
           replyTo: normalizedReply,
+          poll: msg?.poll || null,
           _readByMe: readByMe,
           _dayKey: dayKey,
           _dayLabel: formatDayLabel(msg.created_at),
           _timeLabel: formatTime(msg.created_at),
           _processingPending: isOwnProcessingVideo,
+          _sticker: sticker,
           _systemEvent:
             allowSystemEvents && normalizedSystemType
               ? {

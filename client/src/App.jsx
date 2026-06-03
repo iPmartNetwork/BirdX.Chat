@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import logo from './assets/birdx-logo.svg'
 import { LanguageProvider } from './i18n/LanguageContext.jsx'
 import { APP_CONFIG } from './settings/appConfig.js'
+import { applyAccentTheme, loadStoredAccent } from './utils/accentTheme.js'
 import InstallBar from './components/pwa/InstallBar.jsx'
 import InstallGuideModal from './components/pwa/InstallGuideModal.jsx'
 
@@ -173,6 +174,7 @@ export default function App() {
   const installBarRef = useRef(null)
   const [installBarHeight, setInstallBarHeight] = useState(0)
   const themeRefreshTimersRef = useRef([])
+  const brandingAccentRef = useRef('#10b981')
   const isDesktopViewport =
     window.matchMedia?.('(min-width: 768px)')?.matches || false
   const showInstallBar =
@@ -196,6 +198,10 @@ export default function App() {
       isAdmin: Boolean(data.isAdmin),
       fileUploadMaxSizeBytes: Number(data.fileUploadMaxSizeBytes || 0) || null,
       dmPolicy: data.dmPolicy || 'acquaintances',
+      contactRequestPolicy: data.contactRequestPolicy || 'everyone',
+      dndUntil: data.dndUntil || null,
+      notificationsPaused: Boolean(data.notificationsPaused),
+      uiAccentColor: data.uiAccentColor || null,
     }
   }
 
@@ -331,6 +337,42 @@ export default function App() {
     applyTheme(isDark, route)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDark, route])
+
+  useEffect(() => {
+    applyAccentTheme(loadStoredAccent())
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_BASE}/api/branding`, { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        const branding = data?.branding || {}
+        brandingAccentRef.current = branding.accentColor || '#10b981'
+        if (branding.appName) {
+          document.title = branding.appName
+        }
+        if (branding.faviconUrl) {
+          let link = document.querySelector('link[rel="icon"]')
+          if (!link) {
+            link = document.createElement('link')
+            link.rel = 'icon'
+            document.head.appendChild(link)
+          }
+          link.href = branding.faviconUrl
+        }
+        applyAccentTheme(user?.uiAccentColor, brandingAccentRef.current)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    applyAccentTheme(user?.uiAccentColor, brandingAccentRef.current)
+  }, [user?.uiAccentColor])
 
   useEffect(() => {
     if (route === 'signup' && !accountCreationEnabled) {
@@ -886,7 +928,7 @@ export default function App() {
   const safeAreaKey = `${route}-${isDark ? 'dark' : 'light'}`
   const safeAreaThemeColor = getThemeColor(isDark, route)
   const appShellClass = isAuthRoute
-    ? 'min-h-screen bg-gradient-to-b from-white via-emerald-50/70 to-white text-slate-900 transition-colors duration-300 dark:bg-gradient-to-b dark:from-emerald-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-100'
+    ? 'birdx-auth-shell min-h-screen bg-gradient-to-b from-white via-emerald-50/70 to-white text-slate-900 transition-colors duration-300 dark:bg-gradient-to-b dark:from-emerald-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-100'
     : 'h-[100dvh] bg-white text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100'
 
   const appContainerStyle = {

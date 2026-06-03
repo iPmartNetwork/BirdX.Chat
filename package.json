@@ -1,6 +1,6 @@
 {
   "name": "birdx",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "license": "MIT",
   "description": "BirdX - Advanced self-hosted chat and file sharing platform",
@@ -14,6 +14,12 @@
   "homepage": "https://github.com/iPmartNetwork/BirdX.Chat#readme",
   "scripts": {
     "dev": "concurrently \"npm --prefix client run dev\" \"npm --prefix server run dev\"",
+    "dev:site": "npm --prefix site run dev -- --host",
+    "dev:desktop": "npm --prefix apps/desktop run start",
+    "build:desktop": "npm --prefix apps/desktop run build && node apps/desktop/scripts/copy-installer.js",
+    "build:android": "npm --prefix apps/mobile run sync && npm --prefix apps/mobile run build:android:debug && npm --prefix apps/mobile run copy:apk",
+    "build:apps": "npm run build:desktop",
+    "dev:stop": "powershell -ExecutionPolicy Bypass -File scripts/stop-dev.ps1",
     "build": "npm --prefix client run build",
     "build:site": "npm --prefix site run build",
     "build:all": "npm run build && npm run build:site",

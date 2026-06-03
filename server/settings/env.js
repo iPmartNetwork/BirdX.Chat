@@ -35,4 +35,13 @@ function readEnvBool(keys, fallback) {
   return fallback;
 }
 
-export { readEnvBool, readEnvInt };
+function readEnvString(keys, fallback = "") {
+  const names = Array.isArray(keys) ? keys : [keys];
+  const raw = names
+    .map((name) => process.env[name])
+    .find((value) => value !== undefined && value !== null && value !== "");
+  if (raw === undefined || raw === null || raw === "") return fallback;
+  return String(raw).trim();
+}
+
+export { readEnvBool, readEnvInt, readEnvString };

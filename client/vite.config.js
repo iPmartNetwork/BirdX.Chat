@@ -62,8 +62,17 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "0.0.0.0",
       port: 5173,
+      strictPort: true,
       proxy: {
-        "/api": `http://localhost:${apiPort}`,
+        "/api": {
+          target: `http://127.0.0.1:${apiPort}`,
+          changeOrigin: true,
+        },
+        "/socket.io": {
+          target: `http://127.0.0.1:${apiPort}`,
+          ws: true,
+          changeOrigin: true,
+        },
       },
     },
   };

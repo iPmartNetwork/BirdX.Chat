@@ -18,6 +18,7 @@ import { hasPersian } from "../../../utils/fontUtils.js";
 import { getAvatarInitials } from "../../../utils/avatarInitials.js";
 import ContextMenuSurface from "../../context-menu/ContextMenuSurface.jsx";
 import { MessageFiles } from "../media/MessageFiles.jsx";
+import MessagePoll from "./MessagePoll.jsx";
 import {
   renderMarkdownBlock,
   renderMarkdownInlinePlain,
@@ -105,6 +106,16 @@ const getReactionsSignature = (reactions) => {
     .join("|");
 };
 
+const getPollSignature = (poll) => {
+  if (!poll) return "";
+  const counts = (poll.counts || []).join(",");
+  const myVotes = (poll.myVotes || []).join(",");
+  return `${poll.question || ""}:${counts}:${poll.totalVotes || 0}:${myVotes}`;
+};
+
+const getStickerSignature = (sticker) =>
+  sticker ? `${sticker.packId || ""}:${sticker.stickerId || ""}:${sticker.emoji || ""}` : "";
+
 const getMessageRenderSignature = (msg) => {
   if (!msg) return "";
   return [
@@ -138,6 +149,8 @@ const getMessageRenderSignature = (msg) => {
     getFileSignature(msg?.files),
     getFileSignature(msg?._files),
     getReactionsSignature(msg?.reactions),
+    getPollSignature(msg?.poll),
+    getStickerSignature(msg?._sticker),
   ].join("~~");
 };
 
@@ -165,6 +178,7 @@ export const MessageItem = memo(function MessageItem({
   onJumpToMessage,
   canSwipeReply = true,
   onOpenContextMenu,
+  onVotePoll,
 }) {
   const isOwn = !isChannelChat && isMessageAuthoredByUser(msg, user);
   const isRead = Boolean(msg.read_at);
@@ -228,8 +242,12 @@ export const MessageItem = memo(function MessageItem({
     (!normalizedBodyText ||
       FILE_SUMMARY_PATTERN.test(normalizedBodyText) ||
       normalizedBodyText === generatedSummaryText ||
+      normalizedBodyText === "[[poll]]" ||
+      Boolean(msg?._sticker) ||
       (hasMixedVoiceAndOtherFiles &&
         /^Sent a voice message$/i.test(normalizedBodyText)));
+  const hasPoll = Boolean(msg?.poll?.question);
+  const hasSticker = Boolean(msg?._sticker);
   const messageBodyRef = useRef(null);
   const suppressCodeClickUntilRef = useRef(0);
   const mentionDebugEnabled =
@@ -1027,7 +1045,22 @@ export const MessageItem = memo(function MessageItem({
                   docFullWidth={isGroupChat && !isOwn && !isDesktop}
                   {...messageFilesProps}
                 />
-                {!shouldHideGeneratedFileBody ? (
+                {hasPoll ? (
+                  <MessagePoll
+                    poll={msg.poll}
+                    onVote={(optionIndex) => onVotePoll?.(msg, optionIndex)}
+                  />
+                ) : null}
+                {hasSticker ? (
+                  <div
+                    className="mt-1 flex min-h-[4.5rem] items-center justify-center text-5xl"
+                    title={msg._sticker.label}
+                    aria-label={msg._sticker.label}
+                  >
+                    {msg._sticker.emoji}
+                  </div>
+                ) : null}
+                {!hasPoll && !hasSticker && !shouldHideGeneratedFileBody ? (
                   <div
                     ref={messageBodyRef}
                     dir="auto"

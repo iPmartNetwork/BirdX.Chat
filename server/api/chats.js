@@ -44,8 +44,10 @@ function registerChatRoutes(app, deps) {
     isRequiredChannel,
     isVideoFileProcessing,
     listCallLogsForChat,
+    listCallLogsForUser,
     listChatMembers,
     listChatsForUser,
+    listArchivedChatsForUser,
     listMessageFilesByMessageIds,
     listUsers,
     removeAvatarByUrl,
@@ -63,6 +65,10 @@ function registerChatRoutes(app, deps) {
     searchPublicGroups,
     searchPublicChannels,
     setChatMuted,
+    setChatPinned,
+    setChatArchived,
+    setChatMuteUntil,
+    setChatNotifyMode,
     updateGroupChat,
     updateChannelChat,
     unhideChat,
@@ -155,6 +161,79 @@ function registerChatRoutes(app, deps) {
         leftAt: participant.left_at || null,
       }),
     ),
+  });
+
+  const enrichCallLogForViewer = (call, viewerUserId) => {
+    const viewerId = Number(viewerUserId || 0);
+    const chatType = String(call?.chatType || "dm").toLowerCase();
+    const isCaller = Number(call?.caller?.id || 0) === viewerId;
+    const myParticipant = (call?.participants || []).find(
+      (entry) => Number(entry?.id) === viewerId,
+    );
+    const normalizedStatus = String(call?.status || "").toLowerCase();
+    const myStatus = String(myParticipant?.status || "").toLowerCase();
+    let direction = isCaller ? "outgoing" : "incoming";
+    if (
+      !isCaller &&
+      (normalizedStatus === "missed" ||
+        normalizedStatus === "rejected" ||
+        myStatus === "invited")
+    ) {
+      direction = "missed";
+    }
+    const otherParticipant =
+      (call?.participants || []).find((entry) => Number(entry?.id) !== viewerId) ||
+      call?.caller;
+    const displayPeer =
+      chatType === "dm" && otherParticipant
+        ? {
+            id: Number(otherParticipant.id || 0),
+            username: otherParticipant.username || "",
+            nickname:
+              otherParticipant.nickname ||
+              otherParticipant.username ||
+              "",
+            avatar_url: otherParticipant.avatar_url || "",
+            color: otherParticipant.color || "#10b981",
+          }
+        : null;
+    return {
+      ...call,
+      direction,
+      displayName:
+        chatType === "dm"
+          ? displayPeer?.nickname || displayPeer?.username || "Contact"
+          : call?.chatName || "Group",
+      displayPeer,
+      chatType,
+    };
+  };
+
+  app.get("/api/calls", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const username = req.query.username?.toString();
+    const limit = Number(req.query.limit || 50);
+    if (!username) {
+      return res.status(400).json({ error: "Username is required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(username.toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const calls = listCallLogsForUser(user.id, limit).map((row) => {
+      const normalized = normalizeCallLog(row);
+      normalized.chatType = String(row?.chat_type || "dm").toLowerCase();
+      normalized.chatName = row?.chat_name || "";
+      normalized.chatColor = row?.chat_color || "#10b981";
+      normalized.chatAvatarUrl = normalizeGroupAvatarUrl(row?.chat_avatar_url);
+      return enrichCallLogForViewer(normalized, user.id);
+    });
+    return res.json({ calls });
   });
 
   app.get("/api/chats", async (req, res) => {
@@ -455,6 +534,12 @@ function registerChatRoutes(app, deps) {
       }
     });
 
+    deps.fireWebhookEvent?.("chat.create", {
+      chatId,
+      type: normalizedType,
+      createdBy: creatorUser.id,
+      name: name || "Untitled",
+    });
     res.json({ id: chatId });
   });
 
@@ -547,6 +632,13 @@ function registerChatRoutes(app, deps) {
 
     const baseOrigin = resolveClientBaseOrigin(req);
     const inviteLink = `${baseOrigin}/invite/${inviteToken}`;
+    deps.fireWebhookEvent?.("chat.create", {
+      chatId: Number(chatId),
+      type: normalizedType,
+      createdBy: creatorUser.id,
+      name: groupNickname,
+      groupUsername,
+    });
     return res.json({
       id: Number(chatId),
       inviteToken,
@@ -906,6 +998,12 @@ function registerChatRoutes(app, deps) {
       clearGroupMemberRemoved(chatId, member.id);
       unhideChat(member.id, chatId);
       addChatMember(chatId, member.id, "member");
+      deps.fireWebhookEvent?.("member.join", {
+        chatId,
+        userId: member.id,
+        username: member.username,
+        invitedBy: user.id,
+      });
       if (chat.type === "group") {
         createMessage(
           chatId,
@@ -1323,6 +1421,7 @@ function registerChatRoutes(app, deps) {
     const chatId = Number(req.params?.chatId || 0);
     const username = req.body?.username?.toString();
     const muted = Boolean(req.body?.muted);
+    const muteUntil = req.body?.muteUntil;
     if (!chatId || !username) {
       return res.status(400).json({ error: "Chat id and username are required." });
     }
@@ -1341,8 +1440,85 @@ function registerChatRoutes(app, deps) {
       return res.status(403).json({ error: "Not a member of this chat." });
     }
 
+    if (muteUntil) {
+      setChatMuteUntil(user.id, chatId, muteUntil);
+      return res.json({ ok: true, chatId, muted: true, muteUntil });
+    }
+
     setChatMuted(user.id, chatId, muted);
     return res.json({ ok: true, chatId, muted });
+  });
+
+  app.put("/api/chats/:chatId/settings", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const chatId = Number(req.params?.chatId || 0);
+    const username = req.body?.username?.toString();
+    if (!chatId || !username) {
+      return res.status(400).json({ error: "Chat id and username are required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(String(username || "").toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    const chat = findChatById(chatId);
+    if (!chat) {
+      return res.status(404).json({ error: "Chat not found." });
+    }
+    if (!isMember(chatId, user.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "pinned")) {
+      setChatPinned(user.id, chatId, Boolean(req.body.pinned));
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "archived")) {
+      if (isRequiredChannel?.(chatId) && req.body.archived) {
+        return res.status(403).json({ error: "Required channels cannot be archived." });
+      }
+      const archived = Boolean(req.body.archived);
+      setChatArchived(user.id, chatId, archived);
+      deps.fireWebhookEvent?.("chat.archive", {
+        chatId,
+        userId: user.id,
+        archived,
+      });
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "muted")) {
+      const muted = Boolean(req.body.muted);
+      if (req.body.muteUntil) {
+        setChatMuteUntil(user.id, chatId, req.body.muteUntil);
+      } else {
+        setChatMuted(user.id, chatId, muted);
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "notifyMode")) {
+      setChatNotifyMode(user.id, chatId, req.body.notifyMode);
+    }
+
+    return res.json({ ok: true, chatId });
+  });
+
+  app.get("/api/chats/archived", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const username = req.query?.username?.toString();
+    if (!username) {
+      return res.status(400).json({ error: "Username is required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(String(username || "").toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const chats = listArchivedChatsForUser(user.id);
+    return res.json({ chats });
   });
 
   app.post("/api/chats/hide", (req, res) => {

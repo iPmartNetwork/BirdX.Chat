@@ -23,6 +23,7 @@ import { summarizeFiles } from "../../../utils/messagePreview.js";
 import Avatar from "../../common/Avatar.jsx";
 import { useLanguage } from "../../../i18n/LanguageContext.jsx";
 import DmRequestsSection from "../sections/DmRequestsSection.jsx";
+import ArchivedChatsSection from "../sections/ArchivedChatsSection.jsx";
 
 export default function ChatsListPanel({
   loadingChats,
@@ -60,6 +61,10 @@ export default function ChatsListPanel({
   onOpenSavedMessages,
   onOpenUserContextMenu,
   onOpenChatContextMenu,
+  archivedChats = [],
+  loadingArchivedChats = false,
+  onOpenArchivedChat,
+  onUnarchiveChat,
 }) {
   const { t } = useLanguage();
   const SIDEBAR_INITIAL_RENDER = 40;
@@ -237,14 +242,14 @@ export default function ChatsListPanel({
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                       isActive
                         ? "border-emerald-400 bg-emerald-100 text-emerald-900 dark:border-emerald-400/60 dark:bg-emerald-500/20 dark:text-emerald-100"
-                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-emerald-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.18)] focus-visible:border-emerald-300 focus-visible:shadow-[0_0_20px_rgba(16,185,129,0.18)] focus-visible:outline-none dark:border-emerald-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-emerald-300 hover:birdx-accent-glow-shadow focus-visible:border-emerald-300 focus-visible:birdx-accent-glow-shadow-sm focus-visible:outline-none dark:border-emerald-500/20 dark:bg-slate-950/60 dark:text-slate-200"
                     }`}
                   >
                     <Avatar
                       src={member.avatar_url}
                       alt={label}
                       name={label}
-                      color={member.color || "#10b981"}
+                      color={member.color || "var(--birdx-accent)"}
                       initials={initials}
                       className="h-9 w-9 text-xs"
                     />
@@ -289,7 +294,7 @@ export default function ChatsListPanel({
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                       isActive
                         ? "border-emerald-400 bg-emerald-100 text-emerald-900 dark:border-emerald-400/60 dark:bg-emerald-500/20 dark:text-emerald-100"
-                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-emerald-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.18)] focus-visible:border-emerald-300 focus-visible:shadow-[0_0_20px_rgba(16,185,129,0.18)] focus-visible:outline-none dark:border-emerald-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-emerald-300 hover:birdx-accent-glow-shadow focus-visible:border-emerald-300 focus-visible:birdx-accent-glow-shadow-sm focus-visible:outline-none dark:border-emerald-500/20 dark:bg-slate-950/60 dark:text-slate-200"
                     }`}
                   >
                     {group.avatarUrl ? (
@@ -301,7 +306,7 @@ export default function ChatsListPanel({
                     ) : (
                       <div
                         className={`flex h-9 w-9 items-center justify-center rounded-full text-xs ${hasPersian(initials) ? "font-fa" : ""}`}
-                        style={getAvatarStyle(group.color || "#10b981")}
+                        style={getAvatarStyle(group.color || "var(--birdx-accent)")}
                       >
                         {initials}
                       </div>
@@ -356,7 +361,7 @@ export default function ChatsListPanel({
                     className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                       isActive
                         ? "border-emerald-400 bg-emerald-100 text-emerald-900 dark:border-emerald-400/60 dark:bg-emerald-500/20 dark:text-emerald-100"
-                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-emerald-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.18)] focus-visible:border-emerald-300 focus-visible:shadow-[0_0_20px_rgba(16,185,129,0.18)] focus-visible:outline-none dark:border-emerald-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                        : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-emerald-300 hover:birdx-accent-glow-shadow focus-visible:border-emerald-300 focus-visible:birdx-accent-glow-shadow-sm focus-visible:outline-none dark:border-emerald-500/20 dark:bg-slate-950/60 dark:text-slate-200"
                     }`}
                   >
                     {channel.avatarUrl ? (
@@ -368,7 +373,7 @@ export default function ChatsListPanel({
                     ) : (
                       <div
                         className={`flex h-9 w-9 items-center justify-center rounded-full text-xs ${hasPersian(initials) ? "font-fa" : ""}`}
-                        style={getAvatarStyle(channel.color || "#10b981")}
+                        style={getAvatarStyle(channel.color || "var(--birdx-accent)")}
                       >
                         {initials}
                       </div>
@@ -416,17 +421,14 @@ export default function ChatsListPanel({
                 contextMenu={{
                   disabled: true,
                 }}
-                className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
+                className={`birdx-saved-messages-card flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm transition ${
                   isSavedChatActive
                     ? "border-emerald-400 bg-emerald-100 text-emerald-900 dark:border-emerald-400/60 dark:bg-emerald-500/20 dark:text-emerald-100"
-                    : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-emerald-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.18)] focus-visible:border-emerald-300 focus-visible:shadow-[0_0_20px_rgba(16,185,129,0.18)] focus-visible:outline-none dark:border-emerald-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+                    : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-emerald-300 hover:birdx-accent-glow-shadow focus-visible:border-emerald-300 focus-visible:birdx-accent-glow-shadow-sm focus-visible:outline-none dark:border-emerald-500/20 dark:bg-slate-950/60 dark:text-slate-200"
                 }`}
               >
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-full"
-                  style={getAvatarStyle("#10b981")}
-                >
-                  <Bookmark size={16} className="text-white" />
+                <div className="birdx-accent-icon flex h-9 w-9 items-center justify-center rounded-full">
+                  <Bookmark size={16} className="text-white drop-shadow-sm" />
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">
@@ -456,6 +458,18 @@ export default function ChatsListPanel({
           onAccept={onDmRequestAccept}
           onReject={onDmRequestReject}
           onOpenRequest={onOpenDmRequest}
+        />
+      ) : null}
+      {!showSearchMode ? (
+        <ArchivedChatsSection
+          chats={archivedChats}
+          loading={loadingArchivedChats}
+          activeChatId={activeChatId}
+          currentUsername={user?.username}
+          formatChatTimestamp={formatChatTimestamp}
+          onOpenChat={onOpenArchivedChat}
+          onOpenChatContextMenu={onOpenChatContextMenu}
+          onUnarchive={onUnarchiveChat}
         />
       ) : null}
       {!showSearchMode && loadingChats && !visibleChats.length ? (
@@ -501,12 +515,12 @@ export default function ChatsListPanel({
                 : conv.name || t("chat.unnamed");
           const avatarColor =
             isGroup || isChannel
-              ? conv.group_color || "#10b981"
+              ? conv.group_color || "var(--birdx-accent)"
               : isSaved
-                ? "#10b981"
+                ? "var(--birdx-accent)"
                 : isDeletedDm
                   ? "#94a3b8"
-                  : other?.color || "#10b981";
+                  : other?.color || "var(--birdx-accent)";
           const avatarInitials = getAvatarInitials(name);
           const wiggleStyle = editMode
             ? {
@@ -533,8 +547,8 @@ export default function ChatsListPanel({
               className={`w-full min-h-[72px] rounded-2xl border px-3 py-3 text-left text-sm transition ${
                   Number(activeChatId || 0) === Number(conv.id || 0)
                   ? "border-emerald-400 bg-emerald-100 text-emerald-900 dark:border-emerald-400/60 dark:bg-emerald-500/20 dark:text-emerald-100"
-                  : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-emerald-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.18)] dark:border-emerald-500/20 dark:bg-slate-950/60 dark:text-slate-200"
-              } ${editMode ? "animate-chat-wiggle-ios shadow-[0_0_0_1px_rgba(16,185,129,0.35),0_0_16px_rgba(16,185,129,0.22)]" : ""}`}
+                  : "border-slate-300/80 bg-white/90 text-slate-700 hover:border-emerald-300 hover:birdx-accent-glow-shadow dark:border-emerald-500/20 dark:bg-slate-950/60 dark:text-slate-200"
+              } ${editMode ? "animate-chat-wiggle-ios birdx-edit-chat-glow" : ""}`}
               style={wiggleStyle}
             >
               <div className="flex items-start gap-3">
@@ -548,9 +562,10 @@ export default function ChatsListPanel({
                   name={name}
                   color={avatarColor}
                   initials={avatarInitials}
+                  useAccentColor={isSaved}
                   placeholderContent={
                     isSaved ? (
-                      <Bookmark size={16} className="text-white" />
+                      <Bookmark size={16} className="text-white drop-shadow-sm" />
                     ) : isDeletedDm ? (
                       <Ghost size={16} className="text-slate-600" />
                     ) : (

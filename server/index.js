@@ -23,7 +23,14 @@ import { createSessionHelpers } from "./lib/sessions.js";
 import { storageEncryption } from "./lib/storageEncryption.js";
 import { createRemoteChannelManager } from "./lib/remoteChannels.js";
 import { buildTimestampSchedule } from "./lib/timeUtils.js";
+import {
+  getMaintenanceState,
+  getRuntimeSettings,
+  resolveRuntimeFlag,
+} from "./lib/runtimeSettings.js";
 import { isLoopbackRequest, parseUploadFileMetadata } from "./lib/requestUtils.js";
+import { getGroupCallLimits } from "./lib/groupCallConfig.js";
+import { registerSfuSocketHandlers } from "./lib/sfu/sfuSocketHandlers.js";
 import { USER_COLORS, setUserColor } from "./settings/colors.js";
 import { readEnvBool, readEnvInt } from "./settings/env.js";
 import { createServer } from "node:http";
@@ -102,7 +109,9 @@ import {
   isRequiredChannel,
   listChatMembers,
   listCallLogsForChat,
+  listCallLogsForUser,
   listChatsForUser,
+  listArchivedChatsForUser,
   listAvailableRequiredChannels,
   listUsers,
   listRequiredChannels,
@@ -110,6 +119,26 @@ import {
   searchPublicGroups,
   searchPublicChannels,
   setChatMuted,
+  setChatPinned,
+  setChatArchived,
+  setChatMuteUntil,
+  setChatNotifyMode,
+  listSessionsForUser,
+  deleteSessionByIdForUser,
+  deleteOtherSessionsForUser,
+  updateUserNotificationPrefs,
+  createScheduledMessage,
+  listScheduledMessagesForUser,
+  deleteScheduledMessageForUser,
+  setSessionAdmin2faVerified,
+  isSessionAdmin2faFresh,
+  getAppBranding,
+  updateUserUiAccent,
+  isGroupE2eeEnabled,
+  setGroupE2eeEnabled,
+  upsertGroupE2eeWrappedKey,
+  listGroupE2eeWrappedKeys,
+  getGroupE2eeWrappedKey,
   touchSession,
   updateLastSeen,
   getUserPresence,
@@ -133,9 +162,31 @@ import {
   listPushSubscriptionsByUserIds,
   listMutedUserIdsForChat,
   getMessageReactions,
+  createPollMessage,
+  votePollMessage,
+  getPollsForMessageIds,
   setRequiredChannels,
   toggleMessageReaction,
+  areUsersContacts,
+  addMutualUserContacts,
+  removeUserContact,
+  getPendingContactRequest,
+  getContactRequestById,
+  createContactRequest,
+  acceptContactRequest,
+  rejectContactRequest,
+  cancelContactRequest,
+  cancelPendingContactRequestsBetween,
+  removeMutualUserContacts,
+  listOutgoingContactRequests,
+  listBlockedUsers,
+  isUserBlockedBy,
+  updateUserContactRequestPolicy,
+  listUserContacts,
+  listIncomingContactRequests,
+  getContactPeerStatus,
 } from "./db.js";
+import { createCallPresenceTracker } from "./lib/callPresence.js";
 
 process.title = "birdx-server";
 
@@ -377,6 +428,38 @@ const { addSseClient, removeSseClient, emitSseEvent, emitChatEvent } = createSse
   listChatMembers,
 });
 
+const { setUserInCall, isUserInActiveCall } = createCallPresenceTracker({
+  findUserById,
+  listChatsForUser,
+  listChatMembers,
+  emitSseEvent,
+});
+
+const callRoomParticipants = new Map();
+
+function trackCallParticipantJoin(roomId, userId) {
+  const uid = Number(userId || 0);
+  const normalizedRoomId = String(roomId || "").trim();
+  if (!normalizedRoomId || !uid) return;
+  let users = callRoomParticipants.get(normalizedRoomId);
+  if (!users) {
+    users = new Set();
+    callRoomParticipants.set(normalizedRoomId, users);
+  }
+  if (!users.has(uid)) {
+    users.add(uid);
+    setUserInCall(uid, true);
+  }
+}
+
+function trackCallRoomEnded(roomId) {
+  const normalizedRoomId = String(roomId || "").trim();
+  const users = callRoomParticipants.get(normalizedRoomId);
+  if (!users) return;
+  callRoomParticipants.delete(normalizedRoomId);
+  users.forEach((uid) => setUserInCall(uid, false));
+}
+
 const pushService = createPushService({
   webpush,
   listPushSubscriptionsByUserIds,
@@ -549,6 +632,11 @@ const apiDeps = {
   APP_DEBUG,
   AVATAR_FILE_LIMITS,
   FILE_UPLOAD,
+  getAccountCreationEnabled: () =>
+    resolveRuntimeFlag(getRuntimeSettings(adminGetRow).accountCreation, ACCOUNT_CREATION),
+  getFileUploadEnabled: () =>
+    resolveRuntimeFlag(getRuntimeSettings(adminGetRow).fileUpload, FILE_UPLOAD),
+  getMaintenanceState: () => getMaintenanceState(adminGetRow),
   MESSAGE_FILE_LIMITS,
   MESSAGE_FILE_RETENTION_DAYS,
   MESSAGE_TEXT_RETENTION_DAYS,
@@ -654,8 +742,10 @@ const apiDeps = {
   isVideoFileProcessing,
   listPushSubscriptionsByUserIds,
   listCallLogsForChat,
+  listCallLogsForUser,
   listChatMembers,
   listChatsForUser,
+  listArchivedChatsForUser,
   listAvailableRequiredChannels,
   listEnabledRemoteChannelSources,
   listMessageFilesByMessageIds,
@@ -695,6 +785,26 @@ const apiDeps = {
   searchPublicGroups,
   searchPublicChannels,
   setChatMuted,
+  setChatPinned,
+  setChatArchived,
+  setChatMuteUntil,
+  setChatNotifyMode,
+  listSessionsForUser,
+  deleteSessionByIdForUser,
+  deleteOtherSessionsForUser,
+  updateUserNotificationPrefs,
+  createScheduledMessage,
+  listScheduledMessagesForUser,
+  deleteScheduledMessageForUser,
+  setSessionAdmin2faVerified,
+  isSessionAdmin2faFresh,
+  getAppBranding,
+  updateUserUiAccent,
+  isGroupE2eeEnabled,
+  setGroupE2eeEnabled,
+  upsertGroupE2eeWrappedKey,
+  listGroupE2eeWrappedKeys,
+  getGroupE2eeWrappedKey,
   setRequiredChannels,
   setMessageExpiresAt,
   listMutedUserIdsForChat,
@@ -718,6 +828,28 @@ const apiDeps = {
   storageEncryption,
   getMessageReactions,
   toggleMessageReaction,
+  createPollMessage,
+  votePollMessage,
+  getPollsForMessageIds,
+  areUsersContacts,
+  addMutualUserContacts,
+  removeUserContact,
+  getPendingContactRequest,
+  getContactRequestById,
+  createContactRequest,
+  acceptContactRequest,
+  rejectContactRequest,
+  cancelContactRequest,
+  cancelPendingContactRequestsBetween,
+  removeMutualUserContacts,
+  listOutgoingContactRequests,
+  listBlockedUsers,
+  isUserBlockedBy,
+  updateUserContactRequestPolicy,
+  listUserContacts,
+  listIncomingContactRequests,
+  getContactPeerStatus,
+  isUserInActiveCall,
 };
 
 const remoteChannelManager = createRemoteChannelManager({
@@ -751,10 +883,33 @@ initWebhookDispatcher({ adminGetAll, adminRun, adminSave });
 
 apiDeps.fireWebhookEvent = fireWebhookEvent;
 
-if (isProduction) {
+const clientDist = path.resolve(serverDir, "..", "client", "dist");
+const clientDistIndex = path.join(clientDist, "index.html");
+const hasClientDist = fs.existsSync(clientDistIndex);
+
+const serveClientSpa = isProduction && hasClientDist;
+
+if (isProduction && !hasClientDist) {
+  console.warn(
+    "[birdx] client/dist/index.html is missing. For local UI use Vite at http://localhost:5173 or run: npm run build",
+  );
+}
+
+if (!serveClientSpa) {
+  const devUiPort = process.env.VITE_DEV_PORT || 5173;
+  app.get("/", (req, res) => {
+    res.json({
+      ok: true,
+      name: "BirdX API",
+      health: "/api/health",
+      app: `http://localhost:${devUiPort}`,
+    });
+  });
+}
+
+if (serveClientSpa) {
   app.use(staticLimiter);
 
-  const clientDist = path.resolve(serverDir, "..", "client", "dist");
   const setStaticCacheHeaders = (res, filePath) => {
     const normalizedPath = String(filePath || "").replace(/\\/g, "/");
     if (
@@ -1013,6 +1168,7 @@ function scheduleCallDisconnectEnd(roomId) {
     callDisconnectTimers.delete(roomId);
     activeCalls.delete(roomId);
     liveCalls.delete(roomId);
+    trackCallRoomEnded(roomId);
     finishCallLog({
       roomId,
       status: "disconnect_timeout",
@@ -1032,6 +1188,29 @@ function parseCallRoomChatId(roomId) {
   return Number(match[1] || 0);
 }
 
+function isGroupChatRoom(chatId) {
+  const chat = findChatById(Number(chatId || 0));
+  return String(chat?.type || "").toLowerCase() === "group";
+}
+
+function countCallRoomParticipants(roomId) {
+  const live = liveCalls.get(roomId);
+  if (live?.size) return live.size;
+  const room = io.sockets.adapter.rooms.get(roomId);
+  return room?.size || 0;
+}
+
+function emitGroupCallParticipantCount(roomId) {
+  const chatId = parseCallRoomChatId(roomId);
+  if (!isGroupChatRoom(chatId)) return;
+  const count = countCallRoomParticipants(roomId);
+  io.to(roomId).emit("call-participant-count", {
+    roomId,
+    count,
+    maxParticipants: getGroupCallLimits().maxParticipants,
+  });
+}
+
 function normalizeCallType(callType) {
   return String(callType || "voice").toLowerCase() === "video" ? "video" : "voice";
 }
@@ -1047,8 +1226,9 @@ async function notifyIncomingCallByPush({
   const targetChatId = Number(chatId || parseCallRoomChatId(roomId) || 0);
   if (!targetChatId) return;
   const chat = findChatById(targetChatId);
-  if (!chat || String(chat.type || "").toLowerCase() !== "dm") return;
+  if (!chat) return;
 
+  const chatType = String(chat.type || "").toLowerCase();
   const members = listChatMembers(targetChatId);
   const mutedRows = listMutedUserIdsForChat(targetChatId);
   const mutedIds = new Set(
@@ -1066,14 +1246,23 @@ async function notifyIncomingCallByPush({
     );
   if (!recipientIds.length) return;
 
+  const isGroupCall = chatType === "group" || chatType === "channel";
+  const title = isGroupCall
+    ? `Incoming group ${normalizedCallType} call`
+    : `Incoming ${normalizedCallType} call`;
+  const body = isGroupCall
+    ? `${callerName || "Someone"} started a call in ${chat.name || "group"}`
+    : `${callerName || "Someone"} is calling...`;
+
   await sendPushNotificationToUsers(recipientIds, {
-    title: `Incoming ${normalizedCallType} call`,
-    body: `${callerName || "Someone"} is calling...`,
+    title,
+    body,
     data: {
       type: "incoming_call",
       chatId: targetChatId,
       callType: normalizedCallType,
       roomId,
+      isGroup: isGroupCall,
       url: `/chat?openChatId=${encodeURIComponent(String(targetChatId))}`,
     },
   });
@@ -1082,10 +1271,25 @@ async function notifyIncomingCallByPush({
 io.on("connection", (socket) => {
   console.log("SOCKET CONNECTED:", socket.id);
   const socketCallRooms = new Set();
+  const socketCallUserId = { value: null };
+  const cleanupSfu = registerSfuSocketHandlers(io, socket);
 
   socket.on("join-call", (roomId) => {
     if (!roomId) return;
     console.log("JOIN CALL:", socket.id, roomId);
+    const targetChatId = parseCallRoomChatId(roomId);
+    if (targetChatId && isGroupChatRoom(targetChatId)) {
+      const limits = getGroupCallLimits();
+      const currentCount = countCallRoomParticipants(roomId);
+      if (currentCount >= limits.maxParticipants) {
+        socket.emit("call-error", {
+          code: "room_full",
+          roomId,
+          maxParticipants: limits.maxParticipants,
+        });
+        return;
+      }
+    }
     socket.join(roomId);
     socketCallRooms.add(roomId);
 
@@ -1094,6 +1298,7 @@ io.on("connection", (socket) => {
       console.log("SEND PENDING INCOMING CALL:", socket.id, roomId);
       socket.emit("incoming-call", activeCall);
     }
+    emitGroupCallParticipantCount(roomId);
   });
 
   socket.on("resume-call", ({ roomId }) => {
@@ -1117,26 +1322,58 @@ io.on("connection", (socket) => {
     clearCallDisconnectTimer(roomId);
     activeCalls.delete(roomId);
     liveCalls.delete(roomId);
+    trackCallRoomEnded(roomId);
     finishCallLog({
       roomId,
       status: "ended",
       endedByUserId,
       reason: "ended",
     });
+    fireWebhookEvent("call.ended", {
+      roomId,
+      endedByUserId,
+      reason: "ended",
+    });
     socket.leave(roomId);
     socket.to(roomId).emit("call-ended", { roomId });
+    emitGroupCallParticipantCount(roomId);
   });
 
   socket.on("call-user", ({ roomId, chatId, callType, callerUserId, callerUsername, callerName }) => {
     if (!roomId) return;
+    if (callerUserId) socketCallUserId.value = Number(callerUserId);
     const normalizedCallType = normalizeCallType(callType);
+    const targetChatId = Number(chatId || parseCallRoomChatId(roomId) || 0) || null;
+
+    if (targetChatId && isGroupChatRoom(targetChatId)) {
+      const limits = getGroupCallLimits();
+      const memberCount = listChatMembers(targetChatId).length;
+      if (memberCount < limits.minGroupMembers) {
+        socket.emit("call-error", {
+          code: "group_too_small",
+          roomId,
+          minGroupMembers: limits.minGroupMembers,
+          currentMembers: memberCount,
+        });
+        return;
+      }
+      if (countCallRoomParticipants(roomId) >= limits.maxParticipants) {
+        socket.emit("call-error", {
+          code: "room_full",
+          roomId,
+          maxParticipants: limits.maxParticipants,
+        });
+        return;
+      }
+    }
+
     clearCallDisconnectTimer(roomId);
     socket.join(roomId);
     socketCallRooms.add(roomId);
 
     const payload = {
       roomId,
-      chatId: Number(chatId || parseCallRoomChatId(roomId) || 0) || null,
+      chatId: targetChatId,
       callType: normalizedCallType,
       callerUserId: Number(callerUserId || 0) || null,
       callerUsername: callerUsername || "",
@@ -1145,6 +1382,13 @@ io.on("connection", (socket) => {
     };
 
     activeCalls.set(roomId, payload);
+    let liveParticipants = liveCalls.get(roomId);
+    if (!liveParticipants) {
+      liveParticipants = new Set();
+      liveCalls.set(roomId, liveParticipants);
+    }
+    liveParticipants.add(socket.id);
+    trackCallParticipantJoin(roomId, payload.callerUserId);
     const participantUserIds = listChatMembers(payload.chatId)
       .map((member) => Number(member?.id || 0))
       .filter(Boolean);
@@ -1154,6 +1398,12 @@ io.on("connection", (socket) => {
       callerUserId: payload.callerUserId,
       participantUserIds,
       callType: normalizedCallType,
+    });
+    fireWebhookEvent("call.started", {
+      roomId,
+      chatId: payload.chatId,
+      callType: normalizedCallType,
+      callerUserId: payload.callerUserId,
     });
 
     console.log("CALL USER:", socket.id, roomId, callerName);
@@ -1167,22 +1417,56 @@ io.on("connection", (socket) => {
     notifyIncomingCallByPush(payload).catch((error) => {
       console.warn("[call] incoming-call push failed:", String(error?.message || error));
     });
+    emitGroupCallParticipantCount(roomId);
     console.log("INCOMING CALL EMITTED:", roomId);
   });
 
   socket.on("accept-call", ({ roomId, userId }) => {
     if (!roomId) return;
+    if (userId) socketCallUserId.value = Number(userId);
+    const targetChatId = parseCallRoomChatId(roomId);
+    if (targetChatId && isGroupChatRoom(targetChatId)) {
+      const limits = getGroupCallLimits();
+      const currentCount = countCallRoomParticipants(roomId);
+      if (currentCount >= limits.maxParticipants) {
+        socket.emit("call-error", {
+          code: "room_full",
+          roomId,
+          maxParticipants: limits.maxParticipants,
+        });
+        return;
+      }
+    }
     console.log("ACCEPT CALL:", socket.id, roomId);
     clearCallDisconnectTimer(roomId);
     socket.join(roomId);
     socketCallRooms.add(roomId);
     const activeCall = activeCalls.get(roomId);
-    if (activeCall?.callerSocketId) {
-      liveCalls.set(roomId, new Set([activeCall.callerSocketId, socket.id]));
+    let participants = liveCalls.get(roomId);
+    if (!participants) {
+      participants = new Set();
+      if (activeCall?.callerSocketId) {
+        participants.add(activeCall.callerSocketId);
+      }
+      liveCalls.set(roomId, participants);
+    }
+    participants.add(socket.id);
+    trackCallParticipantJoin(roomId, userId);
+    if (activeCall?.callerUserId) {
+      trackCallParticipantJoin(roomId, activeCall.callerUserId);
     }
     markCallLogAccepted({ roomId, acceptedByUserId: userId });
     activeCalls.delete(roomId);
-    socket.to(roomId).emit("call-accepted", { roomId });
+    socket.to(roomId).emit("call-accepted", {
+      roomId,
+      participantSocketId: socket.id,
+    });
+    socket.to(roomId).emit("call-participant-joined", {
+      roomId,
+      socketId: socket.id,
+      userId: Number(userId || 0) || null,
+    });
+    emitGroupCallParticipantCount(roomId);
   });
 
   socket.on("reject-call", ({ roomId, userId }) => {
@@ -1199,25 +1483,49 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("call-rejected", { roomId });
   });
 
-  socket.on("offer", ({ roomId, offer }) => {
+  socket.on("offer", ({ roomId, offer, targetSocketId }) => {
     if (!roomId || !offer) return;
-    console.log("OFFER:", socket.id, roomId);
-    socket.to(roomId).emit("offer", offer);
+    console.log("OFFER:", socket.id, roomId, targetSocketId || "room");
+    const payload = { roomId, offer, fromSocketId: socket.id };
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("offer", payload);
+      return;
+    }
+    socket.to(roomId).emit("offer", payload);
   });
 
-  socket.on("answer", ({ roomId, answer }) => {
+  socket.on("answer", ({ roomId, answer, targetSocketId }) => {
     if (!roomId || !answer) return;
-    console.log("ANSWER:", socket.id, roomId);
-    socket.to(roomId).emit("answer", answer);
+    console.log("ANSWER:", socket.id, roomId, targetSocketId || "room");
+    const payload = { roomId, answer, fromSocketId: socket.id };
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("answer", payload);
+      return;
+    }
+    socket.to(roomId).emit("answer", payload);
   });
 
-  socket.on("ice-candidate", ({ roomId, candidate }) => {
+  socket.on("ice-candidate", ({ roomId, candidate, targetSocketId }) => {
     if (!roomId || !candidate) return;
-    socket.to(roomId).emit("ice-candidate", candidate);
+    const payload = { roomId, candidate, fromSocketId: socket.id };
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("ice-candidate", payload);
+      return;
+    }
+    socket.to(roomId).emit("ice-candidate", payload);
   });
 
   socket.on("disconnect", () => {
     console.log("SOCKET DISCONNECTED:", socket.id);
+    for (const roomId of socketCallRooms) {
+      const uid = socketCallUserId.value;
+      const users = callRoomParticipants.get(roomId);
+      if (users && uid && users.has(uid)) {
+        users.delete(uid);
+        if (!users.size) callRoomParticipants.delete(roomId);
+        setUserInCall(uid, false);
+      }
+    }
     for (const [roomId, activeCall] of activeCalls.entries()) {
       if (activeCall?.callerSocketId === socket.id) {
         scheduleCallDisconnectEnd(roomId);
@@ -1227,11 +1535,16 @@ io.on("connection", (socket) => {
       const participants = liveCalls.get(roomId);
       if (!participants?.has(socket.id)) continue;
       participants.delete(socket.id);
+      emitGroupCallParticipantCount(roomId);
       scheduleCallDisconnectEnd(roomId);
     }
   });
 });
 
 httpServer.listen(port, () => {
-  console.log(`BirdX server running on http://localhost:${port}`);
+  const devUiPort = process.env.VITE_DEV_PORT || 5173;
+  console.log(`BirdX API: http://localhost:${port}`);
+  if (!serveClientSpa) {
+    console.log(`BirdX app (dev): http://localhost:${devUiPort}`);
+  }
 });

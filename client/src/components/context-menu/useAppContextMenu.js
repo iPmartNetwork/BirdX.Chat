@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import {
+  AlertCircle,
   Ban,
   Chat,
   CheckCheck,
@@ -12,6 +13,8 @@ import {
   User,
   Volume2,
   VolumeX,
+  Pin,
+  Archive,
 } from "../../icons/lucide.js";
 import { copyTextToClipboard } from "../../utils/clipboard.js";
 import {
@@ -40,7 +43,10 @@ export function useAppContextMenu({
   onRemoveGroupMember,
   onMarkChatSeen,
   onToggleChatMute,
+  onToggleChatPin,
+  onToggleChatArchive,
   onDeleteChats,
+  onReportMessage,
 }) {
   const { t } = useLanguage();
   const [contextMenu, setContextMenu] = useState(null);
@@ -151,6 +157,18 @@ export function useAppContextMenu({
       icon: Forward,
       onSelect: () => onForwardMessage?.(message),
     },
+    ...(onReportMessage &&
+    String(message?.author_username || message?.username || "").toLowerCase() !==
+      String(currentUsername || "").toLowerCase()
+      ? [
+          {
+            id: "report",
+            label: t("chat.reportMessage"),
+            icon: AlertCircle,
+            onSelect: () => onReportMessage?.(message),
+          },
+        ]
+      : []),
     {
       id: "delete",
       label: "Delete",
@@ -234,9 +252,25 @@ export function useAppContextMenu({
         if (String(chat?.type || "").toLowerCase() !== "saved") {
           items.push({
             id: "mute",
-            label: chat?._muted ? "Unmute" : "Mute",
+            label: chat?._muted ? t("chat.unmute") : t("chat.mute"),
             icon: chat?._muted ? Volume2 : VolumeX,
             onSelect: () => onToggleChatMute?.(chat?.id),
+          });
+        }
+        if (String(chat?.type || "").toLowerCase() !== "saved") {
+          items.push({
+            id: "pin",
+            label: chat?._pinned ? t("chat.unpin") : t("chat.pin"),
+            icon: Pin,
+            onSelect: () => onToggleChatPin?.(chat?.id),
+          });
+          const fromArchived = Boolean(data?.fromArchived);
+          items.push({
+            id: "archive",
+            label: fromArchived ? t("chat.unarchive") : t("chat.archive"),
+            icon: Archive,
+            onSelect: () =>
+              onToggleChatArchive?.(chat?.id, { archived: !fromArchived }),
           });
         }
         items.push({
@@ -274,6 +308,8 @@ export function useAppContextMenu({
       t,
       onReplyToMessage,
       onToggleChatMute,
+      onToggleChatPin,
+      onToggleChatArchive,
       canDeleteMessageForEveryone,
       canEditMessage,
     ],

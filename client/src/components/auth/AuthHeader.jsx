@@ -1,7 +1,9 @@
-import logo from "../../assets/birdx-logo.svg";
 import { Moon, Sun } from "../../icons/lucide.js";
 import { useLanguage } from "../../i18n/LanguageContext.jsx";
 
+const AUTH_LOGO_LIGHT = "/icons/icon-192.png";
+const AUTH_LOGO_LIGHT_2X = "/icons/icon-512.png";
+const AUTH_LOGO_DARK = "/icons/dark-logo.png";
 export default function AuthHeader({
   isLogin,
   isDark,
@@ -64,8 +66,29 @@ export default function AuthHeader({
         </button>
       </div>
 
-      <div className="mx-auto mt-10 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50 to-white shadow-lg shadow-emerald-500/15 dark:border-emerald-500/20 dark:from-emerald-950/60 dark:to-slate-900 sm:mt-11 sm:h-16 sm:w-16">
-        <img src={logo} alt="" className="h-9 w-9 sm:h-10 sm:w-10" aria-hidden />
+      <div
+        className={`mx-auto mt-10 flex items-center justify-center sm:mt-11 ${
+          isDark
+            ? "h-20 w-20 sm:h-[5.25rem] sm:w-[5.25rem]"
+            : "h-[4.5rem] w-[4.5rem] overflow-hidden rounded-2xl border border-emerald-200/70 bg-white shadow-lg shadow-emerald-500/15 sm:h-20 sm:w-20"
+        }`}
+      >
+        <img
+          src={isDark ? AUTH_LOGO_DARK : AUTH_LOGO_LIGHT}
+          srcSet={
+            isDark
+              ? undefined
+              : `${AUTH_LOGO_LIGHT} 1x, ${AUTH_LOGO_LIGHT_2X} 2x`
+          }
+          alt={t("auth.brand")}
+          className={
+            isDark
+              ? "h-[4.75rem] w-[4.75rem] object-contain sm:h-20 sm:w-20"
+              : "h-full w-full object-contain p-1"
+          }
+          width={192}
+          height={192}
+        />
       </div>
 
       <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.28em] text-emerald-600 dark:text-emerald-300 sm:text-xs">

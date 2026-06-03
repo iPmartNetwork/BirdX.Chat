@@ -34,6 +34,7 @@ import {
   useFloatingDayChip,
 } from "./index.js";
 import ContextMenuSurface from "../context-menu/ContextMenuSurface.jsx";
+import ContactAddBanner from "./ContactAddBanner.jsx";
 import { CACHE_STORES } from "../../utils/cacheDb.js";
 import {
   MEDIA_POSTER_CACHE_KEY,
@@ -48,16 +49,24 @@ export default function ChatWindowPanel({
   mobileTab,
   onStartCall,
   onStartVideoCall,
+  groupCallLimitHint = "",
   activeChatId,
   activeChat = null,
   closeChat,
   activeHeaderPeer,
   activeFallbackTitle,
   peerStatusLabel,
+  peerIsOnline = false,
   typingIndicator = null,
   isGroupChat = false,
   isChannelChat = false,
   _isSavedChat = false,
+  peerContactStatus = null,
+  contactActionBusy = false,
+  onSendContactRequest,
+  onAcceptContactRequest,
+  onRejectContactRequest,
+  onCancelContactRequest,
   groupAvatarColor = null,
   groupAvatarUrl = "",
   channelSeenCounts = null,
@@ -123,6 +132,12 @@ export default function ChatWindowPanel({
   permissionsPrompt = null,
   copyToastVisible = false,
   e2eeActive = false,
+  onOpenSchedule = null,
+  onOpenPoll = null,
+  onSendSticker = null,
+  onVotePoll = null,
+  canSendPoll = true,
+  canSendSticker = true,
 }) {
   const { t } = useLanguage();
   const MEDIA_CACHE_VERSION = 1;
@@ -894,10 +909,13 @@ export default function ChatWindowPanel({
 
   const chatScrollStyle = useMemo(
     () => ({
+      backgroundColor: isDark
+        ? "var(--birdx-chat-bg-dark, #0b1320)"
+        : "var(--birdx-chat-bg-light, #ecfdf5)",
       backgroundImage: isDark
-        ? "radial-gradient(circle at top right, rgba(16,185,129,0.22), transparent 48%), radial-gradient(circle at bottom left, rgba(16,185,129,0.20), transparent 44%)"
-        : "radial-gradient(circle at top right, rgba(16,185,129,0.10), transparent 45%), radial-gradient(circle at bottom left, rgba(16,185,129,0.09), transparent 40%)",
-      backgroundColor: isDark ? "#0b1320" : "#dcfce7",
+        ? "var(--birdx-chat-bg-image-dark)"
+        : "var(--birdx-chat-bg-image-light)",
+      backgroundSize: "var(--birdx-chat-bg-size)",
       scrollbarGutter: "stable both-edges",
       overscrollBehaviorY:
         !isDesktop && composerFocused ? "none" : "contain",
@@ -1039,6 +1057,7 @@ export default function ChatWindowPanel({
       onForwardMessage={onForwardMessage}
       mentionRefreshToken={mentionRefreshToken}
       onOpenContextMenu={onOpenContextMenu}
+      onVotePoll={onVotePoll}
       onJumpToMessage={(messageId) => {
         const target = document.getElementById(`message-${messageId}`);
         if (target && typeof target.scrollIntoView === "function") {
@@ -1255,9 +1274,7 @@ export default function ChatWindowPanel({
                       <>
                         <span
                           className={`h-2 w-2 rounded-full ${
-                            peerStatusLabel === "online"
-                              ? "bg-emerald-400"
-                              : "bg-slate-400"
+                            peerIsOnline ? "bg-emerald-400" : "bg-slate-400"
                           }`}
                         />
                         <span
@@ -1276,24 +1293,44 @@ export default function ChatWindowPanel({
                 ) : null}
               </>
             </ContextMenuSurface>
-            {typeof onStartCall === "function" && !isGroupChat && !isChannelChat ? (
+            {typeof onStartCall === "function" && !isChannelChat ? (
               <button
                 type="button"
                 onClick={onStartCall}
-                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-[0px] text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-[0px] text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:birdx-accent-glow-shadow dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
                 aria-label="Start voice call"
-                title="Voice call"
+                title={isGroupChat && groupCallLimitHint ? groupCallLimitHint : "Voice call"}
+              >
+                <Phone size={17} strokeWidth={2.4} />
+              </button>
+            ) : isGroupChat && !isChannelChat && groupCallLimitHint ? (
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-9 w-9 flex-shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-slate-200 bg-white/50 text-slate-400 opacity-70 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-500"
+                aria-label="Group call unavailable"
+                title={groupCallLimitHint}
               >
                 <Phone size={17} strokeWidth={2.4} />
               </button>
             ) : null}
-            {typeof onStartVideoCall === "function" && !isGroupChat && !isChannelChat ? (
+            {typeof onStartVideoCall === "function" && !isChannelChat ? (
               <button
                 type="button"
                 onClick={onStartVideoCall}
-                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-[0px] text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-[0px] text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:birdx-accent-glow-shadow dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
                 aria-label="Start video call"
-                title="Video call"
+                title={isGroupChat && groupCallLimitHint ? groupCallLimitHint : "Video call"}
+              >
+                <Video size={17} strokeWidth={2.4} />
+              </button>
+            ) : isGroupChat && !isChannelChat && groupCallLimitHint ? (
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-9 w-9 flex-shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-slate-200 bg-white/50 text-slate-400 opacity-70 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-500"
+                aria-label="Group video call unavailable"
+                title={groupCallLimitHint}
               >
                 <Video size={17} strokeWidth={2.4} />
               </button>
@@ -1420,6 +1457,27 @@ export default function ChatWindowPanel({
               </ContextMenuSurface>
             )}
             </div>
+            <ContactAddBanner
+              visible={
+                !isGroupChat &&
+                !isChannelChat &&
+                !_isSavedChat &&
+                Boolean(activeHeaderPeer?.username) &&
+                !activeHeaderPeer?.isDeleted
+              }
+              peerName={
+                activeFallbackTitle ||
+                activeHeaderPeer?.nickname ||
+                activeHeaderPeer?.username ||
+                ""
+              }
+              status={peerContactStatus}
+              busy={contactActionBusy}
+              onSendRequest={onSendContactRequest}
+              onAcceptRequest={onAcceptContactRequest}
+              onRejectRequest={onRejectContactRequest}
+              onCancelRequest={onCancelContactRequest}
+            />
           </div>
         </>
       ) : null}
@@ -1564,10 +1622,10 @@ export default function ChatWindowPanel({
         {!activeChatId ? (
           <div
             ref={chatScrollRef}
-            className="chat-scroll flex h-full items-center justify-center overflow-y-auto overflow-x-hidden px-6 py-6"
+            className="birdx-chat-scroll-bg chat-scroll flex h-full items-center justify-center overflow-y-auto overflow-x-hidden px-6 py-6"
             style={chatScrollStyle}
           >
-            <div className="rounded-full border border-emerald-200 bg-white/80 px-4 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200">
+            <div className="birdx-empty-chat-pill rounded-full px-5 py-2.5 text-sm font-semibold">
               {t("chat.selectToStart")}
             </div>
           </div>
@@ -1626,6 +1684,11 @@ export default function ChatWindowPanel({
             composerInputRef={composerInputRef}
             microphonePermissionStatus={microphonePermissionStatus}
             onRequestMicrophonePermission={onRequestMicrophonePermission}
+            onOpenSchedule={onOpenSchedule}
+            onOpenPoll={onOpenPoll}
+            onSendSticker={onSendSticker}
+            canSendPoll={canSendPoll}
+            canSendSticker={canSendSticker}
           />
       ) : null}
 

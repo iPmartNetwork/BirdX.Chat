@@ -11,7 +11,11 @@ import {
   Send,
   Close,
   Video,
+  ClockFading,
+  BarChart2,
+  Smile,
 } from "../../../icons/lucide.js";
+import StickerPicker from "./StickerPicker.jsx";
 import { hasPersian } from "../../../utils/fontUtils.js";
 import { renderMarkdownInlinePlain } from "../../../utils/markdown.js";
 
@@ -68,6 +72,11 @@ export function MessageComposer({
   composerInputRef,
   microphonePermissionStatus = "unknown",
   onRequestMicrophonePermission,
+  onOpenSchedule,
+  onOpenPoll,
+  onSendSticker,
+  canSendPoll = true,
+  canSendSticker = true,
 }) {
   const composerRef = useRef(null);
   const fallbackInputRef = useRef(null);
@@ -76,6 +85,7 @@ export function MessageComposer({
   const previousEditIdRef = useRef(0);
   const appliedEditIdRef = useRef(0);
   const [messageValue, setMessageValue] = useState("");
+  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingMs, setRecordingMs] = useState(0);
   const recordingTimerRef = useRef(null);
@@ -1093,6 +1103,46 @@ export function MessageComposer({
             <span className="w-12" />
           </div>
         )}
+        {onOpenSchedule && !editTarget && !micMode && !isRecording ? (
+          <button
+            type="button"
+            onClick={() => onOpenSchedule(() => messageValue)}
+            disabled={uploadBusy}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-transparent bg-transparent text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 dark:text-emerald-200 dark:hover:border-emerald-500/30 dark:hover:bg-emerald-500/10 disabled:opacity-50"
+            aria-label="Schedule message"
+          >
+            <ClockFading size={18} className="icon-anim-sway" />
+          </button>
+        ) : null}
+        {onOpenPoll && canSendPoll && !editTarget && !micMode && !isRecording ? (
+          <button
+            type="button"
+            onClick={onOpenPoll}
+            disabled={uploadBusy}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-transparent bg-transparent text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 dark:text-emerald-200 dark:hover:border-emerald-500/30 dark:hover:bg-emerald-500/10 disabled:opacity-50"
+            aria-label="Create poll"
+          >
+            <BarChart2 size={18} className="icon-anim-sway" />
+          </button>
+        ) : null}
+        {onSendSticker && canSendSticker && !editTarget && !micMode && !isRecording ? (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setStickerPickerOpen((prev) => !prev)}
+              disabled={uploadBusy}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-transparent bg-transparent text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 dark:text-emerald-200 dark:hover:border-emerald-500/30 dark:hover:bg-emerald-500/10 disabled:opacity-50"
+              aria-label="Send sticker"
+            >
+              <Smile size={18} className="icon-anim-sway" />
+            </button>
+            <StickerPicker
+              open={stickerPickerOpen}
+              onClose={() => setStickerPickerOpen(false)}
+              onSelect={(packId, stickerId) => onSendSticker?.(packId, stickerId)}
+            />
+          </div>
+        ) : null}
         <button
           type={micMode || isRecording ? "button" : "submit"}
           onPointerDown={(event) => {

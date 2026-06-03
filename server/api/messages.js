@@ -65,6 +65,12 @@ function registerMessageRoutes(app, deps) {
     markMessageRead,
     getMessageReactions,
     toggleMessageReaction,
+    createPollMessage,
+    votePollMessage,
+    getPollsForMessageIds,
+    createScheduledMessage,
+    listScheduledMessagesForUser,
+    deleteScheduledMessageForUser,
   } = deps;
 
   const computeTextExpiryIso = (createdAt) => {
@@ -367,6 +373,11 @@ function registerMessageRoutes(app, deps) {
       msg.reactions = reactionsByMessageId[Number(msg.id)] || [];
     });
 
+    const pollsByMessageId = getPollsForMessageIds(messageIds, user.id);
+    enriched.forEach((msg) => {
+      msg.poll = pollsByMessageId[Number(msg.id)] || null;
+    });
+
     res.json({ chatId, messages: enriched, hasMore, totalCount });
   });
 
@@ -510,7 +521,7 @@ function registerMessageRoutes(app, deps) {
       const uploadedFiles = req.files;
 
       try {
-        if (!FILE_UPLOAD) {
+        if (!(deps.getFileUploadEnabled?.() ?? FILE_UPLOAD)) {
           removeUploadedFiles(uploadedFiles);
           return res
             .status(503)
@@ -1203,6 +1214,12 @@ function registerMessageRoutes(app, deps) {
     }
 
     editMessage(messageId, trimmedBody);
+    deps.fireWebhookEvent?.("message.edit", {
+      chatId: numericChatId,
+      messageId: Number(messageId),
+      userId: user.id,
+      username: user.username,
+    });
 
     emitChatEvent(numericChatId, {
       type: "chat_message_updated",
@@ -1257,6 +1274,13 @@ function registerMessageRoutes(app, deps) {
     }
 
     hideMessageForEveryone(Number(messageId));
+    deps.fireWebhookEvent?.("message.delete", {
+      chatId: numericChatId,
+      messageId: Number(messageId),
+      userId: user.id,
+      username: user.username,
+      scope: "everyone",
+    });
   } else {
     hideMessageForUser(Number(messageId), Number(user.id));
   }
@@ -1307,6 +1331,14 @@ function registerMessageRoutes(app, deps) {
 
       const actualMessageId = Number(message.id);
       const result = toggleMessageReaction(actualMessageId, userId, normalizedReaction);
+      if (result?.added) {
+        deps.fireWebhookEvent?.("reaction.add", {
+          chatId,
+          messageId: numericMessageId,
+          userId,
+          reaction: normalizedReaction,
+        });
+      }
       const reactions = getMessageReactions([actualMessageId]).map((row) => ({
         reaction: row.reaction,
         count: Number(row.count || 0),
@@ -1444,6 +1476,295 @@ function registerMessageRoutes(app, deps) {
     }
 
     return res.json({ ok: true, ids: forwardedIds });
+  });
+
+  app.get("/api/scheduled-messages", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const username = req.query?.username?.toString();
+    if (!username) {
+      return res.status(400).json({ error: "Username is required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(String(username || "").toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const items = listScheduledMessagesForUser(user.id);
+    return res.json({ scheduled: items });
+  });
+
+  app.post("/api/chats/:chatId/schedule", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const chatId = Number(req.params?.chatId || 0);
+    const username = req.body?.username?.toString();
+    const body = String(req.body?.body || "").trim();
+    const scheduledAt = String(req.body?.scheduledAt || "").trim();
+    if (!chatId || !username || !body || !scheduledAt) {
+      return res
+        .status(400)
+        .json({ error: "Chat id, username, body, and scheduledAt are required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(String(username || "").toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    const chat = findChatById(chatId);
+    if (!chat) {
+      return res.status(404).json({ error: "Chat not found." });
+    }
+    if (!isMember(chatId, user.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+
+    const scheduledMs = Date.parse(scheduledAt);
+    if (!Number.isFinite(scheduledMs) || scheduledMs <= Date.now()) {
+      return res.status(400).json({ error: "Scheduled time must be in the future." });
+    }
+
+    const id = createScheduledMessage({
+      chatId,
+      userId: user.id,
+      body,
+      scheduledAt,
+    });
+    if (!id) {
+      return res.status(500).json({ error: "Unable to schedule message." });
+    }
+
+    deps.fireWebhookEvent?.("message.scheduled", {
+      chatId,
+      scheduledMessageId: id,
+      userId: user.id,
+      username: user.username,
+      scheduledAt,
+    });
+
+    return res.json({ ok: true, id, chatId, scheduledAt });
+  });
+
+  app.delete("/api/scheduled-messages/:messageId", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const messageId = Number(req.params?.messageId || 0);
+    const username = req.body?.username?.toString() || req.query?.username?.toString();
+    if (!messageId || !username) {
+      return res.status(400).json({ error: "Message id and username are required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(String(username || "").toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    deleteScheduledMessageForUser(messageId, user.id);
+    return res.json({ ok: true });
+  });
+
+  app.post("/api/messages/poll", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const {
+      chatId,
+      username,
+      question,
+      options,
+      multiple,
+      replyToMessageId,
+    } = req.body || {};
+    const clientRequestIdRaw = String(req.body?.clientRequestId || "").trim();
+    const clientRequestId = clientRequestIdRaw
+      ? clientRequestIdRaw.slice(0, 120)
+      : null;
+
+    if (!chatId || !username || !question) {
+      return res.status(400).json({ error: "Chat, username, and question are required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(username.toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    if (!isMember(Number(chatId), user.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+
+    const chat = findChatById(Number(chatId));
+    if (!chat) {
+      return res.status(404).json({ error: "Chat not found." });
+    }
+    if (chat.type === "channel") {
+      const role = String(getChatMemberRole(Number(chatId), user.id)).toLowerCase();
+      if (!["owner", "admin", "moderator"].includes(role)) {
+        return res.status(403).json({ error: "Only channel staff can send polls." });
+      }
+    }
+
+    const createdAtIso = new Date().toISOString();
+    const expiresAt = computeTextExpiryIso(createdAtIso);
+    const created = createPollMessage(Number(chatId), user.id, {
+      question,
+      options,
+      multiple: Boolean(multiple),
+      replyToMessageId: replyToMessageId ? Number(replyToMessageId) : null,
+      expiresAt,
+      clientRequestId,
+    });
+
+    if (!created?.id) {
+      return res.status(400).json({
+        error: "Poll must have a question and at least two options.",
+      });
+    }
+
+    if (created.deduped) {
+      return res.json({ id: created.id, deduped: true, poll: created.poll });
+    }
+
+    emitChatEvent(Number(chatId), {
+      type: "chat_message",
+      chatId: Number(chatId),
+      messageId: Number(created.id),
+      username: user.username,
+      body: "[[poll]]",
+      poll: created.poll,
+      createdAt: createdAtIso,
+    });
+
+    const members = listChatMembers(Number(chatId));
+    const mutedRows = listMutedUserIdsForChat(Number(chatId));
+    const mutedIds = new Set(mutedRows.map((row) => Number(row?.user_id || 0)));
+    const recipientIds = members
+      .map((m) => Number(m?.id || 0))
+      .filter((id) => id && id !== Number(user.id) && !mutedIds.has(id));
+
+    if (recipientIds.length) {
+      const preview = String(created.poll?.question || "Poll").slice(0, 120);
+      sendPushNotificationToUsers(recipientIds, {
+        title: chat.name || "BirdX",
+        body: `📊 ${preview}`,
+        data: {
+          url: `/chat?openChatId=${encodeURIComponent(String(chatId))}`,
+        },
+      }).catch(() => null);
+    }
+
+    deps.fireWebhookEvent?.("message.new", {
+      chatId: Number(chatId),
+      messageId: Number(created.id),
+      userId: user.id,
+      kind: "poll",
+    });
+
+    return res.json({
+      id: Number(created.id),
+      expiresAt,
+      poll: created.poll,
+    });
+  });
+
+  app.post("/api/messages/poll/vote", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const userId = session.id || session.userId || session.user_id;
+    const { username, messageId, optionIndexes, optionIndex } = req.body || {};
+    const msgId = Number(messageId || 0);
+
+    if (!username || !msgId) {
+      return res.status(400).json({ error: "Username and messageId are required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(username.toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const message = findMessageById(msgId);
+    if (!message) {
+      return res.status(404).json({ error: "Message not found." });
+    }
+    const chatId = Number(message.chat_id || 0);
+    if (!chatId || !isMember(chatId, user.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+
+    const indexes =
+      optionIndexes !== undefined
+        ? optionIndexes
+        : optionIndex !== undefined
+          ? [optionIndex]
+          : [];
+
+    const poll = votePollMessage(msgId, user.id, indexes);
+    if (!poll) {
+      return res.status(400).json({ error: "Unable to record vote." });
+    }
+
+    emitChatEvent(chatId, {
+      type: "chat_message_updated",
+      chatId,
+      messageId: msgId,
+      username: user.username,
+      poll,
+    });
+
+    return res.json({ ok: true, messageId: msgId, poll });
+  });
+
+  app.post("/api/messages/report", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const messageId = Number(req.body?.messageId || 0);
+    const reason = String(req.body?.reason || "other").trim().toLowerCase().slice(0, 40);
+    const details = String(req.body?.details || "").trim().slice(0, 500);
+    const allowedReasons = new Set(["spam", "abuse", "illegal", "other"]);
+    if (!messageId) {
+      return res.status(400).json({ error: "messageId is required." });
+    }
+    if (!allowedReasons.has(reason)) {
+      return res.status(400).json({ error: "Invalid report reason." });
+    }
+
+    const message = findMessageById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: "Message not found." });
+    }
+    const chatId = Number(message.chat_id || 0);
+    if (!chatId || !isMember(chatId, session.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+
+    const existing = deps.adminGetRow?.(
+      `SELECT id FROM message_reports
+       WHERE message_id = ? AND reporter_user_id = ? AND status = 'pending'`,
+      [messageId, Number(session.id)],
+    );
+    if (existing?.id) {
+      return res.status(409).json({ error: "You already reported this message." });
+    }
+
+    deps.adminRun?.(
+      `INSERT INTO message_reports (message_id, chat_id, reporter_user_id, reason, details, status, created_at)
+       VALUES (?, ?, ?, ?, ?, 'pending', datetime('now'))`,
+      [messageId, chatId, Number(session.id), reason, details || null],
+    );
+    deps.adminSave?.();
+
+    return res.json({ ok: true });
   });
 }
 

@@ -27,7 +27,7 @@ export function getForwardChatDisplay(chat, currentUsername) {
     return {
       title,
       avatarUrl: String(chat?.group_avatar_url || "").trim(),
-      color: String(chat?.group_color || "#10b981"),
+      color: String(chat?.group_color || "var(--birdx-accent)"),
       kind: type,
       initials: title,
     };

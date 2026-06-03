@@ -9,6 +9,7 @@ import { registerPushRoutes } from "./push.js";
 import { registerPresenceRoutes } from "./presence.js";
 import { registerProfileRoutes } from "./profile.js";
 import { registerDmPrivacyRoutes } from "./dmPrivacy.js";
+import { registerContactsRoutes } from "./contacts.js";
 import { registerRemoteChannelRoutes } from "./remoteChannels.js";
 
 /* 🔥 BirdX API */
@@ -33,6 +34,7 @@ function registerApiRoutes(app, deps) {
   registerProfileRoutes(app, deps);
   registerChatRoutes(app, deps);
   registerDmPrivacyRoutes(app, deps);
+  registerContactsRoutes(app, deps);
   registerMessageRoutes(app, deps);
   registerPushRoutes(app, deps);
   registerRemoteChannelRoutes(app, deps);

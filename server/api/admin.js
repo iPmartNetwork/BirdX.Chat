@@ -9,6 +9,12 @@ import {
 } from "../lib/dbToolHelpers.js";
 import { storageEncryption } from "../lib/storageEncryption.js";
 import os from "node:os";
+import { WEBHOOK_EVENTS } from "../lib/webhookEvents.js";
+import {
+  getRuntimeSettings,
+  saveRuntimeSettings,
+  resolveRuntimeFlag,
+} from "../lib/runtimeSettings.js";
 
 function registerAdminRoutes(app, deps) {
   const {
@@ -23,6 +29,7 @@ function registerAdminRoutes(app, deps) {
     USERNAME_MAX,
     MESSAGE_MAX_CHARS,
     ACCOUNT_CREATION,
+    FILE_UPLOAD,
     APP_ENV,
     VAPID_PUBLIC_KEY,
     USERNAME_REGEX,
@@ -53,6 +60,9 @@ function registerAdminRoutes(app, deps) {
     deleteUserById,
     ensureAvatarExists,
     requireSession,
+    parseCookies,
+    setSessionAdmin2faVerified,
+    isSessionAdmin2faFresh,
   } = deps;
 
   const adminUsernameSet = new Set(
@@ -292,7 +302,20 @@ function registerAdminRoutes(app, deps) {
           adminUsernameSet.has(String(session.username || "").toLowerCase())),
     );
 
-  const requireAdminSession = (req, res, permission = "view") => {
+  const ADMIN_REQUIRE_2FA =
+    String(process.env.ADMIN_REQUIRE_2FA ?? "true").trim().toLowerCase() !== "false";
+
+  const requireAdmin2faStepUp = (req, res, session) => {
+    if (!ADMIN_REQUIRE_2FA) return true;
+    if (isSessionAdmin2faFresh?.(session)) return true;
+    res.status(403).json({
+      error: "Admin 2FA verification required.",
+      code: "ADMIN_2FA_REQUIRED",
+    });
+    return false;
+  };
+
+  const requireAdminSession = (req, res, permission = "view", options = {}) => {
     const session = requireSession?.(req, res);
     if (!session) return null;
     if (!isAdminSession(session)) {
@@ -301,6 +324,9 @@ function registerAdminRoutes(app, deps) {
     }
     if (!hasPermission(session, permission)) {
       res.status(403).json({ error: "You do not have permission for this admin action." });
+      return null;
+    }
+    if (!options.skip2fa && !requireAdmin2faStepUp(req, res, session)) {
       return null;
     }
     return session;
@@ -696,8 +722,12 @@ function registerAdminRoutes(app, deps) {
   });
 
   app.get("/api/admin/me", (req, res) => {
-    const session = requireAdminSession(req, res);
+    const session = requireAdminSession(req, res, "view", { skip2fa: true });
     if (!session) return;
+    const totpRow = adminGetRow(
+      "SELECT enabled FROM user_totp WHERE user_id = ? AND enabled = 1",
+      [session.id],
+    );
     res.json({
       ok: true,
       user: {
@@ -707,7 +737,69 @@ function registerAdminRoutes(app, deps) {
         role: resolveSessionRole(session),
         isAdmin: true,
       },
+      admin2fa: {
+        required: ADMIN_REQUIRE_2FA,
+        verified: isSessionAdmin2faFresh?.(session) ?? true,
+        totpEnabled: Boolean(totpRow?.enabled),
+      },
     });
+  });
+
+  app.post("/api/admin/verify-2fa", async (req, res) => {
+    const session = requireAdminSession(req, res, "view", { skip2fa: true });
+    if (!session) return;
+
+    const token = String(req.body?.token || "").trim();
+    if (!token) {
+      return res.status(400).json({ error: "A 6-digit code is required." });
+    }
+
+    const totpRow = adminGetRow(
+      "SELECT secret, enabled, backup_codes FROM user_totp WHERE user_id = ?",
+      [session.id],
+    );
+    if (!Number(totpRow?.enabled || 0) || !totpRow?.secret) {
+      return res.status(403).json({
+        error: "Enable 2FA on your account before using the admin panel.",
+        code: "ADMIN_2FA_SETUP_REQUIRED",
+      });
+    }
+
+    const { verifyTOTP } = await import("../lib/totp.js");
+    let valid = verifyTOTP(totpRow.secret, token);
+    if (!valid && totpRow.backup_codes) {
+      try {
+        const codes = JSON.parse(totpRow.backup_codes || "[]");
+        const normalized = token.replace(/\s+/g, "").toUpperCase();
+        const index = codes.findIndex(
+          (code) => String(code || "").replace(/\s+/g, "").toUpperCase() === normalized,
+        );
+        if (index >= 0) {
+          valid = true;
+          codes.splice(index, 1);
+          adminRun("UPDATE user_totp SET backup_codes = ? WHERE user_id = ?", [
+            JSON.stringify(codes),
+            session.id,
+          ]);
+          adminSave();
+        }
+      } catch {
+        valid = false;
+      }
+    }
+
+    if (!valid) {
+      return res.status(400).json({ error: "Invalid verification code." });
+    }
+
+    const cookies = parseCookies?.(req) || {};
+    if (cookies.sid) {
+      setSessionAdmin2faVerified?.(cookies.sid);
+      adminSave?.();
+    }
+
+    writeAuditLog(req, session, "admin.2fa.verify", "session", session.session_id || "", {}, true);
+    res.json({ ok: true });
   });
 
   app.get("/api/admin/overview", (req, res) => {
@@ -1704,14 +1796,387 @@ function registerAdminRoutes(app, deps) {
     res.json({
       ok: true,
       settings: {
-        accountCreation: Boolean(ACCOUNT_CREATION),
+        accountCreation: resolveRuntimeFlag(
+          getRuntimeSettings(adminGetRow).accountCreation,
+          ACCOUNT_CREATION,
+        ),
+        fileUpload: resolveRuntimeFlag(
+          getRuntimeSettings(adminGetRow).fileUpload,
+          FILE_UPLOAD,
+        ),
+        accountCreationEnv: Boolean(ACCOUNT_CREATION),
+        fileUploadEnv: Boolean(FILE_UPLOAD),
         messageMaxChars: Number(MESSAGE_MAX_CHARS || 0),
         adminUsernames: Array.from(adminUsernameSet),
         storageEncryption: Boolean(storageEncryption?.isEnabled?.()),
         database: dbInfo?.database || null,
         requiredChannels: listRequiredChannels?.() || [],
+        runtime: getRuntimeSettings(adminGetRow),
       },
     });
+  });
+
+  app.get("/api/admin/server-settings", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsRead");
+    if (!session) return;
+    const runtime = getRuntimeSettings(adminGetRow);
+    res.json({
+      ok: true,
+      settings: {
+        maintenanceMode: Boolean(runtime.maintenanceMode),
+        maintenanceMessage: String(runtime.maintenanceMessage || ""),
+        accountCreation: resolveRuntimeFlag(runtime.accountCreation, ACCOUNT_CREATION),
+        fileUpload: resolveRuntimeFlag(runtime.fileUpload, FILE_UPLOAD),
+        accountCreationEnv: Boolean(ACCOUNT_CREATION),
+        fileUploadEnv: Boolean(FILE_UPLOAD),
+        messageMaxChars: Number(MESSAGE_MAX_CHARS || 0),
+        groupCallMode: String(process.env.GROUP_CALL_MODE || "mesh"),
+      },
+    });
+  });
+
+  app.patch("/api/admin/server-settings", (req, res) => {
+    const session = requireAdminSession(req, res, "settingsWrite");
+    if (!session) return;
+
+    const body = req.body || {};
+    const patch = {};
+    if (body.maintenanceMode !== undefined) {
+      patch.maintenanceMode = Boolean(body.maintenanceMode);
+    }
+    if (body.maintenanceMessage !== undefined) {
+      patch.maintenanceMessage = String(body.maintenanceMessage || "").trim().slice(0, 500);
+    }
+    if (body.accountCreation !== undefined) {
+      patch.accountCreation = Boolean(body.accountCreation);
+    }
+    if (body.fileUpload !== undefined) {
+      patch.fileUpload = Boolean(body.fileUpload);
+    }
+    if (!Object.keys(patch).length) {
+      return res.status(400).json({ error: "No settings provided." });
+    }
+
+    const next = saveRuntimeSettings(patch, adminRun, adminSave, adminGetRow);
+    writeAuditLog(req, session, "server_settings.update", "settings", "runtime_settings", patch, true);
+    res.json({
+      ok: true,
+      settings: {
+        maintenanceMode: Boolean(next.maintenanceMode),
+        maintenanceMessage: String(next.maintenanceMessage || ""),
+        accountCreation: resolveRuntimeFlag(next.accountCreation, ACCOUNT_CREATION),
+        fileUpload: resolveRuntimeFlag(next.fileUpload, FILE_UPLOAD),
+      },
+    });
+  });
+
+  app.get("/api/admin/calls", (req, res) => {
+    const session = requireAdminSession(req, res, "view");
+    if (!session) return;
+
+    const { page, pageSize, offset } = resolvePagination(req.query);
+    const query = String(req.query?.query || "").trim().toLowerCase();
+    const status = String(req.query?.status || "").trim().toLowerCase();
+    const params = [];
+    const where = ["1=1"];
+    if (status) {
+      where.push("LOWER(cl.status) = ?");
+      params.push(status);
+    }
+    if (query) {
+      where.push(
+        "(LOWER(c.name) LIKE ? OR LOWER(u.username) LIKE ? OR LOWER(cl.room_id) LIKE ?)",
+      );
+      const like = `%${query}%`;
+      params.push(like, like, like);
+    }
+    const whereSql = where.join(" AND ");
+    const total = Number(
+      adminGetRow(
+        `SELECT COUNT(*) AS c
+         FROM call_logs cl
+         LEFT JOIN chats c ON c.id = cl.chat_id
+         LEFT JOIN users u ON u.id = cl.caller_user_id
+         WHERE ${whereSql}`,
+        params,
+      )?.c || 0,
+    );
+    const rows = adminGetAll(
+      `SELECT cl.id, cl.chat_id, cl.room_id, cl.call_type, cl.status, cl.caller_user_id,
+              cl.started_at, cl.accepted_at, cl.ended_at, cl.duration_seconds, cl.end_reason,
+              c.name AS chat_name, c.type AS chat_type,
+              u.username AS caller_username, u.nickname AS caller_nickname
+       FROM call_logs cl
+       LEFT JOIN chats c ON c.id = cl.chat_id
+       LEFT JOIN users u ON u.id = cl.caller_user_id
+       WHERE ${whereSql}
+       ORDER BY datetime(cl.started_at) DESC, cl.id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, pageSize, offset],
+    );
+    res.json({
+      ok: true,
+      calls: rows.map((row) => ({
+        id: Number(row.id),
+        chatId: Number(row.chat_id),
+        chatName: row.chat_name || null,
+        chatType: row.chat_type || null,
+        roomId: row.room_id,
+        callType: row.call_type,
+        status: row.status,
+        callerUserId: row.caller_user_id ? Number(row.caller_user_id) : null,
+        callerUsername: row.caller_username || null,
+        callerNickname: row.caller_nickname || null,
+        startedAt: row.started_at,
+        acceptedAt: row.accepted_at,
+        endedAt: row.ended_at,
+        durationSeconds: Number(row.duration_seconds || 0),
+        endReason: row.end_reason || null,
+      })),
+      pagination: createPaginationPayload(total, page, pageSize),
+    });
+  });
+
+  app.get("/api/admin/moderation/reports", (req, res) => {
+    const session = requireAdminSession(req, res, "chatsWrite");
+    if (!session) return;
+
+    const { page, pageSize, offset } = resolvePagination(req.query);
+    const status = String(req.query?.status || "pending").trim().toLowerCase();
+    const params = [];
+    const where = ["1=1"];
+    if (status && status !== "all") {
+      where.push("LOWER(mr.status) = ?");
+      params.push(status);
+    }
+    const whereSql = where.join(" AND ");
+    const total = Number(
+      adminGetRow(
+        `SELECT COUNT(*) AS c FROM message_reports mr WHERE ${whereSql}`,
+        params,
+      )?.c || 0,
+    );
+    const rows = adminGetAll(
+      `SELECT mr.id, mr.message_id, mr.chat_id, mr.reporter_user_id, mr.reason, mr.details,
+              mr.status, mr.reviewed_by_user_id, mr.reviewed_at, mr.created_at,
+              ru.username AS reporter_username,
+              rv.username AS reviewer_username,
+              cm.body AS message_body, cm.user_id AS author_user_id,
+              au.username AS author_username,
+              c.name AS chat_name, c.type AS chat_type
+       FROM message_reports mr
+       LEFT JOIN users ru ON ru.id = mr.reporter_user_id
+       LEFT JOIN users rv ON rv.id = mr.reviewed_by_user_id
+       LEFT JOIN chat_messages cm ON cm.id = mr.message_id
+       LEFT JOIN users au ON au.id = cm.user_id
+       LEFT JOIN chats c ON c.id = mr.chat_id
+       WHERE ${whereSql}
+       ORDER BY datetime(mr.created_at) DESC, mr.id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, pageSize, offset],
+    ).map((row) => {
+      let body = row.message_body || "";
+      try {
+        if (storageEncryption?.decryptText) body = storageEncryption.decryptText(body);
+      } catch {
+        /* keep raw */
+      }
+      return {
+        id: Number(row.id),
+        messageId: Number(row.message_id),
+        chatId: Number(row.chat_id),
+        chatName: row.chat_name || null,
+        chatType: row.chat_type || null,
+        reason: row.reason,
+        details: row.details || null,
+        status: row.status,
+        reporterUserId: Number(row.reporter_user_id),
+        reporterUsername: row.reporter_username || null,
+        authorUserId: row.author_user_id ? Number(row.author_user_id) : null,
+        authorUsername: row.author_username || null,
+        messagePreview: String(body || "").slice(0, 280),
+        reviewedByUserId: row.reviewed_by_user_id ? Number(row.reviewed_by_user_id) : null,
+        reviewerUsername: row.reviewer_username || null,
+        reviewedAt: row.reviewed_at || null,
+        createdAt: row.created_at,
+      };
+    });
+    res.json({
+      ok: true,
+      reports: rows,
+      pagination: createPaginationPayload(total, page, pageSize),
+    });
+  });
+
+  app.patch("/api/admin/moderation/reports/:id", (req, res) => {
+    const session = requireAdminSession(req, res, "chatsWrite");
+    if (!session) return;
+
+    const reportId = toInt(req.params.id);
+    if (!reportId) return res.status(400).json({ error: "Invalid report id." });
+
+    const row = adminGetRow("SELECT id, status FROM message_reports WHERE id = ?", [reportId]);
+    if (!row?.id) return res.status(404).json({ error: "Report not found." });
+
+    const nextStatus = String(req.body?.status || "").trim().toLowerCase();
+    if (!["pending", "reviewed", "dismissed"].includes(nextStatus)) {
+      return res.status(400).json({ error: "Invalid status." });
+    }
+
+    adminRun(
+      `UPDATE message_reports
+       SET status = ?, reviewed_by_user_id = ?, reviewed_at = datetime('now')
+       WHERE id = ?`,
+      [nextStatus, Number(session.id), reportId],
+    );
+    adminSave();
+    writeAuditLog(req, session, "moderation.report.update", "message_report", String(reportId), {
+      status: nextStatus,
+    }, true);
+    res.json({ ok: true, id: reportId, status: nextStatus });
+  });
+
+  const deleteAdminChatMessagesByIds = (messageIds = []) => {
+    const ids = Array.from(
+      new Set(
+        (Array.isArray(messageIds) ? messageIds : [])
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0),
+      ),
+    );
+    if (!ids.length) return { deleted: 0, chatIds: [] };
+
+    const placeholders = ids.map(() => "?").join(", ");
+    const rows = adminGetAll(
+      `SELECT id, chat_id FROM chat_messages WHERE id IN (${placeholders})`,
+      ids,
+    );
+    const existingIds = rows.map((row) => Number(row.id)).filter(Boolean);
+    if (!existingIds.length) return { deleted: 0, chatIds: [] };
+
+    const storedNames = adminGetAll(
+      `SELECT stored_name FROM chat_message_files WHERE message_id IN (${existingIds.map(() => "?").join(", ")})`,
+      existingIds,
+    ).map((row) => row.stored_name);
+
+    const deletedByChat = new Map();
+    rows.forEach((row) => {
+      const chatId = Number(row.chat_id || 0);
+      const messageId = Number(row.id || 0);
+      if (!chatId || !messageId) return;
+      const list = deletedByChat.get(chatId) || [];
+      list.push(messageId);
+      deletedByChat.set(chatId, list);
+    });
+
+    const chunkPlaceholders = existingIds.map(() => "?").join(", ");
+    adminRun("BEGIN");
+    try {
+      adminRun(`DELETE FROM message_poll_votes WHERE message_id IN (${chunkPlaceholders})`, existingIds);
+      adminRun(`DELETE FROM message_polls WHERE message_id IN (${chunkPlaceholders})`, existingIds);
+      adminRun(`DELETE FROM message_reactions WHERE message_id IN (${chunkPlaceholders})`, existingIds);
+      adminRun(`DELETE FROM chat_message_reads WHERE message_id IN (${chunkPlaceholders})`, existingIds);
+      adminRun(`DELETE FROM hidden_chat_messages WHERE message_id IN (${chunkPlaceholders})`, existingIds);
+      adminRun(`DELETE FROM message_reports WHERE message_id IN (${chunkPlaceholders})`, existingIds);
+      adminRun(`DELETE FROM chat_message_files WHERE message_id IN (${chunkPlaceholders})`, existingIds);
+      adminRun(`DELETE FROM chat_messages WHERE id IN (${chunkPlaceholders})`, existingIds);
+      adminRun("COMMIT");
+    } catch (error) {
+      adminRun("ROLLBACK");
+      throw error;
+    }
+
+    removeStoredFileNames(storedNames);
+    adminSave();
+    deletedByChat.forEach((messageIdList, chatId) => {
+      emitChatEvent?.(Number(chatId), {
+        type: "chat_message_deleted",
+        chatId: Number(chatId),
+        messageIds: messageIdList,
+      });
+    });
+
+    return {
+      deleted: existingIds.length,
+      chatIds: Array.from(deletedByChat.keys()),
+    };
+  };
+
+  app.post("/api/admin/moderation/reports/:id/action", (req, res) => {
+    const session = requireAdminSession(req, res, "chatsWrite");
+    if (!session) return;
+    if (!requireAdminPassword(req, res, session)) return;
+
+    const reportId = toInt(req.params.id);
+    if (!reportId) return res.status(400).json({ error: "Invalid report id." });
+
+    const action = String(req.body?.action || "").trim().toLowerCase();
+    if (!["ban_author", "delete_message", "ban_and_delete"].includes(action)) {
+      return res.status(400).json({ error: "Invalid moderation action." });
+    }
+
+    const report = adminGetRow(
+      `SELECT mr.id, mr.message_id, mr.status,
+              cm.user_id AS author_user_id, cm.chat_id,
+              au.username AS author_username, au.role AS author_role
+       FROM message_reports mr
+       LEFT JOIN chat_messages cm ON cm.id = mr.message_id
+       LEFT JOIN users au ON au.id = cm.user_id
+       WHERE mr.id = ?`,
+      [reportId],
+    );
+    if (!report?.id) return res.status(404).json({ error: "Report not found." });
+
+    const authorUserId = Number(report.author_user_id || 0);
+    const messageId = Number(report.message_id || 0);
+    const result = { action, banned: false, messageDeleted: false };
+
+    if (["ban_author", "ban_and_delete"].includes(action)) {
+      if (!authorUserId) {
+        return res.status(400).json({ error: "Reported message author not found." });
+      }
+      if (Number(authorUserId) === Number(session.id)) {
+        return res.status(400).json({ error: "You cannot ban your own admin account." });
+      }
+      const authorRole = normalizeAdminRole(report.author_role);
+      if (authorRole === "owner") {
+        return res.status(403).json({ error: "Owner accounts cannot be banned from moderation." });
+      }
+      adminRun("UPDATE users SET banned = 1 WHERE id = ?", [authorUserId]);
+      adminRun("DELETE FROM sessions WHERE user_id = ?", [authorUserId]);
+      deps.fireWebhookEvent?.("user.ban", {
+        userId: authorUserId,
+        username: report.author_username,
+        banned: true,
+        source: "moderation",
+      });
+      result.banned = true;
+    }
+
+    if (["delete_message", "ban_and_delete"].includes(action)) {
+      if (!messageId) {
+        return res.status(400).json({ error: "Reported message not found." });
+      }
+      const deleteResult = deleteAdminChatMessagesByIds([messageId]);
+      result.messageDeleted = deleteResult.deleted > 0;
+      result.deletedMessages = deleteResult.deleted;
+    }
+
+    adminRun(
+      `UPDATE message_reports
+       SET status = 'reviewed', reviewed_by_user_id = ?, reviewed_at = datetime('now')
+       WHERE id = ?`,
+      [Number(session.id), reportId],
+    );
+    adminSave();
+    writeAuditLog(req, session, "moderation.report.action", "message_report", String(reportId), {
+      action,
+      authorUserId,
+      messageId,
+      ...result,
+    }, true);
+
+    res.json({ ok: true, reportId, status: "reviewed", ...result });
   });
 
   app.post("/api/admin/db-tools", async (req, res) => {
@@ -2517,6 +2982,15 @@ function registerAdminRoutes(app, deps) {
           return res.status(400).json({ error: "Invalid color." });
         }
 
+        const ALL_ROLES = ["owner", "admin", "moderator", "support", "user"];
+        const nextRole =
+          payload.role === undefined || payload.role === null
+            ? String(user.role || "user").toLowerCase()
+            : String(payload.role || "").trim().toLowerCase();
+        if (payload.role !== undefined && payload.role !== null && !ALL_ROLES.includes(nextRole)) {
+          return res.status(400).json({ error: "Invalid role." });
+        }
+
         if (nextUsername !== String(user.username || "").toLowerCase()) {
           const userConflict = adminGetRow("SELECT id FROM users WHERE username = ?", [
             nextUsername,
@@ -2535,7 +3009,7 @@ function registerAdminRoutes(app, deps) {
 
         adminRun(
           `UPDATE users
-           SET username = ?, nickname = ?, avatar_url = ?, color = ?, status = ?
+           SET username = ?, nickname = ?, avatar_url = ?, color = ?, status = ?, role = ?
            WHERE id = ?`,
           [
             nextUsername,
@@ -2543,6 +3017,7 @@ function registerAdminRoutes(app, deps) {
             nextAvatarUrl,
             nextColor,
             nextStatus,
+            nextRole,
             Number(user.id),
           ],
         );
@@ -2559,6 +3034,7 @@ function registerAdminRoutes(app, deps) {
             username: updated.username,
             nickname: updated.nickname || null,
             color: updated.color || null,
+            role: updated.role || "user",
           },
         });
       }
@@ -3597,16 +4073,64 @@ function registerAdminRoutes(app, deps) {
     const messagesToday = Number(adminGetRow("SELECT COUNT(*) AS c FROM chat_messages WHERE DATE(created_at) = DATE('now')")?.c || 0);
     const activeUsersToday = Number(adminGetRow("SELECT COUNT(DISTINCT user_id) AS c FROM chat_messages WHERE DATE(created_at) = DATE('now')")?.c || 0);
     const onlineNow = Number(adminGetRow("SELECT COUNT(*) AS c FROM users WHERE julianday('now') - julianday(last_seen) <= (15.0 / 1440.0)")?.c || 0);
+    const totalCalls = Number(adminGetRow("SELECT COUNT(*) AS c FROM call_logs")?.c || 0);
+    const callsToday = Number(
+      adminGetRow("SELECT COUNT(*) AS c FROM call_logs WHERE DATE(started_at) = DATE('now')")?.c || 0,
+    );
+    const storageBytes = Number(
+      adminGetRow("SELECT COALESCE(SUM(size_bytes), 0) AS c FROM chat_message_files")?.c || 0,
+    );
+
+    const callsPerDay = adminGetAll(
+      `SELECT DATE(started_at) AS day, COUNT(*) AS count
+       FROM call_logs
+       WHERE datetime(started_at) >= datetime('now', '-' || ? || ' days')
+       GROUP BY DATE(started_at)
+       ORDER BY day ASC`,
+      [days],
+    );
+
+    const filesPerDay = adminGetAll(
+      `SELECT DATE(created_at) AS day, COUNT(*) AS count
+       FROM chat_message_files
+       WHERE datetime(created_at) >= datetime('now', '-' || ? || ' days')
+       GROUP BY DATE(created_at)
+       ORDER BY day ASC`,
+      [days],
+    );
+
+    const chatTypeBreakdown = adminGetAll(
+      `SELECT c.type, COUNT(cm.id) AS message_count
+       FROM chat_messages cm
+       JOIN chats c ON c.id = cm.chat_id
+       WHERE datetime(cm.created_at) >= datetime('now', '-' || ? || ' days')
+       GROUP BY c.type
+       ORDER BY message_count DESC`,
+      [days],
+    );
 
     res.json({
       ok: true,
       period: days,
-      summary: { totalUsers, newUsersToday, totalMessages, messagesToday, activeUsersToday, onlineNow },
+      summary: {
+        totalUsers,
+        newUsersToday,
+        totalMessages,
+        messagesToday,
+        activeUsersToday,
+        onlineNow,
+        totalCalls,
+        callsToday,
+        storageBytes,
+      },
       userGrowth,
       messagesPerDay,
+      callsPerDay,
+      filesPerDay,
       hourlyActivity,
       topUsers,
       topChats,
+      chatTypeBreakdown,
     });
   });
 
@@ -3717,7 +4241,6 @@ function registerAdminRoutes(app, deps) {
   });
 
   // ─── Webhooks ─────────────────────────────────────────────────────────────────
-  const WEBHOOK_EVENTS = ["message.new", "message.edit", "message.delete", "user.register", "user.login", "user.ban", "chat.create", "chat.delete", "member.join", "member.leave"];
 
   app.get("/api/admin/webhooks", (req, res) => {
     const session = requireAdminSession(req, res, "settingsRead");

@@ -34,6 +34,8 @@ export default function SidebarHeader({
   onCloseSearch,
   chatsScrollable = false,
   onScrollToTop,
+  onSelectChatsTab,
+  onSelectCallsTab,
 }) {
   const { t, isRtl, language } = useLanguage();
   const [showCreateMenu, setShowCreateMenu] = useState(false);
@@ -77,6 +79,29 @@ export default function SidebarHeader({
             {isConnected ? t("settings.title") : t("chat.connecting")}
           </span>
         </div>
+      ) : mobileTab === "calls" ? (
+        <>
+          <div className="grid grid-cols-[1fr,auto,1fr] items-center">
+            <span />
+            <h2 className="text-center text-lg font-semibold">{t("calls.title")}</h2>
+            <span />
+          </div>
+          <div className="mt-3 hidden items-center justify-center gap-2 md:flex">
+            <button
+              type="button"
+              onClick={onSelectChatsTab}
+              className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-200"
+            >
+              {t("chat.chats")}
+            </button>
+            <button
+              type="button"
+              className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white"
+            >
+              {t("calls.title")}
+            </button>
+          </div>
+        </>
       ) : (
         <>
           <div className="grid grid-cols-[1fr,auto,1fr] items-center">
@@ -107,7 +132,7 @@ export default function SidebarHeader({
                   type="button"
                   onClick={onEnterEdit}
                   disabled={!hasChats}
-                  className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-white/80 p-2 text-emerald-700 transition hover:border-emerald-300 hover:shadow-[0_0_16px_rgba(16,185,129,0.22)] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-emerald-200 disabled:hover:shadow-none dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200"
+                  className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-white/80 p-2 text-emerald-700 transition hover:border-emerald-300 hover:birdx-accent-glow-shadow disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-emerald-200 disabled:hover:shadow-none dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200"
                   aria-label="Edit chat list"
                 >
                   <Pencil size={18} className="icon-anim-sway" />
@@ -141,7 +166,14 @@ export default function SidebarHeader({
                 )}
               </span>
             </h2>
-            <div className="flex justify-end">
+            <div className="flex items-center justify-end gap-1">
+              <button
+                type="button"
+                onClick={onSelectCallsTab}
+                className="hidden rounded-full border border-emerald-200 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 md:inline-flex dark:border-emerald-500/30 dark:text-emerald-200"
+              >
+                {t("calls.title")}
+              </button>
               {chatsSearchFocused ? (
                 <span className="inline-flex h-9 w-9" aria-hidden="true" />
               ) : editMode ? (
@@ -159,7 +191,7 @@ export default function SidebarHeader({
                   <button
                     type="button"
                     onClick={() => setShowCreateMenu((prev) => !prev)}
-                    className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-white/80 p-2 text-emerald-700 transition hover:border-emerald-300 hover:shadow-[0_0_16px_rgba(16,185,129,0.22)] dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200"
+                    className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-white/80 p-2 text-emerald-700 transition hover:border-emerald-300 hover:birdx-accent-glow-shadow dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200"
                     aria-label={t("chat.createMenu")}
                     aria-expanded={showCreateMenu}
                   >
@@ -232,7 +264,7 @@ export default function SidebarHeader({
                 placeholder={t("chat.search")}
                 lang={searchIsRtl ? "fa" : "en"}
                 dir={searchIsRtl ? "rtl" : "ltr"}
-                className={`w-full rounded-2xl border border-emerald-200 bg-white py-2 pr-10 text-sm text-slate-700 outline-none transition hover:border-emerald-300 hover:shadow-[0_0_16px_rgba(16,185,129,0.18)] focus:border-emerald-400 focus:bg-white/80 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-emerald-500/50 dark:hover:shadow-[0_0_18px_rgba(16,185,129,0.12)] dark:focus:bg-slate-950 ${
+                className={`w-full rounded-2xl border border-emerald-200 bg-white py-2 pr-10 text-sm text-slate-700 outline-none transition hover:border-emerald-300 hover:birdx-accent-glow-shadow focus:border-emerald-400 focus:bg-white/80 focus:ring-2 focus:ring-emerald-300/60 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-emerald-500/50 dark:hover:birdx-accent-glow-shadow dark:focus:bg-slate-950 ${
                   chatsSearchFocused || hasSearchText
                     ? searchIsRtl
                       ? "pl-9 text-right font-fa placeholder-slate-500 dark:placeholder-slate-400"

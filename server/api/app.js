@@ -1,7 +1,18 @@
 import { readAppMeta } from "../lib/appMeta.js";
+import { getGroupCallConfig } from "../lib/groupCallConfig.js";
 
 function registerAppRoutes(app, deps) {
-  const { REMOTE_CHANNELS, fs, path, projectRootDir } = deps;
+  const { REMOTE_CHANNELS, fs, path, projectRootDir, getAppBranding } = deps;
+
+  app.get("/api/branding", (_req, res) => {
+    const branding = getAppBranding?.() || {
+      appName: "BirdX",
+      accentColor: "#10b981",
+      logoUrl: "",
+      faviconUrl: "",
+    };
+    res.json({ ok: true, branding });
+  });
 
   app.get("/api/app/info", (_req, res) => {
     const appMeta = readAppMeta({ fs, path, projectRootDir });
@@ -22,6 +33,7 @@ function registerAppRoutes(app, deps) {
         telegramConfigured: Boolean(REMOTE_CHANNELS?.telegramConfigured),
         proxyConfigured: Boolean(REMOTE_CHANNELS?.proxyConfigured),
       },
+      groupCalls: getGroupCallConfig(),
     });
   });
 }

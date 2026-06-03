@@ -247,14 +247,22 @@ export function getCurrentSchemaVersion() {
 
 export function findUserByUsername(username) {
   return getRow(
-    `SELECT id, username, nickname, avatar_url, color, status, password_hash, banned, ${UPLOAD_POLICY_SELECT_SQL}, ${USER_ROLE_SELECT_SQL} FROM users WHERE username = ?`,
+    `SELECT id, username, nickname, avatar_url, color, status, password_hash, banned,
+            ${DM_POLICY_SELECT_SQL}, ${CONTACT_REQUEST_POLICY_SELECT_SQL},
+            ${UPLOAD_POLICY_SELECT_SQL}, ${USER_ROLE_SELECT_SQL}
+     FROM users WHERE username = ?`,
     [username],
   );
 }
 
 export function findUserById(id) {
   return getRow(
-    `SELECT id, username, nickname, avatar_url, color, status, password_hash, banned, ${USER_ROLE_SELECT_SQL} FROM users WHERE id = ?`,
+    `SELECT id, username, nickname, avatar_url, color, status, password_hash, banned,
+            ${UI_ACCENT_SELECT_SQL},
+            ${DND_UNTIL_SELECT_SQL},
+            ${NOTIFICATIONS_PAUSED_SELECT_SQL},
+            ${USER_ROLE_SELECT_SQL}
+     FROM users WHERE id = ?`,
     [id],
   );
 }
@@ -289,8 +297,29 @@ export function searchUsers(query, excludeUsername) {
 }
 
 const HAS_DM_POLICY_COLUMN = hasColumn("users", "dm_policy");
+const HAS_CONTACT_REQUEST_POLICY_COLUMN = hasColumn("users", "contact_request_policy");
+const HAS_DND_UNTIL_COLUMN = hasColumn("users", "dnd_until");
+const HAS_NOTIFICATIONS_PAUSED_COLUMN = hasColumn("users", "notifications_paused");
+const HAS_UI_ACCENT_COLUMN = hasColumn("users", "ui_accent_color");
+const HAS_ADMIN_2FA_COLUMN = hasColumn("sessions", "admin_2fa_verified_at");
+const HAS_GROUP_E2EE_COLUMN = hasColumn("chats", "group_e2ee_enabled");
+const UI_ACCENT_SELECT_SQL = HAS_UI_ACCENT_COLUMN
+  ? "users.ui_accent_color"
+  : "NULL AS ui_accent_color";
+const ADMIN_2FA_SELECT_SQL = HAS_ADMIN_2FA_COLUMN
+  ? "sessions.admin_2fa_verified_at"
+  : "NULL AS admin_2fa_verified_at";
+const DND_UNTIL_SELECT_SQL = HAS_DND_UNTIL_COLUMN
+  ? "users.dnd_until"
+  : "NULL AS dnd_until";
+const NOTIFICATIONS_PAUSED_SELECT_SQL = HAS_NOTIFICATIONS_PAUSED_COLUMN
+  ? "users.notifications_paused"
+  : "0 AS notifications_paused";
 const HAS_DM_STATUS_COLUMN = hasColumn("chats", "dm_status");
 const DM_POLICY_SELECT_SQL = HAS_DM_POLICY_COLUMN ? "dm_policy" : "'acquaintances' AS dm_policy";
+const CONTACT_REQUEST_POLICY_SELECT_SQL = HAS_CONTACT_REQUEST_POLICY_COLUMN
+  ? "contact_request_policy"
+  : "'everyone' AS contact_request_policy";
 const DM_CHAT_SELECT_SQL = HAS_DM_STATUS_COLUMN
   ? "dm_status, dm_initiator_user_id, dm_resolved_at"
   : "'active' AS dm_status, NULL AS dm_initiator_user_id, NULL AS dm_resolved_at";
@@ -299,7 +328,7 @@ export function findUserByExactUsername(username) {
   const normalized = String(username || "").trim().toLowerCase();
   if (!normalized) return null;
   return getRow(
-    `SELECT id, username, nickname, avatar_url, color, status, banned, ${DM_POLICY_SELECT_SQL}, ${USER_ROLE_SELECT_SQL}
+    `SELECT id, username, nickname, avatar_url, color, status, banned, ${DM_POLICY_SELECT_SQL}, ${CONTACT_REQUEST_POLICY_SELECT_SQL}, ${USER_ROLE_SELECT_SQL}
      FROM users WHERE lower(username) = ?`,
     [normalized],
   );
@@ -334,6 +363,14 @@ export function updateUserDmPolicy(userId, policy) {
   ]);
 }
 
+export function updateUserContactRequestPolicy(userId, policy) {
+  if (!HAS_CONTACT_REQUEST_POLICY_COLUMN) return;
+  run("UPDATE users SET contact_request_policy = ? WHERE id = ?", [
+    String(policy || "everyone"),
+    Number(userId),
+  ]);
+}
+
 export function blockUser(blockerUserId, blockedUserId) {
   run(
     "INSERT OR IGNORE INTO user_blocks (blocker_user_id, blocked_user_id) VALUES (?, ?)",
@@ -346,6 +383,32 @@ export function unblockUser(blockerUserId, blockedUserId) {
     Number(blockerUserId),
     Number(blockedUserId),
   ]);
+}
+
+export function listBlockedUsers(blockerUserId) {
+  const ownerId = Number(blockerUserId || 0);
+  if (!ownerId) return [];
+  return getAll(
+    `SELECT u.id, u.username, u.nickname, u.avatar_url, u.color
+     FROM user_blocks ub
+     JOIN users u ON u.id = ub.blocked_user_id
+     WHERE ub.blocker_user_id = ?
+     ORDER BY COALESCE(NULLIF(u.nickname, ''), u.username) COLLATE NOCASE ASC`,
+    [ownerId],
+  );
+}
+
+export function isUserBlockedBy(blockerUserId, blockedUserId) {
+  const blockerId = Number(blockerUserId || 0);
+  const blockedId = Number(blockedUserId || 0);
+  if (!blockerId || !blockedId) return false;
+  return Boolean(
+    getRow(
+      `SELECT 1 AS blocked FROM user_blocks
+       WHERE blocker_user_id = ? AND blocked_user_id = ? LIMIT 1`,
+      [blockerId, blockedId],
+    )?.blocked,
+  );
 }
 
 export function isBlockedBetween(userIdA, userIdB) {
@@ -1545,6 +1608,51 @@ export function listCallLogsForChat(chatId, limit = 30) {
   });
 }
 
+export function listCallLogsForUser(userId, limit = 50) {
+  const targetUserId = Number(userId || 0);
+  if (!targetUserId) return [];
+  const safeLimit = Math.min(100, Math.max(1, Number(limit || 50)));
+  const rows = getAll(
+    `SELECT call_logs.id, call_logs.chat_id, call_logs.room_id, call_logs.call_type,
+            call_logs.status, call_logs.caller_user_id, call_logs.started_at,
+            call_logs.accepted_at, call_logs.ended_at, call_logs.duration_seconds,
+            call_logs.end_reason,
+            chats.type AS chat_type,
+            chats.name AS chat_name,
+            chats.group_color AS chat_color,
+            chats.group_avatar_url AS chat_avatar_url,
+            users.username AS caller_username,
+            users.nickname AS caller_nickname,
+            users.avatar_url AS caller_avatar_url,
+            users.color AS caller_color,
+            me.status AS my_participant_status
+     FROM call_logs
+     INNER JOIN call_log_participants me
+       ON me.call_log_id = call_logs.id AND me.user_id = ?
+     LEFT JOIN chats ON chats.id = call_logs.chat_id
+     LEFT JOIN users ON users.id = call_logs.caller_user_id
+     ORDER BY julianday(call_logs.started_at) DESC, call_logs.id DESC
+     LIMIT ?`,
+    [targetUserId, safeLimit],
+  );
+
+  return rows.map((row) => {
+    const callLogId = Number(row.id);
+    const participants = getAll(
+      `SELECT call_log_participants.user_id, call_log_participants.role,
+              call_log_participants.status, call_log_participants.joined_at,
+              call_log_participants.left_at,
+              users.username, users.nickname, users.avatar_url, users.color
+       FROM call_log_participants
+       LEFT JOIN users ON users.id = call_log_participants.user_id
+       WHERE call_log_participants.call_log_id = ?
+       ORDER BY call_log_participants.role = 'caller' DESC, users.username ASC`,
+      [callLogId],
+    );
+    return { ...row, participants };
+  });
+}
+
 export function deleteChatById(chatId) {
   const targetChatId = Number(chatId);
   if (!targetChatId) return { storedNames: [] };
@@ -1754,7 +1862,12 @@ export function deleteUserById(userId) {
   };
 }
 
-export function listChatsForUser(userId) {
+export function listChatsForUser(userId, options = {}) {
+  const archivedOnly = Boolean(options?.archivedOnly);
+  const archivedClause = archivedOnly
+    ? "AND ucs.archived_at IS NOT NULL"
+    : "AND (ucs.archived_at IS NULL OR ucs.user_id IS NULL)";
+
   return getAll(
     `
     WITH member_chats AS (
@@ -1772,13 +1885,24 @@ export function listChatsForUser(userId) {
         c.created_at,
         COALESCE(c.dm_status, 'active') AS dm_status,
         c.dm_initiator_user_id,
-        COALESCE(mu.muted, 0) AS muted
+        ${HAS_GROUP_E2EE_COLUMN ? "COALESCE(c.group_e2ee_enabled, 0) AS group_e2ee_enabled," : "0 AS group_e2ee_enabled,"}
+        ucs.pinned_at,
+        ucs.archived_at,
+        ucs.mute_until,
+        COALESCE(ucs.notify_mode, 'all') AS notify_mode,
+        CASE
+          WHEN ucs.mute_until IS NOT NULL AND datetime(ucs.mute_until) > datetime('now') THEN 1
+          WHEN COALESCE(mu.muted, 0) = 1 THEN 1
+          ELSE 0
+        END AS muted
       FROM chats c
       JOIN chat_members m ON m.chat_id = c.id
+      LEFT JOIN user_chat_settings ucs ON ucs.chat_id = c.id AND ucs.user_id = m.user_id
       LEFT JOIN chat_mutes mu ON mu.chat_id = c.id AND mu.user_id = m.user_id
       LEFT JOIN hidden_chats h ON h.chat_id = c.id AND h.user_id = m.user_id
       WHERE m.user_id = ?
         AND h.chat_id IS NULL
+        ${archivedClause}
         AND NOT (
           c.type = 'dm'
           AND COALESCE(c.dm_status, 'active') = 'pending'
@@ -1840,8 +1964,13 @@ export function listChatsForUser(userId) {
       mc.group_avatar_url,
       mc.created_by_user_id,
       mc.muted,
+      mc.pinned_at,
+      mc.archived_at,
+      mc.mute_until,
+      mc.notify_mode,
       mc.dm_status,
       mc.dm_initiator_user_id,
+      mc.group_e2ee_enabled,
       lvm.last_message_id,
       last_vm.body AS last_message,
       last_vm.created_at AS last_time,
@@ -1868,7 +1997,10 @@ export function listChatsForUser(userId) {
     LEFT JOIN unread_counts uc ON uc.chat_id = mc.id
     ORDER BY
       CASE WHEN mc.id IN (SELECT chat_id FROM required_channels WHERE enabled = 1) THEN 0 ELSE 1 END,
-      lvm.last_message_id DESC, mc.created_at DESC
+      CASE WHEN mc.pinned_at IS NOT NULL THEN 0 ELSE 1 END,
+      mc.pinned_at DESC,
+      lvm.last_message_id DESC,
+      mc.created_at DESC
   `,
     [
       Number(userId),
@@ -1878,6 +2010,10 @@ export function listChatsForUser(userId) {
       Number(userId),
     ],
   ).map(decryptMessageRow);
+}
+
+export function listArchivedChatsForUser(userId) {
+  return listChatsForUser(userId, { archivedOnly: true });
 }
 
 export function createMessage(
@@ -2237,6 +2373,10 @@ const messageIds = rows
   .filter((id) => Number.isFinite(id) && id > 0);
 
 const reactions = getMessageReactions(messageIds);
+const pollsByMessageId = getPollsForMessageIds(
+  messageIds,
+  hasViewerUserId ? viewerUserIdRaw : null,
+);
 
 const reactionsByMessageId = reactions.reduce((acc, row) => {
   const messageId = Number(row.message_id || 0);
@@ -2258,6 +2398,7 @@ return {
     return {
       ...message,
       reactions: reactionsByMessageId[Number(message.id || 0)] || [],
+      poll: pollsByMessageId[Number(message.id || 0)] || null,
     };
   }),
   hasMore,
@@ -2500,6 +2641,86 @@ export function unhideChat(userId, chatId) {
   ]);
 }
 
+function ensureUserChatSettingsRow(userId, chatId) {
+  run(
+    `INSERT OR IGNORE INTO user_chat_settings (user_id, chat_id, updated_at)
+     VALUES (?, ?, datetime('now'))`,
+    [Number(userId), Number(chatId)],
+  );
+}
+
+export function setChatPinned(userId, chatId, pinned) {
+  ensureUserChatSettingsRow(userId, chatId);
+  if (pinned) {
+    run(
+      `UPDATE user_chat_settings
+       SET pinned_at = datetime('now'), updated_at = datetime('now')
+       WHERE user_id = ? AND chat_id = ?`,
+      [Number(userId), Number(chatId)],
+    );
+    return;
+  }
+  run(
+    `UPDATE user_chat_settings
+     SET pinned_at = NULL, updated_at = datetime('now')
+     WHERE user_id = ? AND chat_id = ?`,
+    [Number(userId), Number(chatId)],
+  );
+}
+
+export function setChatArchived(userId, chatId, archived) {
+  ensureUserChatSettingsRow(userId, chatId);
+  if (archived) {
+    run(
+      `UPDATE user_chat_settings
+       SET archived_at = datetime('now'), pinned_at = NULL, updated_at = datetime('now')
+       WHERE user_id = ? AND chat_id = ?`,
+      [Number(userId), Number(chatId)],
+    );
+    return;
+  }
+  run(
+    `UPDATE user_chat_settings
+     SET archived_at = NULL, updated_at = datetime('now')
+     WHERE user_id = ? AND chat_id = ?`,
+    [Number(userId), Number(chatId)],
+  );
+}
+
+export function setChatMuteUntil(userId, chatId, muteUntil) {
+  ensureUserChatSettingsRow(userId, chatId);
+  const normalizedUntil = muteUntil ? String(muteUntil).trim() : null;
+  if (normalizedUntil) {
+    run(
+      `UPDATE user_chat_settings
+       SET mute_until = ?, updated_at = datetime('now')
+       WHERE user_id = ? AND chat_id = ?`,
+      [normalizedUntil, Number(userId), Number(chatId)],
+    );
+    setChatMuted(userId, chatId, true);
+    return;
+  }
+  run(
+    `UPDATE user_chat_settings
+     SET mute_until = NULL, updated_at = datetime('now')
+     WHERE user_id = ? AND chat_id = ?`,
+    [Number(userId), Number(chatId)],
+  );
+  setChatMuted(userId, chatId, false);
+}
+
+export function setChatNotifyMode(userId, chatId, notifyMode) {
+  const mode = String(notifyMode || "all").toLowerCase();
+  const safeMode = ["all", "silent", "mentions"].includes(mode) ? mode : "all";
+  ensureUserChatSettingsRow(userId, chatId);
+  run(
+    `UPDATE user_chat_settings
+     SET notify_mode = ?, updated_at = datetime('now')
+     WHERE user_id = ? AND chat_id = ?`,
+    [safeMode, Number(userId), Number(chatId)],
+  );
+}
+
 export function setChatMuted(userId, chatId, muted) {
   if (muted) {
     run(
@@ -2510,6 +2731,7 @@ export function setChatMuted(userId, chatId, muted) {
          updated_at = datetime('now')`,
       [Number(userId), Number(chatId)],
     );
+    ensureUserChatSettingsRow(userId, chatId);
     return;
   }
 
@@ -2517,6 +2739,90 @@ export function setChatMuted(userId, chatId, muted) {
     Number(userId),
     Number(chatId),
   ]);
+  run(
+    `UPDATE user_chat_settings
+     SET mute_until = NULL, updated_at = datetime('now')
+     WHERE user_id = ? AND chat_id = ?`,
+    [Number(userId), Number(chatId)],
+  );
+}
+
+export function listSessionsForUser(userId) {
+  return getAll(
+    `SELECT id, token, ip_address, user_agent, created_at, last_seen
+     FROM sessions
+     WHERE user_id = ?
+     ORDER BY datetime(last_seen) DESC, id DESC`,
+    [Number(userId)],
+  );
+}
+
+export function deleteSessionByIdForUser(sessionId, userId) {
+  run("DELETE FROM sessions WHERE id = ? AND user_id = ?", [
+    Number(sessionId),
+    Number(userId),
+  ]);
+}
+
+export function deleteOtherSessionsForUser(userId, keepToken) {
+  const token = String(keepToken || "").trim();
+  if (!token) {
+    run("DELETE FROM sessions WHERE user_id = ?", [Number(userId)]);
+    return;
+  }
+  run("DELETE FROM sessions WHERE user_id = ? AND token != ?", [
+    Number(userId),
+    token,
+  ]);
+}
+
+export function updateUserNotificationPrefs(userId, prefs = {}) {
+  const uid = Number(userId || 0);
+  if (!uid) return;
+  if (Object.prototype.hasOwnProperty.call(prefs, "dndUntil")) {
+    const value = prefs.dndUntil ? String(prefs.dndUntil).trim() : null;
+    run("UPDATE users SET dnd_until = ? WHERE id = ?", [value, uid]);
+  }
+  if (Object.prototype.hasOwnProperty.call(prefs, "notificationsPaused")) {
+    run("UPDATE users SET notifications_paused = ? WHERE id = ?", [
+      prefs.notificationsPaused ? 1 : 0,
+      uid,
+    ]);
+  }
+}
+
+export function createScheduledMessage({ chatId, userId, body, scheduledAt }) {
+  const storedBody = storageEncryption.encryptText(String(body || ""));
+  run(
+    `INSERT INTO scheduled_messages (chat_id, user_id, body, scheduled_at, status, created_at)
+     VALUES (?, ?, ?, ?, 'pending', datetime('now'))`,
+    [Number(chatId), Number(userId), storedBody, String(scheduledAt)],
+  );
+  return getLastInsertId();
+}
+
+export function listScheduledMessagesForUser(userId) {
+  return getAll(
+    `SELECT sm.id, sm.chat_id, sm.body, sm.scheduled_at, sm.status, sm.created_at, sm.sent_at,
+            c.name AS chat_name, c.type AS chat_type
+     FROM scheduled_messages sm
+     JOIN chats c ON c.id = sm.chat_id
+     WHERE sm.user_id = ?
+       AND sm.status = 'pending'
+     ORDER BY datetime(sm.scheduled_at) ASC`,
+    [Number(userId)],
+  ).map((row) => ({
+    ...row,
+    body: storageEncryption.decryptText(row?.body || ""),
+  }));
+}
+
+export function deleteScheduledMessageForUser(messageId, userId) {
+  run(
+    `DELETE FROM scheduled_messages
+     WHERE id = ? AND user_id = ? AND status = 'pending'`,
+    [Number(messageId), Number(userId)],
+  );
 }
 
 export function upsertPushSubscription(userId, endpoint, p256dh, auth) {
@@ -2593,6 +2899,11 @@ export function getSession(token) {
     SELECT sessions.id AS session_id, sessions.token, users.id, users.username, users.nickname,
            users.avatar_url, users.color, users.status, users.banned,
            ${HAS_DM_POLICY_COLUMN ? "users.dm_policy" : "'acquaintances' AS dm_policy"},
+           ${HAS_CONTACT_REQUEST_POLICY_COLUMN ? "users.contact_request_policy" : "'everyone' AS contact_request_policy"},
+           ${DND_UNTIL_SELECT_SQL},
+           ${NOTIFICATIONS_PAUSED_SELECT_SQL},
+           ${UI_ACCENT_SELECT_SQL},
+           ${ADMIN_2FA_SELECT_SQL},
            ${UPLOAD_POLICY_QUALIFIED_SELECT_SQL},
            ${USER_ROLE_QUALIFIED_SELECT_SQL}
     FROM sessions
@@ -2642,6 +2953,167 @@ export function getMessageReactions(messageIds = []) {
   );
 }
 
+export function createPollMessage(
+  chatId,
+  userId,
+  { question, options, multiple = false, replyToMessageId = null, expiresAt = null, clientRequestId = null },
+) {
+  const normalizedQuestion = String(question || "").trim();
+  const normalizedOptions = (Array.isArray(options) ? options : [])
+    .map((opt) => String(opt || "").trim())
+    .filter(Boolean)
+    .slice(0, 10);
+  if (!normalizedQuestion || normalizedOptions.length < 2) {
+    return null;
+  }
+
+  const created = createOrReuseMessage(
+    chatId,
+    userId,
+    "[[poll]]",
+    replyToMessageId,
+    expiresAt,
+    clientRequestId,
+  );
+  const messageId = Number(created?.id || 0);
+  if (!messageId) return null;
+
+  if (!created?.deduped) {
+    run(
+      `INSERT INTO message_polls (message_id, question, options_json, multiple)
+       VALUES (?, ?, ?, ?)`,
+      [
+        messageId,
+        normalizedQuestion,
+        JSON.stringify(normalizedOptions),
+        multiple ? 1 : 0,
+      ],
+    );
+  }
+
+  return {
+    id: messageId,
+    deduped: Boolean(created?.deduped),
+    poll: buildPollPayload(messageId, userId),
+  };
+}
+
+function buildPollPayload(messageId, viewerUserId = null) {
+  const row = getRow(
+    `SELECT message_id, question, options_json, multiple FROM message_polls WHERE message_id = ?`,
+    [Number(messageId)],
+  );
+  if (!row?.message_id) return null;
+
+  let options = [];
+  try {
+    options = JSON.parse(String(row.options_json || "[]"));
+  } catch {
+    options = [];
+  }
+  if (!Array.isArray(options)) options = [];
+
+  const voteRows = getAll(
+    `SELECT option_index, COUNT(*) AS count
+     FROM message_poll_votes
+     WHERE message_id = ?
+     GROUP BY option_index`,
+    [Number(messageId)],
+  );
+  const counts = options.map((_, index) => {
+    const match = voteRows.find((v) => Number(v.option_index) === index);
+    return Number(match?.count || 0);
+  });
+  const totalVotes = voteRows.reduce((sum, v) => sum + Number(v.count || 0), 0);
+
+  let myVotes = [];
+  const viewerId = Number(viewerUserId || 0);
+  if (viewerId) {
+    myVotes = getAll(
+      `SELECT option_index FROM message_poll_votes WHERE message_id = ? AND user_id = ?`,
+      [Number(messageId), viewerId],
+    ).map((v) => Number(v.option_index));
+  }
+
+  return {
+    question: row.question,
+    options,
+    multiple: Boolean(Number(row.multiple || 0)),
+    counts,
+    totalVotes,
+    myVotes,
+  };
+}
+
+export function votePollMessage(messageId, userId, optionIndexes = []) {
+  const msgId = Number(messageId || 0);
+  const voterId = Number(userId || 0);
+  if (!msgId || !voterId) return null;
+
+  const poll = getRow(
+    `SELECT message_id, multiple FROM message_polls WHERE message_id = ?`,
+    [msgId],
+  );
+  if (!poll?.message_id) return null;
+
+  const indexes = [...new Set(
+    (Array.isArray(optionIndexes) ? optionIndexes : [optionIndexes])
+      .map((v) => Number(v))
+      .filter((v) => Number.isFinite(v) && v >= 0),
+  )];
+
+  if (!indexes.length) return null;
+
+  const isMultiple = Boolean(Number(poll.multiple || 0));
+
+  if (isMultiple) {
+    for (const optionIndex of indexes) {
+      const exists = getRow(
+        `SELECT 1 AS ok FROM message_poll_votes
+         WHERE message_id = ? AND user_id = ? AND option_index = ?`,
+        [msgId, voterId, optionIndex],
+      );
+      if (exists?.ok) {
+        run(
+          `DELETE FROM message_poll_votes
+           WHERE message_id = ? AND user_id = ? AND option_index = ?`,
+          [msgId, voterId, optionIndex],
+        );
+      } else {
+        run(
+          `INSERT INTO message_poll_votes (message_id, user_id, option_index) VALUES (?, ?, ?)`,
+          [msgId, voterId, optionIndex],
+        );
+      }
+    }
+  } else {
+    run(`DELETE FROM message_poll_votes WHERE message_id = ? AND user_id = ?`, [
+      msgId,
+      voterId,
+    ]);
+    run(
+      `INSERT INTO message_poll_votes (message_id, user_id, option_index) VALUES (?, ?, ?)`,
+      [msgId, voterId, indexes[0]],
+    );
+  }
+
+  return buildPollPayload(msgId, voterId);
+}
+
+export function getPollsForMessageIds(messageIds = [], viewerUserId = null) {
+  const ids = (Array.isArray(messageIds) ? messageIds : [])
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id) && id > 0);
+  if (!ids.length) return {};
+
+  const result = {};
+  ids.forEach((messageId) => {
+    const poll = buildPollPayload(messageId, viewerUserId);
+    if (poll) result[messageId] = poll;
+  });
+  return result;
+}
+
 export function touchSession(token) {
   run("UPDATE sessions SET last_seen = datetime('now') WHERE token = ?", [
     token,
@@ -2650,6 +3122,315 @@ export function touchSession(token) {
 
 export function deleteSession(token) {
   run("DELETE FROM sessions WHERE token = ?", [token]);
+}
+
+export function setSessionAdmin2faVerified(token) {
+  if (!HAS_ADMIN_2FA_COLUMN || !token) return;
+  run("UPDATE sessions SET admin_2fa_verified_at = datetime('now') WHERE token = ?", [
+    String(token),
+  ]);
+}
+
+export function isSessionAdmin2faFresh(sessionRow, maxAgeHours = 12) {
+  if (!HAS_ADMIN_2FA_COLUMN) return true;
+  const verifiedAt = String(sessionRow?.admin_2fa_verified_at || "").trim();
+  if (!verifiedAt) return false;
+  const row = getRow(
+    `SELECT CASE
+       WHEN datetime(?) > datetime('now', ?) THEN 1
+       ELSE 0
+     END AS fresh`,
+    [verifiedAt, `-${Number(maxAgeHours) || 12} hours`],
+  );
+  return Boolean(Number(row?.fresh || 0));
+}
+
+export function updateUserUiAccent(userId, accentColor) {
+  if (!HAS_UI_ACCENT_COLUMN) return;
+  const value = accentColor ? String(accentColor).trim().slice(0, 20) : null;
+  run("UPDATE users SET ui_accent_color = ? WHERE id = ?", [value, Number(userId)]);
+}
+
+export function getAppBranding() {
+  const row = getRow("SELECT value FROM app_settings WHERE key = 'branding'");
+  if (!row?.value) {
+    return {
+      appName: "BirdX",
+      accentColor: "#10b981",
+      logoUrl: "",
+      faviconUrl: "",
+    };
+  }
+  try {
+    const parsed = JSON.parse(row.value);
+    return {
+      appName: String(parsed?.appName || "BirdX").slice(0, 80),
+      accentColor: String(parsed?.accentColor || "#10b981").slice(0, 20),
+      logoUrl: String(parsed?.logoUrl || "").slice(0, 500),
+      faviconUrl: String(parsed?.faviconUrl || "").slice(0, 500),
+    };
+  } catch {
+    return {
+      appName: "BirdX",
+      accentColor: "#10b981",
+      logoUrl: "",
+      faviconUrl: "",
+    };
+  }
+}
+
+export function isGroupE2eeEnabled(chatId) {
+  if (!HAS_GROUP_E2EE_COLUMN) return false;
+  const row = getRow("SELECT group_e2ee_enabled FROM chats WHERE id = ?", [
+    Number(chatId),
+  ]);
+  return Boolean(Number(row?.group_e2ee_enabled || 0));
+}
+
+export function setGroupE2eeEnabled(chatId, enabled) {
+  if (!HAS_GROUP_E2EE_COLUMN) return;
+  run("UPDATE chats SET group_e2ee_enabled = ? WHERE id = ?", [
+    enabled ? 1 : 0,
+    Number(chatId),
+  ]);
+}
+
+export function upsertGroupE2eeWrappedKey({ chatId, userId, wrappedKey, keyGeneration = 1 }) {
+  run(
+    `INSERT INTO group_e2ee_keys (chat_id, user_id, wrapped_key, key_generation, updated_at)
+     VALUES (?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(chat_id, user_id) DO UPDATE SET
+       wrapped_key = excluded.wrapped_key,
+       key_generation = excluded.key_generation,
+       updated_at = datetime('now')`,
+    [
+      Number(chatId),
+      Number(userId),
+      String(wrappedKey || ""),
+      Number(keyGeneration) || 1,
+    ],
+  );
+}
+
+export function listGroupE2eeWrappedKeys(chatId) {
+  return getAll(
+    `SELECT user_id, wrapped_key, key_generation, updated_at
+     FROM group_e2ee_keys
+     WHERE chat_id = ?
+     ORDER BY user_id ASC`,
+    [Number(chatId)],
+  );
+}
+
+export function getGroupE2eeWrappedKey(chatId, userId) {
+  return getRow(
+    `SELECT wrapped_key, key_generation
+     FROM group_e2ee_keys
+     WHERE chat_id = ? AND user_id = ?`,
+    [Number(chatId), Number(userId)],
+  );
+}
+
+export function areUsersContacts(userId, contactUserId) {
+  const ownerId = Number(userId || 0);
+  const peerId = Number(contactUserId || 0);
+  if (!ownerId || !peerId || ownerId === peerId) return false;
+  const row = getRow(
+    `SELECT 1 AS ok FROM user_contacts WHERE user_id = ? AND contact_user_id = ?`,
+    [ownerId, peerId],
+  );
+  return Boolean(row?.ok);
+}
+
+export function addMutualUserContacts(userIdA, userIdB) {
+  const a = Number(userIdA || 0);
+  const b = Number(userIdB || 0);
+  if (!a || !b || a === b) return;
+  run(
+    `INSERT OR IGNORE INTO user_contacts (user_id, contact_user_id) VALUES (?, ?)`,
+    [a, b],
+  );
+  run(
+    `INSERT OR IGNORE INTO user_contacts (user_id, contact_user_id) VALUES (?, ?)`,
+    [b, a],
+  );
+}
+
+export function removeUserContact(userId, contactUserId) {
+  const ownerId = Number(userId || 0);
+  const peerId = Number(contactUserId || 0);
+  if (!ownerId || !peerId) return;
+  run(
+    `DELETE FROM user_contacts WHERE user_id = ? AND contact_user_id = ?`,
+    [ownerId, peerId],
+  );
+}
+
+export function getPendingContactRequest(fromUserId, toUserId) {
+  return getRow(
+    `SELECT id, from_user_id, to_user_id, status, created_at, resolved_at
+     FROM contact_requests
+     WHERE from_user_id = ? AND to_user_id = ? AND status = 'pending'`,
+    [Number(fromUserId), Number(toUserId)],
+  );
+}
+
+export function getContactRequestById(requestId) {
+  return getRow(
+    `SELECT id, from_user_id, to_user_id, status, created_at, resolved_at
+     FROM contact_requests WHERE id = ?`,
+    [Number(requestId)],
+  );
+}
+
+export function createContactRequest(fromUserId, toUserId) {
+  const fromId = Number(fromUserId || 0);
+  const toId = Number(toUserId || 0);
+  if (!fromId || !toId || fromId === toId) return null;
+
+  const existingOutgoing = getPendingContactRequest(fromId, toId);
+  if (existingOutgoing?.id) return { request: existingOutgoing, created: false };
+
+  const reversePending = getPendingContactRequest(toId, fromId);
+  if (reversePending?.id) {
+    const accepted = acceptContactRequest(Number(reversePending.id), fromId);
+    if (!accepted) return null;
+    return { request: accepted, created: false, autoAccepted: true };
+  }
+
+  run(
+    `INSERT INTO contact_requests (from_user_id, to_user_id, status)
+     VALUES (?, ?, 'pending')`,
+    [fromId, toId],
+  );
+  const id = Number(getLastInsertId() || 0);
+  return {
+    request: getContactRequestById(id),
+    created: true,
+    autoAccepted: false,
+  };
+}
+
+export function acceptContactRequest(requestId, acceptingUserId) {
+  const req = getContactRequestById(requestId);
+  if (!req || String(req.status || "").toLowerCase() !== "pending") return null;
+  if (Number(req.to_user_id) !== Number(acceptingUserId)) return null;
+
+  run(
+    `UPDATE contact_requests
+     SET status = 'accepted', resolved_at = datetime('now')
+     WHERE id = ?`,
+    [Number(req.id)],
+  );
+  addMutualUserContacts(req.from_user_id, req.to_user_id);
+  return getContactRequestById(Number(req.id));
+}
+
+export function rejectContactRequest(requestId, rejectingUserId) {
+  const req = getContactRequestById(requestId);
+  if (!req || String(req.status || "").toLowerCase() !== "pending") return null;
+  if (Number(req.to_user_id) !== Number(rejectingUserId)) return null;
+
+  run(
+    `UPDATE contact_requests
+     SET status = 'rejected', resolved_at = datetime('now')
+     WHERE id = ?`,
+    [Number(req.id)],
+  );
+  return getContactRequestById(Number(req.id));
+}
+
+export function cancelContactRequest(requestId, fromUserId) {
+  const req = getContactRequestById(requestId);
+  if (!req || String(req.status || "").toLowerCase() !== "pending") return null;
+  if (Number(req.from_user_id) !== Number(fromUserId)) return null;
+
+  run(
+    `UPDATE contact_requests
+     SET status = 'cancelled', resolved_at = datetime('now')
+     WHERE id = ?`,
+    [Number(req.id)],
+  );
+  return getContactRequestById(Number(req.id));
+}
+
+export function cancelPendingContactRequestsBetween(userIdA, userIdB) {
+  const a = Number(userIdA || 0);
+  const b = Number(userIdB || 0);
+  if (!a || !b || a === b) return;
+  run(
+    `UPDATE contact_requests
+     SET status = 'cancelled', resolved_at = datetime('now')
+     WHERE status = 'pending'
+       AND (
+         (from_user_id = ? AND to_user_id = ?)
+         OR (from_user_id = ? AND to_user_id = ?)
+       )`,
+    [a, b, b, a],
+  );
+}
+
+export function removeMutualUserContacts(userIdA, userIdB) {
+  removeUserContact(userIdA, userIdB);
+  removeUserContact(userIdB, userIdA);
+}
+
+export function listOutgoingContactRequests(userId) {
+  const ownerId = Number(userId || 0);
+  if (!ownerId) return [];
+  return getAll(
+    `SELECT cr.id, cr.to_user_id, cr.created_at,
+            u.username, u.nickname, u.avatar_url, u.color
+     FROM contact_requests cr
+     JOIN users u ON u.id = cr.to_user_id
+     WHERE cr.from_user_id = ? AND cr.status = 'pending'
+     ORDER BY julianday(cr.created_at) DESC, cr.id DESC`,
+    [ownerId],
+  );
+}
+
+export function listUserContacts(userId) {
+  const ownerId = Number(userId || 0);
+  if (!ownerId) return [];
+  return getAll(
+    `SELECT u.id, u.username, u.nickname, u.avatar_url, u.color, u.status, u.last_seen,
+            uc.created_at AS contact_since
+     FROM user_contacts uc
+     JOIN users u ON u.id = uc.contact_user_id
+     WHERE uc.user_id = ?
+     ORDER BY COALESCE(NULLIF(u.nickname, ''), u.username) COLLATE NOCASE ASC`,
+    [ownerId],
+  );
+}
+
+export function listIncomingContactRequests(userId) {
+  const ownerId = Number(userId || 0);
+  if (!ownerId) return [];
+  return getAll(
+    `SELECT cr.id, cr.from_user_id, cr.created_at,
+            u.username, u.nickname, u.avatar_url, u.color
+     FROM contact_requests cr
+     JOIN users u ON u.id = cr.from_user_id
+     WHERE cr.to_user_id = ? AND cr.status = 'pending'
+     ORDER BY julianday(cr.created_at) DESC, cr.id DESC`,
+    [ownerId],
+  );
+}
+
+export function getContactPeerStatus(userId, peerUserId) {
+  const ownerId = Number(userId || 0);
+  const peerId = Number(peerUserId || 0);
+  if (!ownerId || !peerId || ownerId === peerId) {
+    return { isContact: false };
+  }
+  const isContact = areUsersContacts(ownerId, peerId);
+  const outgoing = getPendingContactRequest(ownerId, peerId);
+  const incoming = getPendingContactRequest(peerId, ownerId);
+  return {
+    isContact,
+    outgoingRequestId: outgoing?.id ? Number(outgoing.id) : null,
+    incomingRequestId: incoming?.id ? Number(incoming.id) : null,
+  };
 }
 
 // Internal admin helpers for server-side DB tooling endpoints.

@@ -13,6 +13,9 @@ export function NotificationsSettingsModal({
   testNotificationSent,
   notificationsEnabled,
   debugLine = "",
+  dndUntil = null,
+  dndBusy = false,
+  onSetDndUntil,
 }) {
   const { t } = useLanguage();
 
@@ -45,6 +48,9 @@ export function NotificationsSettingsModal({
             testNotificationSent={testNotificationSent}
             notificationsEnabled={notificationsEnabled}
             debugLine={debugLine}
+            dndUntil={dndUntil}
+            dndBusy={dndBusy}
+            onSetDndUntil={onSetDndUntil}
           />
         </div>
 

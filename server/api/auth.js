@@ -5,6 +5,8 @@ function registerAuthRoutes(app, deps) {
     USERNAME_MAX,
     USERNAME_REGEX,
     ACCOUNT_CREATION,
+    getAccountCreationEnabled,
+    getMaintenanceState,
     ADMIN_USERNAMES = [],
     adminRun,
     adminSave,
@@ -62,7 +64,13 @@ function registerAuthRoutes(app, deps) {
   };
 
   app.post("/api/register", (req, res) => {
-    if (!ACCOUNT_CREATION) {
+    const maintenance = getMaintenanceState?.();
+    if (maintenance?.enabled) {
+      return res.status(503).json({
+        error: maintenance.message || "Server is under maintenance.",
+      });
+    }
+    if (!(getAccountCreationEnabled?.() ?? ACCOUNT_CREATION)) {
       return res.status(403).json({ error: "Account creation is disabled." });
     }
     const { username, password, nickname, avatarUrl } = req.body || {};
@@ -157,6 +165,15 @@ function registerAuthRoutes(app, deps) {
     const trimmed = username.trim().toLowerCase();
     const user = findUserByUsername(trimmed);
 
+    const maintenance = getMaintenanceState?.();
+    const userRole = String(user?.role || "user").toLowerCase();
+    const isStaff = ["owner", "admin", "moderator", "support"].includes(userRole);
+    if (maintenance?.enabled && user && !isStaff) {
+      return res.status(503).json({
+        error: maintenance.message || "Server is under maintenance.",
+      });
+    }
+
     if (user?.banned) {
       recordSecurityEvent(req, "login.banned", {
         username: trimmed,
@@ -181,7 +198,8 @@ function registerAuthRoutes(app, deps) {
       totpRow = authGetRow?.("SELECT enabled, secret, backup_codes FROM user_totp WHERE user_id = ? AND enabled = 1", [user.id]);
     } catch { /* table might not exist yet */ }
     if (totpRow && Number(totpRow.enabled || 0)) {
-      const totpToken = String(req.body?.totpToken || "").trim();
+      const { verifyTOTP, normalizeTotpToken } = await import("../lib/totp.js");
+      const totpToken = normalizeTotpToken(req.body?.totpToken);
       if (!totpToken) {
         return res.status(200).json({
           requires2FA: true,
@@ -189,13 +207,15 @@ function registerAuthRoutes(app, deps) {
           message: "Two-factor authentication code required.",
         });
       }
-      const { verifyTOTP } = await import("../lib/totp.js");
       let valid = verifyTOTP(totpRow.secret, totpToken);
 
       if (!valid) {
         let backupCodes = [];
         try { backupCodes = JSON.parse(totpRow.backup_codes || "[]"); } catch { backupCodes = []; }
-        const normalizedToken = totpToken.toUpperCase().replace(/[^A-Z0-9-]/g, "");
+        const normalizedToken = String(req.body?.totpToken || "")
+          .trim()
+          .toUpperCase()
+          .replace(/[^A-Z0-9-]/g, "");
         const codeIndex = backupCodes.findIndex((c) => c === normalizedToken);
         if (codeIndex >= 0) {
           valid = true;
@@ -267,6 +287,10 @@ function registerAuthRoutes(app, deps) {
         ) ||
         ADMIN_USERNAMES.includes(String(session.username || "").toLowerCase()),
       dmPolicy: String(session.dm_policy || "acquaintances"),
+      contactRequestPolicy: String(session.contact_request_policy || "everyone"),
+      dndUntil: session.dnd_until || null,
+      notificationsPaused: Boolean(Number(session.notifications_paused || 0)),
+      uiAccentColor: session.ui_accent_color || null,
     });
   });
 

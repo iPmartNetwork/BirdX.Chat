@@ -1,379 +1,202 @@
 <p align="center">
-  <img src="client/public/birdx-logo.svg" alt="BirdX" width="280" height="280" />
+  <img src="client/public/icons/icon-512.png" alt="BirdX Chat" width="160" height="160" />
 </p>
 
 <p align="center">
-  <strong>Modern self-hosted chat platform for private communities and teams</strong>
+  <strong>BirdX Chat</strong> — self-hosted secure messaging<br />
+  <sub>Real-time chat · Voice & video · E2EE · Admin panel · English & Persian (RTL)</sub>
 </p>
 
 <p align="center">
-  <a href="./VERSION"><img src="https://img.shields.io/badge/version-1.0.0-10b981?style=for-the-badge" alt="Version" /></a>
+  <a href="https://github.com/iPmartNetwork/BirdX.Chat/stargazers"><img src="https://img.shields.io/badge/version-1.0.1-10b981?style=for-the-badge" alt="Version" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="License" /></a>
-  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/node-%3E%3D24.0.0-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/node-%3E%3D24-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" /></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/iPmartNetwork/BirdX.Chat/stargazers"><img src="https://img.shields.io/github/stars/iPmartNetwork/BirdX.Chat?style=for-the-badge&color=f59e0b" alt="Stars" /></a>
-  <a href="https://github.com/iPmartNetwork/BirdX.Chat/network/members"><img src="https://img.shields.io/github/forks/iPmartNetwork/BirdX.Chat?style=for-the-badge&color=8b5cf6" alt="Forks" /></a>
-  <a href="https://github.com/iPmartNetwork/BirdX.Chat/issues"><img src="https://img.shields.io/github/issues/iPmartNetwork/BirdX.Chat?style=for-the-badge&color=ef4444" alt="Issues" /></a>
-  <a href="https://github.com/iPmartNetwork/BirdX.Chat"><img src="https://img.shields.io/github/repo-size/iPmartNetwork/BirdX.Chat?style=for-the-badge&color=06b6d4" alt="Repo Size" /></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/iPmartNetwork/BirdX.Chat/releases"><img src="https://img.shields.io/github/downloads/iPmartNetwork/BirdX.Chat/total?style=for-the-badge&color=22c55e&label=Downloads" alt="Downloads" /></a>
-  <a href="https://github.com/iPmartNetwork/BirdX.Chat/commits/master"><img src="https://img.shields.io/github/last-commit/iPmartNetwork/BirdX.Chat?style=for-the-badge&color=6366f1" alt="Last Commit" /></a>
-  <a href="https://github.com/iPmartNetwork/BirdX.Chat/graphs/contributors"><img src="https://img.shields.io/github/contributors/iPmartNetwork/BirdX.Chat?style=for-the-badge&color=ec4899" alt="Contributors" /></a>
-</p>
-
-<p align="center">
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-features">Features</a> •
-  <a href="#%EF%B8%8F-admin-panel">Admin Panel</a> •
-  <a href="#%EF%B8%8F-tech-stack">Tech Stack</a> •
-  <a href="#-deployment">Deployment</a> •
-  <a href="./CHANGELOG.md">Changelog</a>
+  <a href="#-quick-start">Quick start</a> ·
+  <a href="#-screenshots">Screenshots</a> ·
+  <a href="#-features">Features</a> ·
+  <a href="#-deployment">Deployment</a> ·
+  <a href="./CHANGELOG.md">Changelog</a> ·
+  <a href="./README.fa.md">فارسی</a>
 </p>
 
 ---
 
-## 📋 Overview
+## Overview
 
-**BirdX Chat** is a feature-rich, self-hosted messaging platform built for teams and private communities. It combines real-time chat, voice/video calls, end-to-end encryption, file sharing, and a powerful admin panel into a single deployable application.
+This repository is the **BirdX Chat application**: `client/` (React PWA) and `server/` (Node.js API). Deploy it on **your own domain** for your team or community.
 
-| Domain | Purpose |
-|--------|---------|
-| [birdx.chat](https://birdx.chat) | Marketing site (Persian, light theme) |
-| [web.birdx.chat](https://web.birdx.chat) | Web app / PWA (English default) |
-| [app.birdx.chat](https://app.birdx.chat) | Mobile apps & downloads |
+It does **not** include the public marketing site ([birdx.chat](https://birdx.chat)), pre-built Windows/Android installers, or iOS builds. Those are part of the **hosted BirdX** product operated by [iPmart Network](https://github.com/iPmartNetwork). Self-hosters use the browser/PWA on their server URL.
+
+### Hosted BirdX (official)
+
+| Service | Description |
+|---------|-------------|
+| [birdx.chat](https://birdx.chat) | Official website, docs, downloads (private deployment) |
+| [app.birdx.chat](https://app.birdx.chat) | Official web app for BirdX users |
+
+### Custom work (on request)
+
+We also ship, outside this public repo:
+
+- Branded **marketing websites**
+- **Windows / Android / iOS** shell apps pointing at a chosen URL
+- Store-ready package IDs and icons
+
+Contact [@birdx_app](https://t.me/birdx_app) or [GitHub Issues](https://github.com/iPmartNetwork/BirdX.Chat/issues) for dedicated builds.
 
 ---
 
-## ⚡ Quick Start
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/chat.png" alt="BirdX Chat — conversation UI" width="48%" />
+  <img src="docs/screenshots/admin.png" alt="BirdX Chat — admin panel" width="48%" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/calls.png" alt="BirdX Chat — calls" width="48%" />
+</p>
+
+<sub>Add or replace images under <a href="./docs/screenshots/">docs/screenshots/</a> (see README there). Until files exist, GitHub may show broken image placeholders.</sub>
+
+---
+
+## Quick start
 
 ```bash
 git clone https://github.com/iPmartNetwork/BirdX.Chat.git
 cd BirdX.Chat
 npm install
+cp .env.example .env   # your domain, TURN, VAPID, keys
 npm run build
 npm start
 ```
 
-Or use the one-line installer:
+Linux one-liner:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/iPmartNetwork/BirdX.Chat/master/scripts/install.sh)
 ```
 
----
+Interactive **birdx-deploy** menu: install, update, `.env`, database, logs, and optional coturn TURN. Re-run anytime: `sudo birdx-deploy`.
 
-## ✨ Features
+Serve over **HTTPS** on your hostname (e.g. `https://chat.example.com`). Default bootstrap admin: `birdxchat` (`ADMIN_USERNAMES`).
 
-### 💬 Messaging
+### Development
 
-| Feature | Description |
+| Command | Description |
 |---------|-------------|
-| Real-time chat | DMs, groups, channels, saved messages |
-| Rich actions | Edit, delete, forward, reply, read receipts |
-| Reactions | Live emoji reactions via SSE |
-| Presence | Typing indicators, online status |
-| Discovery | Search, public groups, invite links |
-| Media | Voice messages, file sharing, video transcoding |
-| Permissions | Channel posting for owner/admin/moderator |
-
-### 🔐 End-to-End Encryption
-
-| Feature | Description |
-|---------|-------------|
-| Protocol | X3DH key agreement + AES-256-GCM |
-| Key exchange | ECDH P-256 with HKDF derivation |
-| Storage | Dedicated IndexedDB key store |
-| UX | Green lock indicator for active E2EE |
-| Automation | Auto session establishment, prekey replenishment |
-
-### 📞 Voice & Video Calls
-
-| Feature | Description |
-|---------|-------------|
-| WebRTC | Peer-to-peer voice and video |
-| Signaling | Socket.IO lifecycle management |
-| UI | Professional call screen, draggable mini card |
-| Controls | Mute, camera, screen share, device select |
-| Reliability | TURN/STUN, wake lock, reconnect grace |
-| History | Per-chat call logs |
-| Notifications | Push + in-app ringtone |
-
-### 🌐 Multilingual
-
-- English and Persian language support
-- Full RTL layout for Persian
-- Per-device language persistence
-
-### 📱 PWA
-
-- Installable on Android, iOS, and desktop
-- Service worker with cache management
-- Web Push notifications with VAPID
-- Offline-ready app shell
+| `npm run dev` | Client + API (local) |
+| `npm run dev:stop` | Stop dev processes (Windows) |
+| `npm run build` | Production client → `client/dist/` |
+| `npm start` | API serves client + WebSocket |
 
 ---
 
-## 🛡️ Admin Panel
+## Features
 
-Full admin workspace at `/admin` with role-based access control.
+### Messaging
 
-### Roles & Security
+- Direct messages, groups, channels, saved messages
+- Reactions, reply, edit, delete, forward, read receipts
+- DM privacy: exact username lookup, DM policy, conversation requests, block list
+- Files, voice, polls, stickers, scheduled messages, archived chats
 
-- **Roles:** Owner → Admin → Moderator → Support → User
-- **Bootstrap:** `ADMIN_USERNAMES` env variable
-- **Auth:** Password re-confirmation for all sensitive actions
-- **Audit:** Full audit trail with IP, user-agent, success/failure
+### Security
 
-### Dashboard & Monitoring
+- E2EE for direct messages (X3DH + AES-256-GCM)
+- TOTP 2FA and backup codes
+- Encrypted storage at rest
+- Rate limits and security event logging
 
-- Real-time metrics: users, chats, messages, files, sessions, storage
-- System health: CPU, memory, disk, runtime, services status
-- Security summary: failed logins, banned attempts, top IPs, admin sessions
+### Calls
 
-### User Management
+- WebRTC voice/video and screen share
+- Call history tab, group calls (mesh or optional SFU)
+- TURN/STUN via `.env`
 
-- Search, filter, sort, paginate users
-- Role changes, ban/unban, password reset, deletion
-- User detail: stats, chats, files, sessions, IP/device info
-- **Enhanced activity view:** recent messages, devices, login history
-- Per-user upload policy (enable/disable, custom max size)
-- **Bulk actions:** multi-select with batch ban/unban/delete
+### Admin (`/admin`)
 
-### Chat Management
+- Role-based access (owner → user)
+- Users, chats, files, audit, analytics, exports
+- Broadcasts, moderation queue, server settings, DB backup UI
+- Optional admin 2FA step-up
 
-- Search, filter by type/visibility, sort, paginate
-- Group/channel detail: visibility, username, invite links, members
-- Member management: add/remove, role changes
-- **Bulk actions:** multi-select with batch delete
+### Integrations
 
-### 📢 Broadcast
-
-- Send messages to all users, online users, or by role
-- Delivered to Saved Messages
-- Delivery count confirmation
-
-### 📦 Data Export
-
-- Export users, chats, files, audit logs
-- CSV and JSON format
-- One-click download
-
-### Maintenance
-
-- Required channels management
-- Database backup: create, download, list, delete
-- File management with owner, type, size controls
+- Webhooks, bot API, remote channel mirroring
+- Branding API, EN/FA + RTL
 
 ---
 
-## 🛠️ Tech Stack
+## Tech stack
 
-<p align="center">
-  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white" />
-  <img src="https://img.shields.io/badge/Vite-7-646CFF?style=flat-square&logo=vite&logoColor=white" />
-  <img src="https://img.shields.io/badge/Tailwind-3-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" />
-  <img src="https://img.shields.io/badge/Express-4-000000?style=flat-square&logo=express&logoColor=white" />
-  <img src="https://img.shields.io/badge/Socket.IO-4-010101?style=flat-square&logo=socket.io&logoColor=white" />
-  <img src="https://img.shields.io/badge/WebRTC-Enabled-333333?style=flat-square&logo=webrtc&logoColor=white" />
-  <img src="https://img.shields.io/badge/SQLite-sql.js-003B57?style=flat-square&logo=sqlite&logoColor=white" />
-  <img src="https://img.shields.io/badge/PWA-Ready-5A0FC8?style=flat-square&logo=pwa&logoColor=white" />
-</p>
+React 19 · Vite 7 · Tailwind 3 · Express · Socket.IO · sql.js (SQLite) · WebRTC · PWA
 
 ---
 
-## 📋 Requirements
+## Project structure (this repository)
 
-| Requirement | Minimum |
-|-------------|---------|
-| Node.js | `24+` |
-| npm | `11+` |
-| Protocol | HTTPS in production |
-| Domain | Public domain for PWA/Push/WebRTC |
-| TURN | Recommended for reliable calls |
-
----
-
-## 🚀 Deployment
-
-### Production Deploy
-
-```bash
-git pull origin master
-npm install
-npm run build
-npm start
 ```
-
-### With Process Manager
-
-```bash
-# PM2
-pm2 restart all
-
-# systemd
-sudo systemctl restart birdx
-```
-
-### Server Update (Quick)
-
-```bash
-cd /opt/birdx
-git fetch origin && git reset --hard origin/master
-npm --prefix server install
-npm --prefix client install
-npm --prefix client run build
-systemctl restart birdx
+BirdX.Chat/
+├── client/       React web app (PWA)
+├── server/       API, Socket.IO, migrations
+├── deploy/nginx/ Example reverse-proxy configs
+├── docs/         Documentation assets (e.g. README screenshots)
+├── data/         Runtime DB & uploads (local, not in git)
+└── scripts/      Install helpers
 ```
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-Create `.env` from `.env.example`:
+Copy [`.env.example`](./.env.example) → `.env`. See comments for DM policy, uploads, retention, TURN, VAPID, and `STORAGE_ENCRYPTION_KEY` (do not change after first run).
 
-```env
-# Server
-SERVER_PORT=5174
-CLIENT_PORT=443
-APP_ENV=production
-
-# Auth
-ACCOUNT_CREATION=true
-ADMIN_USERNAMES=admin
-
-# Direct messages (privacy)
-DM_DISCOVERY_MODE=exact_username
-DM_MAX_POLICY=everyone
-DM_REQUESTS_PER_DAY=20
-DM_REJECT_COOLDOWN_DAYS=7
-
-# Upload
-FILE_UPLOAD=true
-FILE_UPLOAD_MAX_SIZE=26214400
-FILE_UPLOAD_MAX_FILES=10
-
-# Messages
-MESSAGE_MAX_CHARS=4000
-MESSAGE_FILE_RETENTION=7
-
-# Voice Calls
-APP_TURN_URLS=turn:turn.example.com:3478?transport=udp
-APP_TURN_USERNAME=birdx
-APP_TURN_CREDENTIAL=your_turn_password
-
-# Security
-STORAGE_ENCRYPTION_KEY=
-VAPID_PUBLIC_KEY=
-VAPID_PRIVATE_KEY=
-VAPID_SUBJECT=mailto:admin@example.com
-```
-
-> ⚠️ Do not change `STORAGE_ENCRYPTION_KEY` after first run.
+Database tools: `npm --prefix server run db:help`
 
 ---
 
-## 👤 Admin Setup
+## Deployment
 
-```env
-ADMIN_USERNAMES=admin,admin2
-```
+1. `npm install && npm run build`
+2. Configure Nginx — [`deploy/README.md`](./deploy/README.md), [`deploy/nginx/`](./deploy/nginx/)
+3. `npm start` or systemd
+4. Point your domain with TLS; configure TURN for calls
 
-Restart the server, then open:
-
-```
-https://your-domain.com/admin
-```
+Self-hosters do **not** need the BirdX marketing site or store installers unless they build their own landing page and native shells (custom project).
 
 ---
 
-## 📞 TURN Configuration
+## Security
 
-```env
-APP_TURN_URLS=turn:turn.example.com:3478?transport=udp turn:turn.example.com:3478?transport=tcp
-APP_TURN_USERNAME=birdx
-APP_TURN_CREDENTIAL=your_turn_password
-```
-
-Required firewall ports: `3478 TCP/UDP`, `49152-65535 UDP`
+- Keep `.env` and backups private
+- HTTPS only in production
+- Enable 2FA for admins
+- Plan TURN for NAT traversal
 
 ---
 
-## 💾 Database & Backups
+## Support
 
-```bash
-npm --prefix server run db:help      # Show all commands
-npm --prefix server run db:backup    # Create backup
-npm --prefix server run db:restore   # Restore backup
-npm --prefix server run db:migrate   # Run migrations
-npm --prefix server run db:vacuum    # Optimize database
-```
-
-Backups are also available from the Admin Panel Maintenance tab.
+| | |
+|---|---|
+| Bugs & features | [GitHub Issues](https://github.com/iPmartNetwork/BirdX.Chat/issues) |
+| BirdX announcements | [@birdx_app](https://t.me/birdx_app) |
+| Custom site / mobile apps | Telegram or Issues (commercial / dedicated setup) |
 
 ---
 
-## 📁 Project Structure
+## Credits
 
-```
-├── client/          React + Vite + Tailwind (PWA → web.birdx.chat)
-├── site/            Astro marketing site (→ birdx.chat)
-├── server/          Express + Socket.IO + sql.js
-├── deploy/nginx/    Example reverse-proxy configs
-├── data/            Runtime (birdx.db, uploads, backups)
-└── scripts/         Install and ops scripts
-```
+Developed by **[iPmart Network](https://github.com/iPmartNetwork)**.
 
-Build everything:
-
-```bash
-npm run build:all   # client + site
-npm start           # API + web app
-```
+Thanks to **Mr. Pouya Khalili** ([@bllackbull](https://github.com/bllackbull)) for the original open-source vision. BirdX Chat is an independent codebase.
 
 ---
 
-## 🗺️ Roadmap
-
-- [ ] Admin 2FA authentication
-- [ ] Advanced analytics dashboards
-- [ ] Group calls with SFU
-- [ ] E2EE for group chats
-- [ ] More languages and full localization
-- [ ] Webhook integrations and bot API
-- [ ] Message scheduling
-- [ ] Custom themes and branding
-
----
-
-## 🔒 Security
-
-- Keep `.env` private and out of Git
-- Use HTTPS in production
-- Configure TURN for reliable calls
-- Protect database backups
-- Restrict admin access to trusted users
-- Rotate credentials if exposed
-
----
-
-## 🙏 Credits
-
-**BirdX Chat** is developed by **[iPmart Network](https://github.com/iPmartNetwork)**.
-
-We are grateful to **Mr. Pouya Khalili** ([@bllackbull](https://github.com/bllackbull)) for the original idea and the valuable open-source foundation that made this project possible. BirdX Chat is an independent product built on that vision.
-
----
-
-## 📄 License
+## License
 
 [MIT](./LICENSE)
-
----
-
-<p align="center">
-  <sub>Made with ❤️ by <a href="https://github.com/iPmartNetwork">iPmart Network</a></sub>
-</p>

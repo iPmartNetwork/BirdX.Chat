@@ -59,6 +59,16 @@ export const updateDmPolicy = ({ username, dmPolicy }) =>
     body: JSON.stringify({ username, dmPolicy }),
   });
 
+export const updateContactRequestPolicy = ({ username, contactRequestPolicy }) =>
+  apiFetch(`${API_BASE}/api/profile/contact-request-policy`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, contactRequestPolicy }),
+  });
+
+export const fetchBlockedUsers = ({ username }) =>
+  apiFetch(`${API_BASE}/api/users/blocked?username=${encodeURIComponent(username)}`);
+
 export const blockUser = ({ username, target }) =>
   apiFetch(`${API_BASE}/api/users/block`, {
     method: "POST",
@@ -103,6 +113,67 @@ export const sendPushTest = ({ username }) =>
   });
 
 export const fetchAdminMe = () => apiFetch(`${API_BASE}/api/admin/me`);
+
+export const verifyAdmin2fa = ({ token }) =>
+  apiFetch(`${API_BASE}/api/admin/verify-2fa`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+
+export const fetchPublicBranding = () => apiFetch(`${API_BASE}/api/branding`);
+
+export const updateProfileUiPrefs = async ({ username, uiAccentColor }) => {
+  const res = await apiFetch(`${API_BASE}/api/profile/ui-prefs`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, uiAccentColor }),
+  });
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = {};
+  }
+  if (!res.ok) {
+    throw new Error(data?.error || `Request failed (${res.status})`);
+  }
+  return data;
+};
+
+export const fetchGroupE2eeStatus = (chatId) =>
+  apiFetch(`${API_BASE}/api/e2ee/group/${encodeURIComponent(chatId)}/status`);
+
+export const enableGroupE2ee = (chatId) =>
+  apiFetch(`${API_BASE}/api/e2ee/group/${encodeURIComponent(chatId)}/enable`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+
+export const disableGroupE2ee = (chatId) =>
+  apiFetch(`${API_BASE}/api/e2ee/group/${encodeURIComponent(chatId)}/disable`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+
+export const uploadGroupE2eeKey = ({ chatId, wrappedKey, keyGeneration = 1, userId = null }) =>
+  apiFetch(`${API_BASE}/api/e2ee/group/${encodeURIComponent(chatId)}/keys`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      wrappedKey,
+      keyGeneration,
+      ...(userId ? { userId: Number(userId) } : {}),
+    }),
+  });
+
+export const fetchMyGroupE2eeKey = (chatId) =>
+  apiFetch(`${API_BASE}/api/e2ee/group/${encodeURIComponent(chatId)}/keys/me`);
+
+export const fetchGroupE2eeKeys = (chatId) =>
+  apiFetch(`${API_BASE}/api/e2ee/group/${encodeURIComponent(chatId)}/keys`);
 
 export const fetchAdminOverview = () => apiFetch(`${API_BASE}/api/admin/overview`);
 
@@ -246,6 +317,11 @@ export const logout = () =>
   apiFetch(`${API_BASE}/api/logout`, {
     method: "POST",
   });
+
+export const fetchUserProfile = (username) =>
+  apiFetch(
+    `${API_BASE}/api/profile?username=${encodeURIComponent(username)}`,
+  );
 
 export const updateProfile = (payload) =>
   apiFetch(`${API_BASE}/api/profile`, {
@@ -404,6 +480,63 @@ export const fetchChatCallLogs = ({ chatId, username, limit = 30 }) =>
     )}&limit=${encodeURIComponent(limit)}`,
   );
 
+export const fetchUserCallHistory = ({ username, limit = 50 }) =>
+  apiFetch(
+    `${API_BASE}/api/calls?username=${encodeURIComponent(username)}&limit=${encodeURIComponent(limit)}`,
+  );
+
+export const fetchContacts = ({ username }) =>
+  apiFetch(`${API_BASE}/api/contacts?username=${encodeURIComponent(username)}`);
+
+export const fetchIncomingContactRequests = ({ username }) =>
+  apiFetch(
+    `${API_BASE}/api/contacts/requests/incoming?username=${encodeURIComponent(username)}`,
+  );
+
+export const fetchContactPeerStatus = ({ username, peerUsername }) =>
+  apiFetch(
+    `${API_BASE}/api/contacts/peer-status?username=${encodeURIComponent(username)}&peerUsername=${encodeURIComponent(peerUsername)}`,
+  );
+
+export const sendContactRequest = ({ username, toUsername }) =>
+  apiFetch(`${API_BASE}/api/contacts/requests`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, toUsername }),
+  });
+
+export const acceptContactRequest = ({ username, requestId }) =>
+  apiFetch(`${API_BASE}/api/contacts/requests/${encodeURIComponent(requestId)}/accept`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+
+export const rejectContactRequest = ({ username, requestId }) =>
+  apiFetch(`${API_BASE}/api/contacts/requests/${encodeURIComponent(requestId)}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+
+export const cancelContactRequest = ({ username, requestId }) =>
+  apiFetch(`${API_BASE}/api/contacts/requests/${encodeURIComponent(requestId)}/cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+
+export const fetchOutgoingContactRequests = ({ username }) =>
+  apiFetch(
+    `${API_BASE}/api/contacts/requests/outgoing?username=${encodeURIComponent(username)}`,
+  );
+
+export const removeContact = ({ username, contactUsername }) =>
+  apiFetch(
+    `${API_BASE}/api/contacts/${encodeURIComponent(contactUsername)}?username=${encodeURIComponent(username)}`,
+    { method: "DELETE" },
+  );
+
 export const uploadGroupAvatar = (chatId, payload) =>
   apiFetch(`${API_BASE}/api/chats/group/${encodeURIComponent(chatId)}/avatar`, {
     method: "POST",
@@ -441,6 +574,59 @@ export const setChatMute = (chatId, payload) =>
     body: JSON.stringify(payload),
   });
 
+export const updateChatSettings = (chatId, payload) =>
+  apiFetch(`${API_BASE}/api/chats/${encodeURIComponent(chatId)}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+export const fetchArchivedChats = (username) =>
+  apiFetch(`${API_BASE}/api/chats/archived?username=${encodeURIComponent(username)}`);
+
+export const fetchSessions = (username) =>
+  apiFetch(`${API_BASE}/api/sessions?username=${encodeURIComponent(username)}`);
+
+export const revokeOtherSessions = (username) =>
+  apiFetch(`${API_BASE}/api/sessions/others`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+
+export const revokeSession = ({ username, sessionId }) =>
+  apiFetch(`${API_BASE}/api/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+
+export const updateNotificationPrefs = (payload) =>
+  apiFetch(`${API_BASE}/api/notification-prefs`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+export const scheduleChatMessage = (chatId, payload) =>
+  apiFetch(`${API_BASE}/api/chats/${encodeURIComponent(chatId)}/schedule`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+export const fetchScheduledMessages = (username) =>
+  apiFetch(
+    `${API_BASE}/api/scheduled-messages?username=${encodeURIComponent(username)}`,
+  );
+
+export const cancelScheduledMessage = ({ username, messageId }) =>
+  apiFetch(`${API_BASE}/api/scheduled-messages/${encodeURIComponent(messageId)}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+
 export const hideChats = ({ username, chatIds }) =>
   apiFetch(`${API_BASE}/api/chats/hide`, {
     method: "POST",
@@ -464,6 +650,20 @@ export const listMessagesByQuery = (params = {}, options = {}) => {
 
 export const sendMessage = (payload) =>
   apiFetch(`${API_BASE}/api/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+export const sendPollMessage = (payload) =>
+  apiFetch(`${API_BASE}/api/messages/poll`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+export const votePollMessage = (payload) =>
+  apiFetch(`${API_BASE}/api/messages/poll/vote`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -558,6 +758,37 @@ export const fetchAdminUserActivity = (userId) =>
 export const fetchAdminAnalytics = (params = {}) =>
   apiFetch(`${API_BASE}/api/admin/analytics${buildAdminQuery(params)}`);
 
+export const fetchAdminCalls = (params = {}) =>
+  apiFetch(`${API_BASE}/api/admin/calls${buildAdminQuery(params)}`);
+
+export const fetchAdminModerationReports = (params = {}) =>
+  apiFetch(`${API_BASE}/api/admin/moderation/reports${buildAdminQuery(params)}`);
+
+export const updateAdminModerationReport = (reportId, payload = {}) =>
+  apiFetch(
+    `${API_BASE}/api/admin/moderation/reports/${encodeURIComponent(reportId)}`,
+    adminJsonOptions("PATCH", payload),
+  );
+
+export const adminModerationReportAction = (reportId, payload = {}) =>
+  apiFetch(
+    `${API_BASE}/api/admin/moderation/reports/${encodeURIComponent(reportId)}/action`,
+    adminJsonOptions("POST", payload),
+  );
+
+export const fetchAdminServerSettings = () =>
+  apiFetch(`${API_BASE}/api/admin/server-settings`);
+
+export const updateAdminServerSettings = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/admin/server-settings`, adminJsonOptions("PATCH", payload));
+
+export const reportMessage = (payload = {}) =>
+  apiFetch(`${API_BASE}/api/messages/report`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {}),
+  });
+
 // --- Admin: Scheduled Messages ---
 export const fetchAdminScheduledMessages = () =>
   apiFetch(`${API_BASE}/api/admin/scheduled-messages`);
@@ -614,6 +845,9 @@ export const fetch2FAStatus = () =>
 
 export const setup2FA = () =>
   apiFetch(`${API_BASE}/api/2fa/setup`, adminJsonOptions("POST"));
+
+export const cancel2FASetup = () =>
+  apiFetch(`${API_BASE}/api/2fa/cancel-setup`, adminJsonOptions("POST"));
 
 export const verifySetup2FA = (payload = {}) =>
   apiFetch(`${API_BASE}/api/2fa/verify-setup`, adminJsonOptions("POST", payload));

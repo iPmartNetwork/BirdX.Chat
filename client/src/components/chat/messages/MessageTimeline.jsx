@@ -171,7 +171,7 @@ export function MessageTimeline({
     return (
       <div
         ref={setScrollRef}
-        className="chat-scroll h-full space-y-3 overflow-y-auto overflow-x-hidden px-6 py-6"
+        className="birdx-chat-scroll-bg chat-scroll h-full space-y-3 overflow-y-auto overflow-x-hidden px-6 py-6"
         onScroll={handleTimelineScroll}
         style={chatScrollStyle}
       >
@@ -203,7 +203,7 @@ export function MessageTimeline({
         onScroll={handleTimelineScroll}
         onTouchStartCapture={handleScrollIntent}
         onWheelCapture={handleScrollIntent}
-        className="chat-scroll h-full overflow-y-auto overflow-x-hidden px-0 pb-3 pt-1 md:px-2"
+        className="birdx-chat-scroll-bg chat-scroll h-full overflow-y-auto overflow-x-hidden px-0 pb-3 pt-1 md:px-2"
         style={chatScrollStyle}
       >
         <div style={timelineContentStyle}>
@@ -250,11 +250,11 @@ export function MessageTimeline({
   return (
     <div
       ref={setScrollRef}
-      className="chat-scroll flex h-full items-center justify-center overflow-y-auto overflow-x-hidden px-6 py-6"
+      className="birdx-chat-scroll-bg chat-scroll flex h-full items-center justify-center overflow-y-auto overflow-x-hidden px-6 py-6"
       onScroll={handleTimelineScroll}
       style={chatScrollStyle}
     >
-      <div className="rounded-full border border-emerald-200 bg-white/80 px-4 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-slate-950 dark:text-emerald-200">
+      <div className="birdx-empty-chat-pill rounded-full px-5 py-2.5 text-sm font-semibold">
         Say something to start
       </div>
     </div>

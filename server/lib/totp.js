@@ -8,13 +8,26 @@ import crypto from "node:crypto";
 
 const BASE32_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
-export function generateSecret(length = 20) {
-  const bytes = crypto.randomBytes(length);
-  let secret = "";
-  for (let i = 0; i < bytes.length; i++) {
-    secret += BASE32_CHARS[bytes[i] % 32];
+export function encodeBase32(bytes) {
+  let bits = 0;
+  let value = 0;
+  let output = "";
+  for (const byte of bytes) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      output += BASE32_CHARS[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
   }
-  return secret;
+  if (bits > 0) {
+    output += BASE32_CHARS[(value << (5 - bits)) & 31];
+  }
+  return output;
+}
+
+export function generateSecret(byteLength = 20) {
+  return encodeBase32(crypto.randomBytes(byteLength));
 }
 
 export function base32Decode(encoded) {
@@ -53,8 +66,15 @@ export function generateTOTP(secret, timeStep = 30) {
   return generateHOTP(secret, counter);
 }
 
-export function verifyTOTP(secret, token, window = 1, timeStep = 30) {
-  const normalizedToken = String(token || "").trim();
+export function normalizeTotpToken(raw) {
+  const digits = String(raw ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.length > 6) return digits.slice(-6);
+  return digits.padStart(6, "0");
+}
+
+export function verifyTOTP(secret, token, window = 2, timeStep = 30) {
+  const normalizedToken = normalizeTotpToken(token);
   if (normalizedToken.length !== 6) return false;
 
   const counter = Math.floor(Date.now() / 1000 / timeStep);

@@ -17,8 +17,10 @@ import AppContextMenu from "../components/context-menu/AppContextMenu.jsx";
 import { useAppContextMenu } from "../components/context-menu/useAppContextMenu.js";
 import ChatProfileModal from "../components/modals/ChatProfileModal.jsx";
 import NewGroupModal from "../components/modals/NewGroupModal.jsx";
+import ScheduleMessageModal from "../components/modals/ScheduleMessageModal.jsx";
 import { CHAT_PAGE_CONFIG } from "../settings/chatPageConfig.js";
 import { getAvatarInitials } from "../utils/avatarInitials.js";
+import { mapProfileFromApi, normalizeProfileUser } from "../utils/profileUser.js";
 import { NICKNAME_MAX, USERNAME_MAX } from "../utils/nameLimits.js";
 import { resolveReplyPreview, summarizeFiles, truncateText } from "../utils/messagePreview.js";
 import {
@@ -47,6 +49,20 @@ import { usePerfTelemetry } from "../hooks/chat/usePerfTelemetry.js";
 import { useResumeRefresh } from "../hooks/chat/useResumeRefresh.js";
 import { useAppReleaseInfo } from "../hooks/useAppReleaseInfo.js";
 import { useE2ee } from "../hooks/chat/useE2ee.js";
+import { useGroupE2ee } from "../hooks/useGroupE2ee.js";
+import { useCallContacts } from "../hooks/useCallContacts.js";
+import { useContacts } from "../hooks/useContacts.js";
+import GroupCallOverlay from "../components/calls/GroupCallOverlay.jsx";
+import { createMeshCallManager } from "../utils/calls/meshCallManager.js";
+import PollModal from "../components/modals/PollModal.jsx";
+import { buildStickerBody } from "../utils/stickers.js";
+import { createSfuCallManager } from "../utils/calls/sfuCallManager.js";
+import {
+  decryptGroupMessage,
+  encryptGroupMessage,
+  getCachedGroupKey,
+  isGroupE2eeMessage,
+} from "../utils/e2ee/group.js";
 import {
   Bookmark,
   Camera,
@@ -89,7 +105,7 @@ import {
   updateMessagesIndex,
   writeMessagesIndex,
 } from "../utils/chatCache.js";
-import { getMessageFiles } from "../utils/messageContent.js";
+import { extractMessageBodyText, getMessageFiles } from "../utils/messageContent.js";
 import { isMessageAuthoredByUser } from "../utils/messageOwnership.js";
 import {
   createDmChat,
@@ -102,6 +118,7 @@ import {
   editMessage,
   fetchHealth,
   fetchChatCallLogs,
+  fetchUserCallHistory,
   fetchPresence,
   getRemoteChannelSettings,
   getChatPreview,
@@ -116,16 +133,25 @@ import {
   markMessagesRead,
   pingPresence,
   blockUser,
+  unblockUser,
+  fetchUserProfile,
   lookupUserExact,
   searchUsers,
   sendTypingIndicator,
   sendMessage,
+  sendPollMessage,
+  votePollMessage,
   toggleMessageReaction,
   removeGroupMember,
   updateGroupMemberRole,
   removeGroupAvatar,
   regenerateGroupInviteLink,
+  reportMessage,
   setChatMute,
+  updateChatSettings,
+  fetchArchivedChats,
+  scheduleChatMessage,
+  updateNotificationPrefs,
   updateChannelChat,
   getMessageReadCounts,
   updateGroupChat,
@@ -143,6 +169,7 @@ import {
   uploadAvatar,
 } from "../api/chatApi.js";
 import { APP_CONFIG } from "../settings/appConfig.js";
+import { resolveGroupCallLimits } from "../settings/callConfig.js";
 import {
   MOBILE_CLOSE_ANIMATION_MS,
   NEW_CHAT_SEARCH_DEBOUNCE_MS,
@@ -152,6 +179,7 @@ import {
   UPLOAD_PROGRESS_HIDE_DELAY_MS,
 } from "../utils/chatPageConstants.js";
 
+const loadReportMessageModal = () => import("../components/modals/ReportMessageModal.jsx");
 const loadDeleteChatsModal = () => import("../components/modals/DeleteChatsModal.jsx");
 const loadDeleteMessageScopeModal = () =>
   import("../components/modals/DeleteMessageScopeModal.jsx");
@@ -171,6 +199,7 @@ const loadNotificationsSettingsModal = () =>
 const loadWhatsNewModal = () => import("../components/modals/WhatsNewModal.jsx");
 
 const DeleteChatsModal = lazy(loadDeleteChatsModal);
+const ReportMessageModal = lazy(loadReportMessageModal);
 const DeleteMessageScopeModal = lazy(loadDeleteMessageScopeModal);
 const ForwardMessageModal = lazy(loadForwardMessageModal);
 const LeaveGroupModal = lazy(loadLeaveGroupModal);
@@ -408,23 +437,6 @@ const resolveCallIceServers = () => {
 
 const CALL_ICE_SERVERS = resolveCallIceServers();
 
-const CALL_STATUS_LABELS = {
-  preparing: "Preparing microphone...",
-  calling: "Calling...",
-  ringing: "Incoming voice call",
-  connecting: "Connecting...",
-  connected: "Connected",
-  reconnecting: "Reconnecting...",
-  ended: "Call ended",
-  error: "Call failed",
-};
-
-const VIDEO_CALL_STATUS_LABELS = {
-  ...CALL_STATUS_LABELS,
-  preparing: "Preparing camera...",
-  ringing: "Incoming video call",
-};
-
 const CALL_TYPES = new Set(["voice", "video"]);
 
 const normalizeCallType = (callType) => {
@@ -489,17 +501,30 @@ const resolveSocketOrigin = () => {
   const explicitUrl = import.meta.env.APP_SOCKET_URL || import.meta.env.CHAT_SOCKET_URL;
   if (explicitUrl) return explicitUrl;
   const { protocol, hostname, port, origin } = window.location;
+  // Vite dev (5173) proxies /api and /socket.io to the API server.
+  if (import.meta.env.DEV && port === "5173") {
+    return origin;
+  }
   if (port === "5173" && isLoopbackHost(hostname)) {
     return `${protocol}//${hostname}:5174`;
   }
   return origin;
 };
 
- 
+function formatI18nTemplate(template, vars = {}) {
+  return String(template || "").replace(/\{(\w+)\}/g, (_, key) =>
+    vars[key] !== undefined && vars[key] !== null ? String(vars[key]) : `{${key}}`,
+  );
+}
 
 export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme }) {
   /* eslint-disable react-hooks/exhaustive-deps */
   const { t } = useLanguage();
+  const tf = useCallback((key, vars = {}) => formatI18nTemplate(t(key), vars), [t]);
+  const tfRef = useRef(tf);
+  useEffect(() => {
+    tfRef.current = tf;
+  }, [tf]);
   const [profileError, setProfileError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [loadingChats, setLoadingChats] = useState(true);
@@ -510,10 +535,17 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [mobileTab, setMobileTab] = useState("chats");
+  const [callHistory, setCallHistory] = useState([]);
+  const [loadingCallHistory, setLoadingCallHistory] = useState(false);
+  const [peerContactStatus, setPeerContactStatus] = useState(null);
+  const [profileContactStatus, setProfileContactStatus] = useState(null);
+  const [contactActionBusy, setContactActionBusy] = useState(false);
+  const pendingCallFromHistoryRef = useRef(null);
   const [settingsPanel, setSettingsPanel] = useState(null);
   const [chatsSearchFocused, setChatsSearchFocused] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileModalMember, setProfileModalMember] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [profileInviteLink, setProfileInviteLink] = useState("");
   const [profileCallLogs, setProfileCallLogs] = useState([]);
   const [profileCallLogsLoading, setProfileCallLogsLoading] = useState(false);
@@ -539,6 +571,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const [editTarget, setEditTarget] = useState(null);
   const [messageDeleteScopeOpen, setMessageDeleteScopeOpen] = useState(false);
   const [pendingDeleteMessage, setPendingDeleteMessage] = useState(null);
+  const [reportMessageTarget, setReportMessageTarget] = useState(null);
   const [forwardMessageTarget, setForwardMessageTarget] = useState(null);
   const [forwardSavedChat, setForwardSavedChat] = useState(null);
   const [copyToastVisible, setCopyToastVisible] = useState(false);
@@ -624,6 +657,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const incomingCallRef = useRef(null);
   const joinedCallRoomsRef = useRef(new Set());
   const chatsRef = useRef([]);
+  const appInfoRef = useRef(null);
   const pendingOfferRef = useRef(null);
   const pendingAnswerRef = useRef(null);
   const pendingIceCandidatesRef = useRef([]);
@@ -633,6 +667,12 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const ringtoneActiveRef = useRef(false);
   const incomingCallNotificationRef = useRef(null);
   const callWakeLockRef = useRef(null);
+  const meshCallManagerRef = useRef(null);
+  const sfuCallManagerRef = useRef(null);
+  const meshRemoteAudiosRef = useRef(new Map());
+  const callParticipantNamesRef = useRef(new Map());
+  const [callParticipants, setCallParticipants] = useState([]);
+  const [callParticipantCount, setCallParticipantCount] = useState(0);
 
   function setSyncedCallState(value) {
     setCallState((prev) => {
@@ -749,10 +789,126 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     (Array.isArray(chatsRef.current) ? chatsRef.current : []).forEach((chat) => {
       const chatId = Number(chat?.id || 0);
       const chatType = String(chat?.type || "").toLowerCase();
-      if (!chatId || chatType !== "dm") return;
+      if (!chatId || chatType === "channel" || chatType === "saved") return;
       roomIds.add(`chat-${chatId}`);
     });
     roomIds.forEach((roomId) => joinCallRoom(roomId, socket));
+  }
+
+  function resolveGroupCallParticipantName(userId) {
+    const chatId = Number(callStateRef.current?.chatId || 0);
+    const chat = (Array.isArray(chatsRef.current) ? chatsRef.current : []).find(
+      (entry) => Number(entry?.id || 0) === chatId,
+    );
+    const roster = Array.isArray(chat?.members) ? chat.members : [];
+    const hit = roster.find((member) => Number(member?.id) === Number(userId || 0));
+    return hit?.nickname || hit?.username || (userId ? `User ${userId}` : "Participant");
+  }
+
+  function syncCallParticipants() {
+    const sfuManager = sfuCallManagerRef.current;
+    if (sfuManager) {
+      setCallParticipants(
+        sfuManager.listParticipants().map((entry) => ({
+          socketId: entry.socketId,
+          stream: entry.stream,
+          name:
+            callParticipantNamesRef.current.get(entry.socketId) ||
+            "Participant",
+        })),
+      );
+      return;
+    }
+    const manager = meshCallManagerRef.current;
+    if (!manager) {
+      setCallParticipants([]);
+      return;
+    }
+    setCallParticipants(
+      manager.listParticipants().map((entry) => ({
+        socketId: entry.socketId,
+        stream: entry.stream,
+        name:
+          callParticipantNamesRef.current.get(entry.socketId) ||
+          "Participant",
+      })),
+    );
+  }
+
+  function ensureMeshCallManager() {
+    if (meshCallManagerRef.current) return meshCallManagerRef.current;
+    meshCallManagerRef.current = createMeshCallManager({
+      iceServers: CALL_ICE_SERVERS,
+      getLocalStream: () => localStreamRef.current,
+      emit: (event, payload) => socketRef.current?.emit?.(event, payload),
+      onParticipantStream: (socketId, stream) => {
+        const audio = document.createElement("audio");
+        audio.autoplay = true;
+        audio.playsInline = true;
+        audio.srcObject = stream;
+        audio.play?.().catch(() => {});
+        meshRemoteAudiosRef.current.set(socketId, audio);
+        syncCallParticipants();
+        updateCallStatus("connected", {
+          startedAt: callStateRef.current?.startedAt || Date.now(),
+        });
+      },
+      onParticipantRemoved: () => syncCallParticipants(),
+    });
+    return meshCallManagerRef.current;
+  }
+
+  function ensureSfuCallManager() {
+    if (sfuCallManagerRef.current) return sfuCallManagerRef.current;
+    sfuCallManagerRef.current = createSfuCallManager({
+      socket: socketRef.current,
+      iceServers: CALL_ICE_SERVERS,
+      getLocalStream: () => localStreamRef.current,
+      onParticipantStream: (socketId, stream) => {
+        const audio = document.createElement("audio");
+        audio.autoplay = true;
+        audio.playsInline = true;
+        audio.srcObject = stream;
+        audio.play?.().catch(() => {});
+        meshRemoteAudiosRef.current.set(socketId, audio);
+        syncCallParticipants();
+        updateCallStatus("connected", {
+          startedAt: callStateRef.current?.startedAt || Date.now(),
+        });
+      },
+      onParticipantRemoved: () => syncCallParticipants(),
+      resolveParticipantName: (socketId) =>
+        callParticipantNamesRef.current.get(socketId) || "Participant",
+      onTransportFailure: ({ roomId: failedRoomId }) => {
+        const activeRoomId = callStateRef.current?.roomId;
+        if (!activeRoomId || failedRoomId !== activeRoomId) return;
+        if (sfuReconnectTimerRef.current) {
+          clearTimeout(sfuReconnectTimerRef.current);
+        }
+        sfuReconnectTimerRef.current = setTimeout(() => {
+          void reconnectSfuCall(activeRoomId);
+        }, 800);
+      },
+    });
+    return sfuCallManagerRef.current;
+  }
+
+  async function reconnectSfuCall(roomId) {
+    if (!roomId || !resolveGroupCallLimits(appInfoRef.current).sfuEnabled) return;
+    try {
+      updateCallStatus("reconnecting");
+      const manager = ensureSfuCallManager();
+      await manager.reconnect(roomId);
+      syncCallParticipants();
+      updateCallStatus("connected", {
+        startedAt: callStateRef.current?.startedAt || Date.now(),
+      });
+    } catch (error) {
+      console.warn("[sfu] reconnect failed:", error);
+      updateCallStatus("error", {
+        error: "Unable to reconnect the group call.",
+      });
+    }
   }
 
   function syncLocalAudioMute(nextMuted) {
@@ -789,18 +945,23 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     return constraints;
   }
 
-  function buildCallVideoConstraints(deviceId = selectedCallVideoInputIdRef.current) {
+  function buildCallVideoConstraints(
+    deviceId = selectedCallVideoInputIdRef.current,
+    options = {},
+  ) {
+    const isGroupCall = Boolean(options.isGroup || callStateRef.current?.isGroup);
+    const size = isGroupCall
+      ? { width: { ideal: 640, max: 960 }, height: { ideal: 360, max: 540 } }
+      : { width: { ideal: 1280 }, height: { ideal: 720 } };
     if (deviceId) {
       return {
         deviceId: { exact: deviceId },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
+        ...size,
       };
     }
     return {
       facingMode: { ideal: callVideoFacingModeRef.current },
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
+      ...size,
     };
   }
 
@@ -1362,6 +1523,22 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     }
     peerRef.current = null;
 
+    meshCallManagerRef.current?.closeAll?.();
+    meshCallManagerRef.current = null;
+    sfuCallManagerRef.current?.close?.();
+    sfuCallManagerRef.current = null;
+    meshRemoteAudiosRef.current.forEach((audio) => {
+      try {
+        audio.pause?.();
+        audio.srcObject = null;
+      } catch {
+        // ignore
+      }
+    });
+    meshRemoteAudiosRef.current.clear();
+    callParticipantNamesRef.current.clear();
+    setCallParticipants([]);
+
     if (remoteAudioRef.current) {
       try {
         remoteAudioRef.current.pause?.();
@@ -1438,9 +1615,21 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   }
 
   async function createAndSendOffer(roomId, options = {}) {
-    const peer = peerRef.current;
     const socket = socketRef.current;
-    if (!peer || !socket || !roomId) return;
+    if (!socket || !roomId) return;
+
+    if (callStateRef.current?.isGroup) {
+      const manager = ensureMeshCallManager();
+      const targetSocketId = options.targetSocketId;
+      if (targetSocketId) {
+        await manager.createOfferTo(targetSocketId, roomId);
+        updateCallStatus("connecting");
+      }
+      return;
+    }
+
+    const peer = peerRef.current;
+    if (!peer || !roomId) return;
     if (peer.signalingState !== "stable") return;
 
     const offer = await peer.createOffer(
@@ -1450,6 +1639,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     socket.emit("offer", {
       roomId,
       offer: peer.localDescription || offer,
+      ...(options.targetSocketId ? { targetSocketId: options.targetSocketId } : {}),
     });
     updateCallStatus("connecting");
   }
@@ -1482,13 +1672,24 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   }
 
   async function handleIncomingAnswer(answer) {
-    const peer = peerRef.current;
-    if (!answer) return;
-    if (!peer || peer.signalingState !== "have-local-offer") {
-      pendingAnswerRef.current = answer;
+    const normalized = normalizeRtcSignal(answer);
+    const sessionDescription = normalized.sdp;
+    if (!sessionDescription) return;
+
+    if (callStateRef.current?.isGroup) {
+      await ensureMeshCallManager().handleAnswer({
+        answer: sessionDescription,
+        fromSocketId: normalized.fromSocketId,
+      });
       return;
     }
-    await peer.setRemoteDescription(new RTCSessionDescription(answer));
+
+    const peer = peerRef.current;
+    if (!peer || peer.signalingState !== "have-local-offer") {
+      pendingAnswerRef.current = sessionDescription;
+      return;
+    }
+    await peer.setRemoteDescription(new RTCSessionDescription(sessionDescription));
     await flushPendingIceCandidates();
   }
 
@@ -1499,20 +1700,69 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     await handleIncomingAnswer(answer);
   }
 
-  async function handleIncomingOffer(offer) {
-    const peer = peerRef.current;
-    const roomId = callStateRef.current?.roomId || incomingCallRef.current?.roomId;
-    if (!offer) return;
-    if (!peer || !roomId) {
-      pendingOfferRef.current = offer;
-      return;
+  function normalizeRtcSignal(payload) {
+    if (!payload || typeof payload !== "object") {
+      return { sdp: payload, fromSocketId: null, isCandidate: false };
     }
-    if (peer.signalingState !== "stable") {
-      pendingOfferRef.current = offer;
+    if (payload.offer && typeof payload.offer === "object") {
+      return {
+        sdp: payload.offer,
+        fromSocketId: payload.fromSocketId || null,
+        isCandidate: false,
+      };
+    }
+    if (payload.answer && typeof payload.answer === "object") {
+      return {
+        sdp: payload.answer,
+        fromSocketId: payload.fromSocketId || null,
+        isCandidate: false,
+      };
+    }
+    if (payload.candidate) {
+      return {
+        sdp: payload.candidate,
+        fromSocketId: payload.fromSocketId || null,
+        isCandidate: true,
+      };
+    }
+    return { sdp: payload, fromSocketId: null, isCandidate: false };
+  }
+
+  async function handleIncomingOffer(offer) {
+    const normalized = normalizeRtcSignal(offer);
+    const sessionDescription = normalized.sdp;
+    const roomId = callStateRef.current?.roomId || incomingCallRef.current?.roomId;
+    if (!sessionDescription) return;
+
+    if (callStateRef.current?.isGroup) {
+      if (!roomId) return;
+      if (normalized.fromSocketId) {
+        callParticipantNamesRef.current.set(
+          normalized.fromSocketId,
+          resolveGroupCallParticipantName(offer?.userId),
+        );
+      }
+      await ensureMeshCallManager().handleOffer({
+        roomId,
+        offer: sessionDescription,
+        fromSocketId: normalized.fromSocketId,
+        mySocketId: socketRef.current?.id,
+      });
+      updateCallStatus("connecting", { startedAt: Date.now() });
       return;
     }
 
-    await peer.setRemoteDescription(new RTCSessionDescription(offer));
+    const peer = peerRef.current;
+    if (!peer || !roomId) {
+      pendingOfferRef.current = sessionDescription;
+      return;
+    }
+    if (peer.signalingState !== "stable") {
+      pendingOfferRef.current = sessionDescription;
+      return;
+    }
+
+    await peer.setRemoteDescription(new RTCSessionDescription(sessionDescription));
     await flushPendingIceCandidates();
     const answer = await peer.createAnswer();
     await peer.setLocalDescription(answer);
@@ -1531,19 +1781,63 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   }
 
   async function handleRemoteIceCandidate(candidate) {
-    if (!candidate) return;
-    const peer = peerRef.current;
-    if (!peer?.remoteDescription) {
-      pendingIceCandidatesRef.current.push(candidate);
+    const normalized = normalizeRtcSignal(candidate);
+    const iceCandidate = normalized.isCandidate ? normalized.sdp : candidate;
+    if (!iceCandidate) return;
+
+    if (callStateRef.current?.isGroup) {
+      await ensureMeshCallManager().handleIceCandidate({
+        candidate: iceCandidate,
+        fromSocketId: normalized.fromSocketId,
+      });
       return;
     }
-    await peer.addIceCandidate(new RTCIceCandidate(candidate));
+
+    const peer = peerRef.current;
+    if (!peer?.remoteDescription) {
+      pendingIceCandidatesRef.current.push(iceCandidate);
+      return;
+    }
+    await peer.addIceCandidate(new RTCIceCandidate(iceCandidate));
   }
 
   async function prepareCallPeer(roomId, callType = "voice") {
     const normalizedCallType = normalizeCallType(callType || callStateRef.current?.callType);
     const isVideoCall = normalizedCallType === "video";
     validateMicrophoneSupport(normalizedCallType);
+
+    if (callStateRef.current?.isGroup) {
+      ensureRemoteAudioElement();
+      const hasLiveAudio = localStreamRef.current
+        ?.getAudioTracks?.()
+        ?.some((track) => track.readyState === "live");
+      const hasLiveVideo = streamHasLiveVideo(localStreamRef.current);
+      if (!hasLiveAudio || (isVideoCall && !hasLiveVideo)) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: buildCallAudioConstraints(),
+          video: isVideoCall
+            ? buildCallVideoConstraints(undefined, { isGroup: true })
+            : false,
+        });
+        localStreamRef.current = stream;
+        setCallVideoStreamsReady({
+          local: isVideoCall && streamHasLiveVideo(stream),
+          remote: false,
+        });
+        setMicrophonePermission("granted");
+        syncLocalAudioMute(callMuted);
+        void refreshCallDevices();
+      }
+      if (resolveGroupCallLimits(appInfoRef.current).sfuEnabled) {
+        const sfuManager = ensureSfuCallManager();
+        await sfuManager.join(roomId);
+        syncCallParticipants();
+      } else {
+        ensureMeshCallManager();
+      }
+      return null;
+    }
+
     ensureRemoteAudioElement();
 
     const existingPeer = peerRef.current;
@@ -1672,6 +1966,24 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     return peer;
   }
 
+  function resolveGroupCallErrorMessage(payload) {
+    const code = String(payload?.code || "");
+    const limits = resolveGroupCallLimits(appInfoRef.current);
+    const format = tfRef.current || tf;
+    if (code === "group_too_small") {
+      return format("call.group.tooSmall", {
+        min: payload?.minGroupMembers ?? limits.minGroupMembers,
+        count: payload?.currentMembers ?? 0,
+      });
+    }
+    if (code === "room_full") {
+      return format("call.group.roomFull", {
+        max: payload?.maxParticipants ?? limits.maxParticipants,
+      });
+    }
+    return payload?.message || "Call could not be started.";
+  }
+
   async function startOutgoingCall(callType = "voice") {
     const normalizedCallType = normalizeCallType(callType);
     const chatId = Number(activeChatIdRef.current || activeChatId || 0);
@@ -1679,11 +1991,32 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
 
     const socket = socketRef.current;
     const roomId = `chat-${chatId}`;
-    const peerName = activeFallbackTitle || activeHeaderAvatar?.nickname || "Contact";
+    const isGroup =
+      String(activeChatTypeRef.current || "").toLowerCase() === "group";
+    const groupCallLimits = resolveGroupCallLimits(appInfo);
+    if (isGroup) {
+      const memberCount = Array.isArray(activeChat?.members)
+        ? activeChat.members.length
+        : activeMembers.length;
+      if (memberCount < groupCallLimits.minGroupMembers) {
+        updateCallStatus("error", {
+          error: tf("call.group.tooSmall", {
+            min: groupCallLimits.minGroupMembers,
+            count: memberCount,
+          }),
+        });
+        scheduleCallReset(3200);
+        return;
+      }
+    }
+    const peerName = isGroup
+      ? activeFallbackTitle || activeChat?.name || "Group call"
+      : activeFallbackTitle || activeHeaderAvatar?.nickname || "Contact";
     const nextState = {
       roomId,
       chatId,
       isCaller: true,
+      isGroup,
       callType: normalizedCallType,
       status: "preparing",
       peerName,
@@ -1720,6 +2053,75 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     }
   }
 
+  const loadCallHistory = useCallback(async () => {
+    if (!user?.username) return;
+    setLoadingCallHistory(true);
+    try {
+      const res = await fetchUserCallHistory({ username: user.username, limit: 60 });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setCallHistory(Array.isArray(data?.calls) ? data.calls : []);
+      }
+    } catch (error) {
+      console.warn("[calls] history load failed:", error);
+    } finally {
+      setLoadingCallHistory(false);
+    }
+  }, [user?.username]);
+
+  const queueCallFromHistory = useCallback((chatId, callType = "voice") => {
+    const normalizedChatId = Number(chatId || 0);
+    if (!normalizedChatId) return;
+    pendingCallFromHistoryRef.current = {
+      chatId: normalizedChatId,
+      callType: normalizeCallType(callType),
+    };
+    setActiveChatId(normalizedChatId);
+    setMobileTab("chat");
+  }, []);
+
+  const handleOpenCallHistory = useCallback((call) => {
+    const chatId = Number(call?.chatId || 0);
+    if (!chatId) return;
+    setActiveChatId(chatId);
+    setMobileTab("chat");
+  }, []);
+
+  const handleOpenCallContact = useCallback((contact) => {
+    const chatId = Number(contact?.chatId || 0);
+    if (!chatId) return;
+    setActiveChatId(chatId);
+    setMobileTab("chat");
+  }, []);
+
+  const handleStartVoiceCallFromHistory = useCallback(
+    (_chatId, call) => queueCallFromHistory(call?.chatId, "voice"),
+    [queueCallFromHistory],
+  );
+
+  const handleStartVideoCallFromHistory = useCallback(
+    (_chatId, call) => queueCallFromHistory(call?.chatId, "video"),
+    [queueCallFromHistory],
+  );
+
+  useEffect(() => {
+    if (mobileTab === "calls") {
+      void loadCallHistory();
+    }
+  }, [mobileTab, loadCallHistory]);
+
+  useEffect(() => {
+    const pending = pendingCallFromHistoryRef.current;
+    if (!pending) return;
+    if (Number(activeChatId || 0) !== pending.chatId) return;
+    if (callStateRef.current) return;
+    pendingCallFromHistoryRef.current = null;
+    const timer = window.setTimeout(() => {
+      void startOutgoingCall(pending.callType);
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [activeChatId]);
+
   async function acceptIncomingCall() {
     const payload = incomingCallRef.current;
     const roomId = payload?.roomId;
@@ -1727,13 +2129,22 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
 
     stopIncomingRingtone();
     setSyncedIncomingCall(null);
+    const incomingChatId =
+      Number(payload?.chatId || String(roomId).replace(/^chat-/, "")) || null;
+    const incomingChat = (Array.isArray(chatsRef.current) ? chatsRef.current : []).find(
+      (entry) => Number(entry?.id || 0) === incomingChatId,
+    );
+    const isGroup = String(incomingChat?.type || "").toLowerCase() === "group";
     setSyncedCallState({
       roomId,
-      chatId: Number(String(roomId).replace(/^chat-/, "")) || null,
+      chatId: incomingChatId,
       isCaller: false,
+      isGroup,
       callType: normalizeCallType(payload?.callType),
       status: "connecting",
-      peerName: payload?.callerName || "Caller",
+      peerName: isGroup
+        ? incomingChat?.name || "Group call"
+        : payload?.callerName || "Caller",
       error: "",
     });
     setCallMuted(false);
@@ -2045,6 +2456,9 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       const activeRoomId = callStateRef.current?.roomId;
       if (activeRoomId) {
         socket.emit("resume-call", { roomId: activeRoomId });
+        if (resolveGroupCallLimits(appInfoRef.current).sfuEnabled) {
+          void reconnectSfuCall(activeRoomId);
+        }
       }
     });
 
@@ -2103,6 +2517,20 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       if (!callStateRef.current?.isCaller) return;
       try {
         await prepareCallPeer(roomId, callStateRef.current?.callType);
+        if (callStateRef.current?.isGroup) {
+          const remoteSocketId = payload?.participantSocketId;
+          if (remoteSocketId) {
+            if (payload?.userId) {
+              callParticipantNamesRef.current.set(
+                remoteSocketId,
+                resolveGroupCallParticipantName(payload.userId),
+              );
+            }
+            await createAndSendOffer(roomId, { targetSocketId: remoteSocketId });
+          }
+          updateCallStatus("connecting", { startedAt: Date.now() });
+          return;
+        }
         await createAndSendOffer(roomId);
         updateCallStatus("connecting", { startedAt: Date.now() });
       } catch (error) {
@@ -2146,6 +2574,66 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       }
     });
 
+    socket.on("call-participant-joined", async (payload) => {
+      const roomId = payload?.roomId;
+      if (!roomId || callStateRef.current?.roomId !== roomId) return;
+      if (!callStateRef.current?.isGroup) return;
+      const remoteSocketId = payload?.socketId;
+      const mySocketId = socket.id;
+      if (!remoteSocketId || remoteSocketId === mySocketId) return;
+      if (payload?.userId) {
+        callParticipantNamesRef.current.set(
+          remoteSocketId,
+          resolveGroupCallParticipantName(payload.userId),
+        );
+      }
+      try {
+        await prepareCallPeer(roomId, callStateRef.current?.callType);
+        await createAndSendOffer(roomId, { targetSocketId: remoteSocketId });
+      } catch (error) {
+        console.warn("Group participant offer failed:", error);
+      }
+    });
+
+    socket.on("call-error", (payload) => {
+      const roomId = payload?.roomId;
+      const message = resolveGroupCallErrorMessage(payload);
+      if (roomId && callStateRef.current?.roomId === roomId) {
+        updateCallStatus("error", { error: message });
+        scheduleCallReset(3200);
+      }
+      if (incomingCallRef.current?.roomId === roomId) {
+        stopIncomingRingtone();
+        setSyncedIncomingCall(null);
+      }
+    });
+
+    socket.on("call-participant-count", (payload) => {
+      const roomId = payload?.roomId;
+      if (!roomId || callStateRef.current?.roomId !== roomId) return;
+      if (!callStateRef.current?.isGroup) return;
+      setCallParticipantCount(Number(payload?.count || 0));
+    });
+
+    socket.on("sfu-new-producer", async (payload) => {
+      const roomId = payload?.roomId;
+      if (!roomId || callStateRef.current?.roomId !== roomId) return;
+      if (!callStateRef.current?.isGroup) return;
+      try {
+        await sfuCallManagerRef.current?.handleNewProducer?.(payload);
+        syncCallParticipants();
+      } catch (error) {
+        console.warn("SFU consume failed:", error);
+      }
+    });
+
+    socket.on("sfu-peer-left", (payload) => {
+      const roomId = payload?.roomId;
+      if (!roomId || callStateRef.current?.roomId !== roomId) return;
+      sfuCallManagerRef.current?.handlePeerLeft?.(payload);
+      syncCallParticipants();
+    });
+
     return () => {
       socket.off("connect");
       socket.off("connect_error");
@@ -2156,6 +2644,11 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       socket.off("offer");
       socket.off("answer");
       socket.off("ice-candidate");
+      socket.off("call-participant-joined");
+      socket.off("call-error");
+      socket.off("call-participant-count");
+      socket.off("sfu-new-producer");
+      socket.off("sfu-peer-left");
       socket.disconnect();
       socketRef.current = null;
       resetCallState();
@@ -2276,6 +2769,9 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     openWhatsNew,
     dismissWhatsNew,
   } = useAppReleaseInfo();
+  useEffect(() => {
+    appInfoRef.current = appInfo;
+  }, [appInfo]);
   const { isAppActive } = useAppActivity();
   const { isMobileViewport } = useMobileViewport();
   const {
@@ -2325,6 +2821,38 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
 
     return () => { cancelled = true; e2eeDecryptingRef.current = false; };
   }, [messages, e2eeEnabled, getActivePeerUserId, decryptMessageBody, checkIsE2eeMessage]);
+
+  useEffect(() => {
+    if (!activeChatId) return;
+    const encrypted = messages.filter(
+      (msg) => isGroupE2eeMessage(msg?.body) && !msg._groupE2eeDecrypted,
+    );
+    if (!encrypted.length) return;
+    let cancelled = false;
+    (async () => {
+      const updates = await Promise.all(
+        encrypted.map(async (msg) => {
+          try {
+            const body = await decryptGroupMessage(activeChatId, msg.body);
+            return { id: msg.id, body };
+          } catch {
+            return { id: msg.id, body: "\u{1F512} Unable to decrypt" };
+          }
+        }),
+      );
+      if (cancelled) return;
+      setMessages((prev) =>
+        prev.map((msg) => {
+          const hit = updates.find((item) => item.id === msg.id);
+          if (!hit) return msg;
+          return { ...msg, body: hit.body, _groupE2eeDecrypted: true };
+        }),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, activeChatId]);
 
   const { isConnected } = useHealthCheck({
     fetchHealth,
@@ -2543,9 +3071,18 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     debounceMs: NEW_CHAT_SEARCH_DEBOUNCE_MS,
   });
   const [dmPolicy, setDmPolicy] = useState(user?.dmPolicy || "acquaintances");
+  const [contactRequestPolicy, setContactRequestPolicy] = useState(
+    user?.contactRequestPolicy || "everyone",
+  );
+  const [inCallByUsername, setInCallByUsername] = useState({});
   useEffect(() => {
     if (user?.dmPolicy) setDmPolicy(user.dmPolicy);
   }, [user?.dmPolicy]);
+  useEffect(() => {
+    if (user?.contactRequestPolicy) {
+      setContactRequestPolicy(user.contactRequestPolicy);
+    }
+  }, [user?.contactRequestPolicy]);
   const dmRequestsRefreshKey = chats.length;
   const {
     requests: dmRequests,
@@ -2558,6 +3095,15 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     enabled: Boolean(user?.username),
     refreshKey: dmRequestsRefreshKey,
   });
+  const [archivedChats, setArchivedChats] = useState([]);
+  const [loadingArchivedChats, setLoadingArchivedChats] = useState(false);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [pollModalOpen, setPollModalOpen] = useState(false);
+  const [pollBusy, setPollBusy] = useState(false);
+  const sfuReconnectTimerRef = useRef(null);
+  const [scheduleDraftBody, setScheduleDraftBody] = useState("");
+  const [scheduleBusy, setScheduleBusy] = useState(false);
+  const [dndBusy, setDndBusy] = useState(false);
   const {
     chatsSearchQuery,
     setChatsSearchQuery,
@@ -2642,6 +3188,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const sendingClientIdsRef = useRef(new Set());
   const usernameRef = useRef(String(user?.username || ""));
   const loadChatsRef = useRef(null);
+  const onContactsUpdatedRef = useRef(null);
   const scheduleMessageRefreshRef = useRef(null);
   const presenceStateRef = useRef(new Map());
   const typingStateRef = useRef({
@@ -2789,8 +3336,8 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       ? (activeChat?.name || "Channel")
       : (msg.nickname || msg.username || msg.replyTo?.nickname || msg.replyTo?.username || "");
     const replyColor = isActiveChannelChat
-      ? (activeChat?.group_color || "#10b981")
-      : (msg.color || "#10b981");
+      ? (activeChat?.group_color || "var(--birdx-accent)")
+      : (msg.color || "var(--birdx-accent)");
     const preview = resolveReplyPreview(msg);
     setReplyTarget({
       id: targetId,
@@ -2871,7 +3418,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
               type: "saved",
               name: "Saved messages",
               members: [],
-              group_color: "#10b981",
+              group_color: "var(--birdx-accent)",
               group_avatar_url: "",
               last_outgoing_time: null,
               last_time: null,
@@ -3280,6 +3827,39 @@ useEffect(() => {
     }
   }, [user]);
 
+  const loadArchivedChats = useCallback(async () => {
+    if (!user?.username) return;
+    setLoadingArchivedChats(true);
+    try {
+      const res = await fetchArchivedChats(user.username);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to load archived chats.");
+      }
+      const items = Array.isArray(data?.chats) ? data.chats : [];
+      setArchivedChats(
+        items.map((chat) => ({
+          ...chat,
+          _muted: Boolean(Number(chat?.muted || 0)),
+          _pinned: false,
+          _archived: true,
+        })),
+      );
+    } catch {
+      setArchivedChats([]);
+    } finally {
+      setLoadingArchivedChats(false);
+    }
+  }, [user?.username]);
+
+  useEffect(() => {
+    if (!user?.username) {
+      setArchivedChats([]);
+      return;
+    }
+    void loadArchivedChats();
+  }, [user?.username, loadArchivedChats, chats.length]);
+
   useEffect(() => {
     return () => {
       messagesCacheRef.current.clear();
@@ -3635,6 +4215,274 @@ useEffect(() => {
     <Bookmark size={18} className="text-white" />
   ) : null;
 
+  const {
+    contacts: savedContacts,
+    incomingRequests: contactRequests,
+    outgoingRequests: outgoingContactRequests,
+    loadingContacts,
+    loadingRequests: loadingContactRequests,
+    loadAll: loadContactsAll,
+    fetchPeerStatus,
+    sendRequest: sendContactRequestAction,
+    acceptRequest: acceptContactRequestAction,
+    rejectRequest: rejectContactRequestAction,
+    cancelRequest: cancelContactRequestAction,
+    removeContact: removeContactAction,
+  } = useContacts(user);
+  const callContacts = useCallContacts(savedContacts, chats, user, inCallByUsername);
+
+  useEffect(() => {
+    if (!navigator?.setAppBadge) return;
+    const unreadTotal = chats.reduce(
+      (sum, chat) => sum + (chat?._muted ? 0 : Number(chat?.unread_count || 0)),
+      0,
+    );
+    const badgeCount = unreadTotal + (Array.isArray(contactRequests) ? contactRequests.length : 0);
+    if (badgeCount > 0) {
+      navigator.setAppBadge(badgeCount).catch(() => null);
+    } else if (navigator.clearAppBadge) {
+      navigator.clearAppBadge().catch(() => null);
+    }
+  }, [chats, contactRequests]);
+
+  useEffect(() => {
+    void loadContactsAll();
+  }, [loadContactsAll]);
+
+  useEffect(() => {
+    if (mobileTab === "calls") {
+      void loadContactsAll();
+    }
+  }, [mobileTab, loadContactsAll]);
+
+  useEffect(() => {
+    const peerUsername = activeHeaderPeer?.username;
+    if (
+      !user?.username ||
+      activeChat?.type !== "dm" ||
+      !peerUsername ||
+      activeHeaderPeer?.isDeleted
+    ) {
+      setPeerContactStatus(null);
+      return undefined;
+    }
+    let cancelled = false;
+    void fetchPeerStatus(peerUsername)
+      .then((status) => {
+        if (!cancelled) setPeerContactStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setPeerContactStatus({ isContact: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeChat?.type,
+    activeHeaderPeer?.isDeleted,
+    activeHeaderPeer?.username,
+    fetchPeerStatus,
+    user?.username,
+  ]);
+
+  const handleSendContactRequest = useCallback(async () => {
+    const peerUsername = activeHeaderPeer?.username;
+    if (!peerUsername || contactActionBusy) return;
+    setContactActionBusy(true);
+    try {
+      const result = await sendContactRequestAction(peerUsername);
+      if (result) {
+        setPeerContactStatus({
+          isContact: Boolean(result.isContact),
+          incomingRequestId: result.incomingRequestId ?? null,
+          outgoingRequestId: result.outgoingRequestId ?? null,
+        });
+      }
+    } catch (error) {
+      console.warn("[contacts] send failed:", error);
+    } finally {
+      setContactActionBusy(false);
+    }
+  }, [activeHeaderPeer?.username, contactActionBusy, sendContactRequestAction]);
+
+  const handleAcceptContactRequest = useCallback(
+    async (requestId) => {
+      if (!requestId || contactActionBusy) return;
+      setContactActionBusy(true);
+      try {
+        const result = await acceptContactRequestAction(requestId);
+        if (result) {
+          setPeerContactStatus({
+            isContact: Boolean(result.isContact),
+            incomingRequestId: result.incomingRequestId ?? null,
+            outgoingRequestId: result.outgoingRequestId ?? null,
+          });
+        }
+      } catch (error) {
+        console.warn("[contacts] accept failed:", error);
+      } finally {
+        setContactActionBusy(false);
+      }
+    },
+    [acceptContactRequestAction, contactActionBusy],
+  );
+
+  const handleRejectContactRequest = useCallback(
+    async (requestId) => {
+      if (!requestId || contactActionBusy) return;
+      setContactActionBusy(true);
+      try {
+        const result = await rejectContactRequestAction(requestId);
+        if (result) {
+          setPeerContactStatus({
+            isContact: Boolean(result.isContact),
+            incomingRequestId: result.incomingRequestId ?? null,
+            outgoingRequestId: result.outgoingRequestId ?? null,
+          });
+        }
+      } catch (error) {
+        console.warn("[contacts] reject failed:", error);
+      } finally {
+        setContactActionBusy(false);
+      }
+    },
+    [contactActionBusy, rejectContactRequestAction],
+  );
+
+  const handleAcceptContactRequestFromList = useCallback(
+    async (request) => {
+      await handleAcceptContactRequest(Number(request?.id || 0));
+    },
+    [handleAcceptContactRequest],
+  );
+
+  const handleRejectContactRequestFromList = useCallback(
+    async (request) => {
+      await handleRejectContactRequest(Number(request?.id || 0));
+    },
+    [handleRejectContactRequest],
+  );
+
+  const handleCancelContactRequest = useCallback(
+    async (requestId) => {
+      if (!requestId || contactActionBusy) return;
+      setContactActionBusy(true);
+      try {
+        const result = await cancelContactRequestAction(requestId);
+        if (result) {
+          setPeerContactStatus({
+            isContact: Boolean(result.isContact),
+            incomingRequestId: result.incomingRequestId ?? null,
+            outgoingRequestId: result.outgoingRequestId ?? null,
+          });
+        }
+      } catch (error) {
+        console.warn("[contacts] cancel failed:", error);
+      } finally {
+        setContactActionBusy(false);
+      }
+    },
+    [cancelContactRequestAction, contactActionBusy],
+  );
+
+  const handleCancelContactRequestFromList = useCallback(
+    async (request) => {
+      await handleCancelContactRequest(Number(request?.id || 0));
+    },
+    [handleCancelContactRequest],
+  );
+
+  const handleRemoveContact = useCallback(
+    async (contactUsername) => {
+      if (!contactUsername || contactActionBusy) return;
+      setContactActionBusy(true);
+      try {
+        const result = await removeContactAction(contactUsername);
+        if (result) {
+          setPeerContactStatus({
+            isContact: Boolean(result.isContact),
+            incomingRequestId: result.incomingRequestId ?? null,
+            outgoingRequestId: result.outgoingRequestId ?? null,
+          });
+          setProfileContactStatus({
+            isContact: Boolean(result.isContact),
+            incomingRequestId: result.incomingRequestId ?? null,
+            outgoingRequestId: result.outgoingRequestId ?? null,
+            blockedByMe: Boolean(result.blockedByMe),
+            blockedMe: Boolean(result.blockedMe),
+          });
+        }
+      } catch (error) {
+        console.warn("[contacts] remove failed:", error);
+      } finally {
+        setContactActionBusy(false);
+      }
+    },
+    [contactActionBusy, removeContactAction],
+  );
+
+  const handleOpenContactRequest = useCallback((request) => {
+    const chatId = Number(request?.chatId || 0);
+    if (chatId) {
+      setActiveChatId(chatId);
+      setMobileTab("chat");
+      return;
+    }
+    const username = request?.from?.username;
+    if (username) {
+      const dmChat = chats.find(
+        (chat) =>
+          chat.type === "dm" &&
+          (chat.members || []).some(
+            (member) =>
+              String(member?.username || "").toLowerCase() ===
+              String(username).toLowerCase(),
+          ),
+      );
+      if (dmChat?.id) {
+        setActiveChatId(Number(dmChat.id));
+        setMobileTab("chat");
+      }
+    }
+  }, [chats]);
+
+  const handleOpenOutgoingContactRequest = useCallback((request) => {
+    const chatId = Number(request?.chatId || 0);
+    if (chatId) {
+      setActiveChatId(chatId);
+      setMobileTab("chat");
+      return;
+    }
+    const username = request?.to?.username;
+    if (username) {
+      const dmChat = chats.find(
+        (chat) =>
+          chat.type === "dm" &&
+          (chat.members || []).some(
+            (member) =>
+              String(member?.username || "").toLowerCase() ===
+              String(username).toLowerCase(),
+          ),
+      );
+      if (dmChat?.id) {
+        setActiveChatId(Number(dmChat.id));
+        setMobileTab("chat");
+      }
+    }
+  }, [chats]);
+
+  useEffect(() => {
+    onContactsUpdatedRef.current = () => {
+      void loadContactsAll();
+      const peerUsername = activeHeaderPeer?.username;
+      if (peerUsername) {
+        void fetchPeerStatus(peerUsername)
+          .then((status) => setPeerContactStatus(status))
+          .catch(() => {});
+      }
+    };
+  }, [activeHeaderPeer?.username, fetchPeerStatus, loadContactsAll]);
+
   useEffect(() => {
     if (canSendInActiveChat) return;
     stopTypingIndicator(activeChatIdRef.current);
@@ -3849,13 +4697,18 @@ useEffect(() => {
 
   const displayName = user.nickname || user.username;
   const displayInitials = getAvatarInitials(displayName);
-  const statusValue = user.status || "online";
+  const userStatusKey = String(user?.status || "online").toLowerCase();
   const statusDotClass =
-    statusValue === "invisible"
+    userStatusKey === "invisible"
       ? "bg-slate-400"
-      : statusValue === "online"
+      : userStatusKey === "online"
         ? "bg-emerald-400"
         : "";
+  const statusValue = useMemo(() => {
+    if (userStatusKey === "invisible") return t("chat.invisible");
+    if (userStatusKey === "online") return t("chat.online");
+    return t("chat.offline");
+  }, [userStatusKey, t]);
 
   const parsePresenceDate = (value) => {
     if (!value) return null;
@@ -3924,33 +4777,58 @@ useEffect(() => {
   const effectivePeerIdleThreshold = PRESENCE_IDLE_THRESHOLD_MS;
   const isIdle =
     lastSeenAt !== null && Date.now() - lastSeenAt > effectivePeerIdleThreshold;
-  const formatLastSeenLabel = (value) => {
-  const parsed = parsePresenceDate(value);
-  const time = parsed?.getTime?.() || 0;
-  if (!Number.isFinite(time) || time <= 0) return "offline";
+  const formatLastSeenLabel = useCallback(
+    (value) => {
+      const parsed = parsePresenceDate(value);
+      const time = parsed?.getTime?.() || 0;
+      if (!Number.isFinite(time) || time <= 0) return t("chat.offline");
 
-  const diffSeconds = Math.max(0, Math.floor((Date.now() - time) / 1000));
+      const diffSeconds = Math.max(0, Math.floor((Date.now() - time) / 1000));
 
-  if (diffSeconds < 60) return "last seen just now";
-  if (diffSeconds < 3600) {
-    return `last seen ${Math.floor(diffSeconds / 60)} min ago`;
-  }
-  if (diffSeconds < 86400) {
-    return `last seen ${Math.floor(diffSeconds / 3600)} hr ago`;
-  }
+      if (diffSeconds < 60) return t("chat.lastSeenJustNow");
+      if (diffSeconds < 3600) {
+        return tf("chat.lastSeenMinutes", { count: Math.floor(diffSeconds / 60) });
+      }
+      if (diffSeconds < 86400) {
+        return tf("chat.lastSeenHours", { count: Math.floor(diffSeconds / 3600) });
+      }
 
-  return `last seen ${Math.floor(diffSeconds / 86400)} day ago`;
-};
+      return tf("chat.lastSeenDays", { count: Math.floor(diffSeconds / 86400) });
+    },
+    [t, tf],
+  );
 
-const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
-  ? "offline"
-  : isIdle
-    ? formatLastSeenLabel(peerPresence.lastSeen)
-    : peerPresence.status === "invisible" || peerPresence.status === "offline"
-      ? formatLastSeenLabel(peerPresence.lastSeen)
-      : peerPresence.status === "online"
-        ? "online"
-        : formatLastSeenLabel(peerPresence.lastSeen);
+  const peerIsOnline = useMemo(() => {
+    if (!activeHeaderPeer || activeHeaderPeer?.isDeleted) return false;
+    if (isIdle) return false;
+    if (
+      peerPresence.status === "invisible" ||
+      peerPresence.status === "offline"
+    ) {
+      return false;
+    }
+    return peerPresence.status === "online";
+  }, [activeHeaderPeer, isIdle, peerPresence.status]);
+
+  const peerStatusLabel = useMemo(() => {
+    if (!activeHeaderPeer || activeHeaderPeer?.isDeleted) return t("chat.offline");
+    if (isIdle) return formatLastSeenLabel(peerPresence.lastSeen);
+    if (
+      peerPresence.status === "invisible" ||
+      peerPresence.status === "offline"
+    ) {
+      return formatLastSeenLabel(peerPresence.lastSeen);
+    }
+    if (peerPresence.status === "online") return t("chat.online");
+    return formatLastSeenLabel(peerPresence.lastSeen);
+  }, [
+    activeHeaderPeer,
+    formatLastSeenLabel,
+    isIdle,
+    peerPresence.lastSeen,
+    peerPresence.status,
+    t,
+  ]);
   const activeTypingUsers = useMemo(() => {
     const chatId = Number(activeChatId || 0);
     if (!chatId) return [];
@@ -4035,13 +4913,20 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     }
     return {
       type: "dm",
-      label: "typing",
+      label: t("chat.typing"),
     };
-  }, [activeTypingUsers, buildTypingDisplayName, isActiveChannelChat, isActiveGroupChat]);
-  const activeMembersLabel = Number(activeMembers.length || 0)
-    .toLocaleString("en-US");
+  }, [
+    activeTypingUsers,
+    buildTypingDisplayName,
+    isActiveChannelChat,
+    isActiveGroupChat,
+    t,
+  ]);
+  const activeMembersLabel = Number(activeMembers.length || 0).toLocaleString("en-US");
   const activeHeaderSubtitle = isActiveGroupChat || isActiveChannelChat
-    ? `${activeMembersLabel} member${activeMembers.length === 1 ? "" : "s"}`
+    ? activeMembers.length === 1
+      ? tf("chat.headerMember", { count: activeMembersLabel })
+      : tf("chat.headerMembers", { count: activeMembersLabel })
     : isActiveSavedChat
       ? ""
       : peerStatusLabel;
@@ -4138,6 +5023,194 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             : "none")
       : "none";
   const profileTargetUser = mentionProfileUser || profileModalMember || activeHeaderPeer || null;
+
+  useEffect(() => {
+    const profileUsername = profileTargetUser?.username;
+    if (!profileModalOpen || !profileUsername) {
+      setProfileContactStatus(null);
+      return undefined;
+    }
+    let cancelled = false;
+    void fetchPeerStatus(profileUsername)
+      .then((status) => {
+        if (!cancelled) setProfileContactStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setProfileContactStatus({ isContact: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchPeerStatus, profileModalOpen, profileTargetUser?.username]);
+
+  const handleProfileSendContactRequest = useCallback(async () => {
+    const peerUsername = profileTargetUser?.username;
+    if (!peerUsername || contactActionBusy) return;
+    setContactActionBusy(true);
+    try {
+      const result = await sendContactRequestAction(peerUsername);
+      if (result) {
+        setProfileContactStatus({
+          isContact: Boolean(result.isContact),
+          incomingRequestId: result.incomingRequestId ?? null,
+          outgoingRequestId: result.outgoingRequestId ?? null,
+          blockedByMe: Boolean(result.blockedByMe),
+          blockedMe: Boolean(result.blockedMe),
+        });
+      }
+    } catch (error) {
+      console.warn("[contacts] profile send failed:", error);
+    } finally {
+      setContactActionBusy(false);
+    }
+  }, [
+    contactActionBusy,
+    profileTargetUser?.username,
+    sendContactRequestAction,
+  ]);
+
+  const handleProfileAcceptContactRequest = useCallback(
+    async (requestId) => {
+      await handleAcceptContactRequest(requestId);
+      const peerUsername = profileTargetUser?.username;
+      if (peerUsername) {
+        const status = await fetchPeerStatus(peerUsername);
+        setProfileContactStatus(status);
+      }
+    },
+    [fetchPeerStatus, handleAcceptContactRequest, profileTargetUser?.username],
+  );
+
+  const handleProfileRejectContactRequest = useCallback(
+    async (requestId) => {
+      await handleRejectContactRequest(requestId);
+      const peerUsername = profileTargetUser?.username;
+      if (peerUsername) {
+        const status = await fetchPeerStatus(peerUsername);
+        setProfileContactStatus(status);
+      }
+    },
+    [fetchPeerStatus, handleRejectContactRequest, profileTargetUser?.username],
+  );
+
+  const handleProfileCancelContactRequest = useCallback(
+    async (requestId) => {
+      await handleCancelContactRequest(requestId);
+      const peerUsername = profileTargetUser?.username;
+      if (peerUsername) {
+        const status = await fetchPeerStatus(peerUsername);
+        setProfileContactStatus(status);
+      }
+    },
+    [fetchPeerStatus, handleCancelContactRequest, profileTargetUser?.username],
+  );
+
+  const handleProfileRemoveContact = useCallback(async () => {
+    const peerUsername = profileTargetUser?.username;
+    if (!peerUsername) return;
+    const label = profileTargetUser?.nickname || peerUsername;
+    const confirmed = window.confirm(
+      t("contacts.removeConfirm").replace("{name}", label),
+    );
+    if (!confirmed) return;
+    await handleRemoveContact(peerUsername);
+  }, [handleRemoveContact, profileTargetUser, t]);
+
+  const findDmChatForUsername = useCallback(
+    (username) => {
+      const target = String(username || "").trim().toLowerCase();
+      if (!target) return null;
+      return (
+        chats.find((chat) => {
+          if (chat?.type !== "dm") return false;
+          const members = Array.isArray(chat?.members) ? chat.members : [];
+          return members.some(
+            (member) => String(member?.username || "").toLowerCase() === target,
+          );
+        }) || null
+      );
+    },
+    [chats],
+  );
+
+  const profileModalChatResolved = useMemo(() => {
+    if (mentionProfileChat) return mentionProfileChat;
+    const targetUsername = String(
+      profileModalMember?.username || mentionProfileUser?.username || "",
+    )
+      .trim()
+      .toLowerCase();
+    if (targetUsername) {
+      const dmChat = chats.find((chat) => {
+        if (chat?.type !== "dm") return false;
+        const members = Array.isArray(chat?.members) ? chat.members : [];
+        return members.some(
+          (member) => String(member?.username || "").toLowerCase() === targetUsername,
+        );
+      });
+      if (dmChat) return dmChat;
+      if (profileModalMember || mentionProfileUser) {
+        return {
+          type: "dm",
+          members: [
+            profileModalMember || mentionProfileUser,
+            user,
+          ].filter(Boolean),
+        };
+      }
+    }
+    if (profileModalMember || mentionProfileUser) {
+      return { ...(activeChat || {}), type: "dm" };
+    }
+    return activeChat;
+  }, [
+    activeChat,
+    chats,
+    mentionProfileChat,
+    mentionProfileUser,
+    profileModalMember,
+    user,
+  ]);
+
+  const profileModalMuted = Boolean(profileModalChatResolved?._muted);
+
+  const groupE2eeTargetChat = useMemo(() => {
+    if (String(profileModalChatResolved?.type || "") === "group") {
+      return profileModalChatResolved;
+    }
+    if (isActiveGroupChat) return activeChat;
+    return null;
+  }, [activeChat, isActiveGroupChat, profileModalChatResolved]);
+
+  const groupE2eeMembers = useMemo(() => {
+    if (Array.isArray(groupE2eeTargetChat?.members) && groupE2eeTargetChat.members.length) {
+      return groupE2eeTargetChat.members;
+    }
+    return activeMembers;
+  }, [activeMembers, groupE2eeTargetChat]);
+
+  const groupE2ee = useGroupE2ee({
+    chatId: groupE2eeTargetChat?.id,
+    chat: groupE2eeTargetChat,
+    user,
+    members: groupE2eeMembers,
+    onChatUpdate: (patch) => {
+      const chatId = Number(groupE2eeTargetChat?.id || 0);
+      if (!chatId) return;
+      setChats((prev) =>
+        prev.map((entry) =>
+          Number(entry?.id || 0) === chatId ? { ...entry, ...patch } : entry,
+        ),
+      );
+    },
+  });
+
+  const groupE2eeActive = Boolean(
+    isActiveGroupChat &&
+      (groupE2ee.enabled || activeChat?.group_e2ee_enabled) &&
+      getCachedGroupKey(activeChatId),
+  );
+
   const canJoinMentionChat = Boolean(
     mentionProfileChat && mentionProfileActionState === "join",
   );
@@ -4896,6 +5969,17 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     onSessionRevoked: () => {
       handleLogout();
     },
+    onContactsUpdated: () => {
+      onContactsUpdatedRef.current?.();
+    },
+    onCallPresence: (payload) => {
+      const username = String(payload?.username || "").toLowerCase();
+      if (!username) return;
+      setInCallByUsername((prev) => ({
+        ...prev,
+        [username]: Boolean(payload?.inCall),
+      }));
+    },
   });
 
   useEffect(() => {
@@ -5204,6 +6288,24 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             } catch (e2eeErr) {
               console.warn("[e2ee] encryption failed, sending plaintext:", e2eeErr);
             }
+          }
+        }
+
+        const groupE2eeEnabled = Boolean(
+          Number(
+            chats.find((chat) => Number(chat.id) === Number(targetChatId))
+              ?.group_e2ee_enabled || 0,
+          ),
+        );
+        if (
+          groupE2eeEnabled &&
+          !isEditingExistingMessage &&
+          getCachedGroupKey(targetChatId)
+        ) {
+          try {
+            messageBody = await encryptGroupMessage(targetChatId, messageBody);
+          } catch (groupE2eeErr) {
+            console.warn("[ge2ee] encryption failed, sending plaintext:", groupE2eeErr);
           }
         }
 
@@ -5627,6 +6729,9 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         const aReq = a.required_channel ? 1 : 0;
         const bReq = b.required_channel ? 1 : 0;
         if (aReq !== bReq) return bReq - aReq;
+        const aPin = a.pinned_at ? 1 : 0;
+        const bPin = b.pinned_at ? 1 : 0;
+        if (aPin !== bPin) return bPin - aPin;
         const aTime = a.last_time ? parseServerDate(a.last_time).getTime() : 0;
         const bTime = b.last_time ? parseServerDate(b.last_time).getTime() : 0;
         return bTime - aTime;
@@ -5635,6 +6740,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         merged
           .map((chat) => {
             const muted = Boolean(Number(chat?.muted || 0));
+            const pinned = Boolean(chat?.pinned_at);
             const files = Array.isArray(chat?.last_message_files)
               ? chat.last_message_files
               : [];
@@ -5657,12 +6763,14 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
                 _lastMessagePending: true,
                 last_message_read_at: null,
                 _muted: muted,
+                _pinned: pinned,
               };
             }
             if (!hasProcessingVideo || !isFromOther) {
               return {
                 ...chat,
                 _muted: muted,
+                _pinned: pinned,
               };
             }
             const previous = prevChats.find(
@@ -5673,6 +6781,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
                 ...chat,
                 unread_count: 0,
                 _muted: muted,
+                _pinned: pinned,
               };
             }
             return {
@@ -5689,6 +6798,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
               last_message_files: previous.last_message_files || [],
               unread_count: previous.unread_count || 0,
               _muted: muted,
+              _pinned: pinned,
             };
           })
           .map((chat) => ({
@@ -6510,11 +7620,21 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     }
   }
 
-  function handleOpenDmRequest(request) {
+  async function handleOpenDmRequest(request) {
     if (!request?.chatId) return;
     setActiveChatId(Number(request.chatId));
-    setActivePeer(request.from || null);
+    setActivePeer(
+      request.from
+        ? normalizeProfileUser({
+            ...request.from,
+            avatar_url: request.from.avatarUrl || request.from.avatar_url,
+          })
+        : null,
+    );
     setMobileTab("chat");
+    if (request.from) {
+      await openMemberProfileFromList(request.from);
+    }
   }
 
   async function handleStatusUpdate(nextStatus) {
@@ -6535,7 +7655,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
 
   async function handleAvatarChange(event) {
     if (!CHAT_PAGE_CONFIG.fileUploadEnabled) {
-      setProfileError("File uploads are disabled on this server.");
+      setProfileError(t("settings.profile.errorUploadDisabled"));
       event.target.value = "";
       return;
     }
@@ -6544,15 +7664,15 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       return;
     }
     if (!String(file.type || "").toLowerCase().startsWith("image/")) {
-      setProfileError("Profile photo must be an image file.");
+      setProfileError(t("settings.profile.errorImageType"));
       event.target.value = "";
       return;
     }
     if (Number(file.size || 0) > effectiveMaxFileSize) {
       setProfileError(
-        `Profile photo must be smaller than ${formatBytesAsMb(
-          effectiveMaxFileSize,
-        )}.`,
+        tf("settings.profile.errorImageSize", {
+          size: formatBytesAsMb(effectiveMaxFileSize),
+        }),
       );
       event.target.value = "";
       return;
@@ -6584,28 +7704,26 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     const trimmedNickname = profileForm.nickname.trim();
     const trimmedUsername = profileForm.username.trim().toLowerCase();
     if (trimmedNickname.length > NICKNAME_MAX) {
-      setProfileError(`Nickname must be ${NICKNAME_MAX} characters or less.`);
+      setProfileError(tf("settings.profile.errorNicknameMax", { max: NICKNAME_MAX }));
       return;
     }
     if (trimmedUsername.length > USERNAME_MAX) {
-      setProfileError(`Username must be ${USERNAME_MAX} characters or less.`);
+      setProfileError(tf("settings.profile.errorUsernameMax", { max: USERNAME_MAX }));
       return;
     }
     if (trimmedUsername.length < 3) {
-      setProfileError("Username must be at least 3 characters.");
+      setProfileError(t("settings.profile.errorUsernameMin"));
       return;
     }
     if (!usernamePattern.test(trimmedUsername)) {
-      setProfileError(
-        "Username can only include english letters, numbers, dot (.), and underscore (_).",
-      );
+      setProfileError(t("settings.profile.errorUsernamePattern"));
       return;
     }
     try {
       let avatarUrlToSave = profileForm.avatarUrl;
       if (pendingAvatarFile?.file) {
         if (!CHAT_PAGE_CONFIG.fileUploadEnabled) {
-          throw new Error("File uploads are disabled on this server.");
+          throw new Error(t("settings.profile.errorUploadDisabled"));
         }
         const payload = new FormData();
         payload.append("avatar", pendingAvatarFile.file);
@@ -6613,7 +7731,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         const uploadRes = await uploadAvatar(payload);
         const uploadData = await uploadRes.json();
         if (!uploadRes.ok) {
-          throw new Error(uploadData?.error || "Unable to upload profile photo.");
+          throw new Error(uploadData?.error || t("settings.profile.errorUploadFailed"));
         }
         avatarUrlToSave = uploadData.avatarUrl || "";
       }
@@ -6625,7 +7743,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error || "Unable to update profile.");
+        throw new Error(data?.error || t("settings.profile.errorUpdateFailed"));
       }
       const nextUser = {
         ...user,
@@ -6657,13 +7775,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     event.preventDefault();
     setPasswordError("");
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      const message = "Passwords do not match.";
-      setPasswordError(message);
+      setPasswordError(t("settings.security.errorMismatch"));
       return;
     }
     if (passwordForm.newPassword.length < 6) {
-      const message = "Password must be at least 6 characters.";
-      setPasswordError(message);
+      setPasswordError(t("settings.security.errorMinLength"));
       return;
     }
     try {
@@ -6674,7 +7790,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error || "Unable to update password.");
+        throw new Error(data?.error || t("settings.security.errorUpdateFailed"));
       }
       setPasswordForm({
         currentPassword: "",
@@ -6701,6 +7817,133 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     setNewChatSelection(null);
     setNewChatError("");
   };
+  const applyChatSetting = async (chatId, patch) => {
+    const id = Number(chatId || 0);
+    if (!id) return false;
+    try {
+      const res = await updateChatSettings(id, {
+        username: user.username,
+        ...patch,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to update chat settings.");
+      }
+      await loadChats({ silent: true });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const togglePinChat = async (chatId) => {
+    const id = Number(chatId || 0);
+    if (!id) return;
+    const existing = chats.find((chat) => Number(chat.id) === id);
+    await applyChatSetting(id, { pinned: !existing?._pinned });
+  };
+
+  const toggleArchiveChat = async (chatId, options = {}) => {
+    const id = Number(chatId || 0);
+    if (!id) return;
+    const archived = options.archived !== false;
+    const ok = await applyChatSetting(id, { archived });
+    if (!ok) return;
+    if (archived && Number(activeChatId) === id) {
+      setActiveChatId(null);
+      setMobileTab("chats");
+    }
+    setChats((prev) => prev.filter((chat) => Number(chat.id) !== id));
+    void loadArchivedChats();
+    if (!archived) {
+      await loadChats({ silent: true });
+    }
+  };
+
+  const handleOpenArchivedChat = (chat) => {
+    const id = Number(chat?.id || 0);
+    if (!id) return;
+    setChats((prev) => {
+      if (prev.some((item) => Number(item.id) === id)) return prev;
+      return [
+        {
+          ...chat,
+          _muted: Boolean(chat?._muted ?? Number(chat?.muted || 0)),
+          _pinned: false,
+          _archived: true,
+        },
+        ...prev,
+      ];
+    });
+    setActiveChatId(id);
+    setMobileTab("chat");
+  };
+
+  const handleUnarchiveChat = (chatId) => {
+    void toggleArchiveChat(chatId, { archived: false });
+  };
+
+  const handleOpenScheduleModal = (getBody) => {
+    const body =
+      typeof getBody === "function" ? String(getBody() || "").trim() : "";
+    setScheduleDraftBody(body);
+    setScheduleModalOpen(true);
+  };
+
+  const handleScheduleMessage = async ({ body, scheduledAt }) => {
+    const chatId = Number(activeChatId || 0);
+    if (!chatId || !user?.username) {
+      throw new Error("No active chat.");
+    }
+    setScheduleBusy(true);
+    try {
+      const res = await scheduleChatMessage(chatId, {
+        username: user.username,
+        body,
+        scheduledAt,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to schedule message.");
+      }
+      if (typeof window !== "undefined") {
+        window.alert(t("chat.schedule.success"));
+      }
+    } finally {
+      setScheduleBusy(false);
+    }
+  };
+
+  const handleSetDndUntil = async (untilIso) => {
+    if (!user?.username) return;
+    setDndBusy(true);
+    try {
+      const res = await updateNotificationPrefs({
+        username: user.username,
+        dndUntil: untilIso,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to update notification settings.");
+      }
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              dndUntil: data?.dndUntil || null,
+              notificationsPaused: Boolean(data?.notificationsPaused),
+            }
+          : prev,
+      );
+    } catch (err) {
+      if (typeof window !== "undefined") {
+        window.alert(err?.message || "Unable to update settings.");
+      }
+    } finally {
+      setDndBusy(false);
+    }
+  };
+
   const toggleMuteChat = async (chatId) => {
     const id = Number(chatId || 0);
     if (!id) return;
@@ -6839,11 +8082,53 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     }
   };
 
+  const hydrateProfileMember = useCallback(
+    async (member) => {
+      const normalized = normalizeProfileUser(member);
+      if (!normalized) return null;
+      setProfileModalMember(normalized);
+      const targetUsername = String(normalized.username || "").toLowerCase();
+      if (
+        !targetUsername ||
+        targetUsername === String(user?.username || "").toLowerCase()
+      ) {
+        return normalized;
+      }
+      try {
+        setProfileLoading(true);
+        const res = await fetchUserProfile(targetUsername);
+        const data = await res.json();
+        if (res.ok) {
+          const fresh = mapProfileFromApi(data);
+          if (fresh) {
+            setProfileModalMember((prev) =>
+              String(prev?.username || "").toLowerCase() === targetUsername
+                ? { ...prev, ...fresh }
+                : prev,
+            );
+            return { ...normalized, ...fresh };
+          }
+        }
+      } catch {
+        // keep list/header cached fields
+      } finally {
+        setProfileLoading(false);
+      }
+      return normalized;
+    },
+    [user?.username],
+  );
+
   const openActiveChatProfile = async () => {
     if (!activeChat) return;
-    setProfileModalMember(null);
+    setMentionProfile(null);
     setProfileCallLogs([]);
     setProfileModalOpen(true);
+    if (activeChat.type === "dm" && activeHeaderPeer && !activeHeaderPeer?.isDeleted) {
+      await hydrateProfileMember(activeHeaderPeer);
+    } else {
+      setProfileModalMember(null);
+    }
     void loadProfileCallLogs(activeChat.id);
     if (activeChat.type === "group" || activeChat.type === "channel") {
       try {
@@ -6862,27 +8147,33 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     }
   };
 
-  const openMemberProfileFromMessage = (msg) => {
+  const openMemberProfileFromMessage = async (msg) => {
     if (!msg) return;
+    setMentionProfile(null);
+    setProfileCallLogs([]);
+    setProfileModalOpen(true);
     const selected = {
       id: Number(msg.user_id || 0) || null,
       username: msg.username || "",
       nickname: msg.nickname || "",
-      avatar_url: msg.avatar_url || "",
+      avatar_url: msg.avatar_url || msg.avatarUrl || "",
       color: msg.color || "#10b981",
-      status: "online",
+      status: msg.status || "online",
       role: "",
     };
-    setProfileModalMember(selected);
-    setProfileCallLogs([]);
-    setProfileModalOpen(true);
+    const hydrated = await hydrateProfileMember(selected);
+    const dmChat = findDmChatForUsername(hydrated?.username);
+    if (dmChat?.id) void loadProfileCallLogs(dmChat.id);
   };
 
-  const openMemberProfileFromList = (member) => {
+  const openMemberProfileFromList = async (member) => {
     if (!member) return;
-    setProfileModalMember(member);
+    setMentionProfile(null);
     setProfileCallLogs([]);
     setProfileModalOpen(true);
+    const hydrated = await hydrateProfileMember(member);
+    const dmChat = findDmChatForUsername(hydrated?.username);
+    if (dmChat?.id) void loadProfileCallLogs(dmChat.id);
   };
 
   const openMentionProfile = (mention) => {
@@ -6950,6 +8241,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
   const closeProfileModal = () => {
     setProfileModalOpen(false);
     setProfileModalMember(null);
+    setProfileLoading(false);
     setProfileInviteLink("");
     setProfileCallLogs([]);
     setProfileCallLogsLoading(false);
@@ -7341,8 +8633,60 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
       }
       await loadChats();
       await reloadDmRequests();
+      await loadContactsAll();
     } catch (err) {
       setProfileError(err.message || "Unable to block user.");
+    }
+  }
+
+  function handleReportMessage(message) {
+    const messageId = Number(message?.id || 0);
+    if (!messageId) return;
+    setReportMessageTarget(message);
+  }
+
+  async function submitReportMessage({ reason, details }) {
+    const messageId = Number(reportMessageTarget?.id || 0);
+    if (!messageId) return;
+    const res = await reportMessage({ messageId, reason, details });
+    let data = {};
+    try {
+      data = await res.json();
+    } catch {
+      data = {};
+    }
+    if (!res.ok) {
+      if (res.status === 409) {
+        throw new Error(t("chat.reportMessageDuplicate"));
+      }
+      throw new Error(data?.error || t("chat.reportMessageFailed"));
+    }
+    setReportMessageTarget(null);
+    window.alert(t("chat.reportMessageDone"));
+  }
+
+  async function handleUnblockUser(member) {
+    const targetUsername = String(member?.username || "").trim().toLowerCase();
+    if (!targetUsername || !user?.username) return;
+
+    try {
+      const res = await unblockUser({
+        username: user.username,
+        target: targetUsername,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to unblock user.");
+      }
+      const status = await fetchPeerStatus(targetUsername);
+      setProfileContactStatus(status);
+      if (
+        String(activeHeaderPeer?.username || "").toLowerCase() === targetUsername
+      ) {
+        setPeerContactStatus(status);
+      }
+    } catch (err) {
+      setProfileError(err.message || "Unable to unblock user.");
     }
   }
 
@@ -7547,6 +8891,91 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     }
   }
 
+  async function handleVotePoll(message, optionIndex) {
+    const messageId = Number(message?._serverId || message?.id || 0);
+    if (!messageId || !user?.username) return;
+
+    const applyPoll = (nextPoll) => {
+      if (!nextPoll) return;
+      setMessages((prev) =>
+        prev.map((item) => {
+          const itemId = Number(item?._serverId || item?.id || 0);
+          return itemId === messageId ? { ...item, poll: nextPoll } : item;
+        }),
+      );
+    };
+
+    try {
+      const res = await votePollMessage({
+        username: user.username,
+        messageId,
+        optionIndex,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to vote.");
+      }
+      applyPoll(data?.poll);
+    } catch (error) {
+      console.warn("[poll] vote failed:", error);
+    }
+  }
+
+  async function handleSendPoll({ question, options, multiple }) {
+    if (!activeChatId || !user?.username || pollBusy) return;
+    setPollBusy(true);
+    try {
+      const res = await sendPollMessage({
+        username: user.username,
+        chatId: Number(activeChatId),
+        question,
+        options,
+        multiple: Boolean(multiple),
+        replyToMessageId: replyTarget?.id ? Number(replyTarget.id) : null,
+        clientRequestId:
+          typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random()}`,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to send poll.");
+      }
+      setPollModalOpen(false);
+      handleClearReply?.();
+      await loadChats({ silent: true });
+    } catch (error) {
+      setUploadError?.(error.message);
+    } finally {
+      setPollBusy(false);
+    }
+  }
+
+  async function handleSendSticker(packId, stickerId) {
+    if (!activeChatId || !user?.username || !canSendInActiveChat) return;
+    const body = buildStickerBody(packId, stickerId);
+    try {
+      const res = await sendMessage({
+        username: user.username,
+        chatId: Number(activeChatId),
+        body,
+        replyToMessageId: replyTarget?.id ? Number(replyTarget.id) : null,
+        clientRequestId:
+          typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random()}`,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Unable to send sticker.");
+      }
+      handleClearReply?.();
+      await loadChats({ silent: true });
+    } catch (error) {
+      console.warn("[sticker] send failed:", error);
+    }
+  }
+
   const { contextMenu, closeContextMenu, openContextMenu } = useAppContextMenu({
     activeChatId,
     chats,
@@ -7563,9 +8992,12 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     onOpenOrCreateDm: openOrCreateDmFromMember,
     onOpenProfile: openMemberProfileFromList,
     onBlockUser: handleBlockUser,
+    onReportMessage: handleReportMessage,
     onRemoveGroupMember: handleRemoveGroupMember,
     onMarkChatSeen: handleMarkChatSeen,
     onToggleChatMute: toggleMuteChat,
+    onToggleChatPin: togglePinChat,
+    onToggleChatArchive: (chatId, options) => toggleArchiveChat(chatId, options),
     onDeleteChats: requestDeleteChats,
   });
 
@@ -7735,19 +9167,41 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
     });
   }, [isAppActive, notificationPermission, microphonePermission]);
 
+  const groupCallLimits = resolveGroupCallLimits(appInfo);
+  const groupCallLimitHint = isActiveGroupChat
+    ? tf("call.group.limitsHint", {
+        min: groupCallLimits.minGroupMembers,
+        max: groupCallLimits.maxParticipants,
+      })
+    : "";
   const canStartVoiceCall = Boolean(
     activeChatId &&
-      !isActiveGroupChat &&
       !isActiveChannelChat &&
       !isActiveSavedChat &&
-      !activeHeaderAvatar?.isDeleted,
+      !activeHeaderAvatar?.isDeleted &&
+      (!isActiveGroupChat ||
+        activeMembers.length >= groupCallLimits.minGroupMembers),
   );
   const callIsVideo = normalizeCallType(callState?.callType) === "video";
-  const activeCallStatusLabels = callIsVideo
-    ? VIDEO_CALL_STATUS_LABELS
-    : CALL_STATUS_LABELS;
+  const callStatusLabels = useMemo(
+    () => ({
+      preparing: callIsVideo
+        ? t("call.status.preparingVideo")
+        : t("call.status.preparingVoice"),
+      calling: t("call.status.calling"),
+      ringing: callIsVideo
+        ? t("call.status.ringingVideo")
+        : t("call.status.ringingVoice"),
+      connecting: t("call.status.connecting"),
+      connected: t("call.status.connected"),
+      reconnecting: t("call.status.reconnecting"),
+      ended: t("call.status.ended"),
+      error: t("call.status.error"),
+    }),
+    [t, callIsVideo],
+  );
   const callStatusLabel =
-    activeCallStatusLabels[callState?.status] || activeCallStatusLabels.connecting;
+    callStatusLabels[callState?.status] || callStatusLabels.connecting;
   const callPeerName = callState?.peerName || activeFallbackTitle || "Contact";
   const callDurationLabel = formatCallDuration(callDurationSeconds);
   const callIsConnected =
@@ -7941,10 +9395,43 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         displayInitials={displayInitials}
         onOpenWhatsNew={handleOpenWhatsNew}
         dmPolicy={dmPolicy}
+        contactRequestPolicy={contactRequestPolicy}
         onDmPolicyChange={(nextPolicy) => {
           setDmPolicy(nextPolicy);
           setUser((prev) => (prev ? { ...prev, dmPolicy: nextPolicy } : prev));
         }}
+        onContactRequestPolicyChange={(nextPolicy) => {
+          setContactRequestPolicy(nextPolicy);
+          setUser((prev) =>
+            prev ? { ...prev, contactRequestPolicy: nextPolicy } : prev,
+          );
+        }}
+        onUserUpdate={setUser}
+        archivedChats={archivedChats}
+        loadingArchivedChats={loadingArchivedChats}
+        onOpenArchivedChat={handleOpenArchivedChat}
+        onUnarchiveChat={handleUnarchiveChat}
+        dndUntil={user?.dndUntil || null}
+        dndBusy={dndBusy}
+        onSetDndUntil={handleSetDndUntil}
+        callHistory={callHistory}
+        loadingCallHistory={loadingCallHistory}
+        callContacts={callContacts}
+        loadingContacts={loadingContacts}
+        contactRequests={contactRequests}
+        outgoingContactRequests={outgoingContactRequests}
+        loadingContactRequests={loadingContactRequests}
+        onOpenCallHistory={handleOpenCallHistory}
+        onOpenCallContact={handleOpenCallContact}
+        onAcceptContactRequest={handleAcceptContactRequestFromList}
+        onRejectContactRequest={handleRejectContactRequestFromList}
+        onCancelContactRequest={handleCancelContactRequestFromList}
+        onOpenContactRequest={handleOpenContactRequest}
+        onOpenOutgoingContactRequest={handleOpenOutgoingContactRequest}
+        onStartVoiceCallFromHistory={handleStartVoiceCallFromHistory}
+        onStartVideoCallFromHistory={handleStartVideoCallFromHistory}
+        onSelectChatsTab={() => setMobileTab("chats")}
+        onSelectCallsTab={() => setMobileTab("calls")}
       />
 
       <ChatWindowPanel
@@ -7955,12 +9442,20 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         activeHeaderPeer={activeHeaderAvatar}
         activeFallbackTitle={activeFallbackTitle}
         peerStatusLabel={resolvedHeaderSubtitle}
+        peerIsOnline={peerIsOnline}
         typingIndicator={typingIndicator}
         onStartCall={canStartVoiceCall ? () => startOutgoingCall("voice") : null}
         onStartVideoCall={canStartVoiceCall ? () => startOutgoingCall("video") : null}
+        groupCallLimitHint={isActiveGroupChat ? groupCallLimitHint : ""}
         isGroupChat={isActiveGroupChat}
         isChannelChat={isActiveChannelChat}
         isSavedChat={isActiveSavedChat}
+        peerContactStatus={peerContactStatus}
+        contactActionBusy={contactActionBusy}
+        onSendContactRequest={handleSendContactRequest}
+        onAcceptContactRequest={handleAcceptContactRequest}
+        onRejectContactRequest={handleRejectContactRequest}
+        onCancelContactRequest={handleCancelContactRequest}
         groupAvatarColor={activeGroupAvatarColor}
         groupAvatarUrl={activeGroupAvatarUrl}
         channelSeenCounts={channelSeenCounts}
@@ -8026,7 +9521,13 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         copyToastVisible={copyToastVisible}
         microphonePermissionStatus={microphonePermission}
         onRequestMicrophonePermission={requestMicrophonePermission}
-        e2eeActive={shouldUseE2ee}
+        onOpenSchedule={canSendInActiveChat ? handleOpenScheduleModal : null}
+        onOpenPoll={canSendInActiveChat ? () => setPollModalOpen(true) : null}
+        onSendSticker={canSendInActiveChat ? handleSendSticker : null}
+        onVotePoll={handleVotePoll}
+        canSendPoll={canSendInActiveChat}
+        canSendSticker={canSendInActiveChat}
+        e2eeActive={shouldUseE2ee || groupE2eeActive}
         permissionsPrompt={{
           show: showPermissionsPrompt,
           mode: activePermissionPrompt,
@@ -8050,6 +9551,10 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         mobileTab={mobileTab}
         onChats={() => {
           setMobileTab("chats");
+          setSettingsPanel(null);
+        }}
+        onCalls={() => {
+          setMobileTab("calls");
           setSettingsPanel(null);
         }}
         onSettings={() => setMobileTab("settings")}
@@ -8103,6 +9608,17 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
                 deleteForEveryone ? "everyone" : "self",
               )
             }
+          />
+        </Suspense>
+      ) : null}
+
+      {reportMessageTarget ? (
+        <Suspense fallback={null}>
+          <ReportMessageModal
+            open={Boolean(reportMessageTarget)}
+            messagePreview={extractMessageBodyText(reportMessageTarget?.body).slice(0, 280)}
+            onClose={() => setReportMessageTarget(null)}
+            onSubmit={submitReportMessage}
           />
         </Suspense>
       ) : null}
@@ -8180,7 +9696,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             }
             submitLabel={editingGroup ? t("chat.save") : t("chat.create")}
             avatarPreview={groupAvatarPreview}
-            avatarColor={editingGroup ? activeChat?.group_color || "#10b981" : "#10b981"}
+            avatarColor={editingGroup ? activeChat?.group_color || "var(--birdx-accent)" : "var(--birdx-accent)"}
             avatarName={
               safeNewGroupForm.nickname ||
               safeNewGroupForm.username ||
@@ -8202,6 +9718,7 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             entityLabel={
               groupModalType === "channel" ? t("chat.channel") : t("chat.group")
             }
+            entityType={groupModalType}
             onDeleteChat={editingGroup ? handleDeleteActiveGroup : null}
           />
         </ModalErrorBoundary>
@@ -8225,15 +9742,11 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
         >
           <ChatProfileModal
             open={profileModalOpen}
-            chat={
-              mentionProfileChat ||
-              ((mentionProfileUser || profileModalMember)
-                ? { ...(activeChat || {}), type: "dm" }
-                : activeChat)
-            }
+            chat={profileModalChatResolved}
             targetUser={profileTargetUser}
             currentUser={user}
-            muted={activeChatMuted}
+            muted={profileModalMuted}
+            profileLoading={profileLoading}
             inviteLink={profileInviteLink}
             canViewInvite={canCurrentUserViewInvite}
             callLogs={profileCallLogs}
@@ -8248,10 +9761,19 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             onClose={closeProfileModal}
             onOpenChat={handleOpenProfileChat}
             onToggleMute={() =>
-              toggleMuteChat(mentionProfileChat?.id || activeChat?.id)
+              toggleMuteChat(
+                Number(
+                  profileModalChatResolved?.id ||
+                    mentionProfileChat?.id ||
+                    activeChat?.id ||
+                    0,
+                ),
+              )
             }
             onLeaveGroup={() =>
-              requestLeaveGroupById(mentionProfileChat?.id || activeChat?.id)
+              requestLeaveGroupById(
+                mentionProfileChat?.id || profileModalChatResolved?.id || activeChat?.id,
+              )
             }
             onOpenMember={openMemberProfileFromList}
             onRemoveMember={handleRemoveGroupMember}
@@ -8259,6 +9781,27 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             onOpenUserContextMenu={openContextMenu}
             onEditGroup={openEditGroupFromProfile}
             onEditSelfProfile={openSelfProfileEditor}
+            groupE2eeEnabled={groupE2ee.enabled}
+            groupE2eeKeyReady={groupE2ee.keyReady}
+            groupE2eeBusy={groupE2ee.busy}
+            groupE2eeError={groupE2ee.error}
+            canManageGroupE2ee={groupE2ee.canManage}
+            onEnableGroupE2ee={() => groupE2ee.enable().catch(() => {})}
+            onDisableGroupE2ee={() => groupE2ee.disable().catch(() => {})}
+            onRedistributeGroupE2ee={() => groupE2ee.redistributeKeys().catch(() => {})}
+            peerContactStatus={profileContactStatus}
+            contactActionBusy={contactActionBusy}
+            inCall={Boolean(
+              profileContactStatus?.inCall ||
+                inCallByUsername[String(profileTargetUser?.username || "").toLowerCase()],
+            )}
+            onSendContactRequest={handleProfileSendContactRequest}
+            onAcceptContactRequest={handleProfileAcceptContactRequest}
+            onRejectContactRequest={handleProfileRejectContactRequest}
+            onCancelContactRequest={handleProfileCancelContactRequest}
+            onRemoveContact={handleProfileRemoveContact}
+            onBlockUser={handleBlockUser}
+            onUnblockUser={handleUnblockUser}
           />
         </ModalErrorBoundary>
       ) : null}
@@ -8276,9 +9819,27 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             testNotificationSent={testNotificationSent}
             notificationsEnabled={notificationsEnabled}
             debugLine={notificationsDebugLine}
+            dndUntil={user?.dndUntil || null}
+            dndBusy={dndBusy}
+            onSetDndUntil={handleSetDndUntil}
           />
         </Suspense>
       ) : null}
+
+      <ScheduleMessageModal
+        open={scheduleModalOpen}
+        initialBody={scheduleDraftBody}
+        onClose={() => setScheduleModalOpen(false)}
+        onSchedule={handleScheduleMessage}
+        busy={scheduleBusy}
+      />
+
+      <PollModal
+        open={pollModalOpen}
+        busy={pollBusy}
+        onClose={() => setPollModalOpen(false)}
+        onSubmit={handleSendPoll}
+      />
 
       {settingsPanel && mobileTab !== "settings" ? (
         <Suspense fallback={null}>
@@ -8309,10 +9870,18 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
             appInfoError={appInfoError}
             onOpenWhatsNew={handleOpenWhatsNew}
             dmPolicy={dmPolicy}
+            contactRequestPolicy={contactRequestPolicy}
             onDmPolicyChange={(nextPolicy) => {
               setDmPolicy(nextPolicy);
               setUser((prev) => (prev ? { ...prev, dmPolicy: nextPolicy } : prev));
             }}
+            onContactRequestPolicyChange={(nextPolicy) => {
+              setContactRequestPolicy(nextPolicy);
+              setUser((prev) =>
+                prev ? { ...prev, contactRequestPolicy: nextPolicy } : prev,
+              );
+            }}
+            onUserUpdate={setUser}
           />
         </Suspense>
       ) : null}
@@ -8329,7 +9898,22 @@ const peerStatusLabel = !activeHeaderPeer || activeHeaderPeer?.isDeleted
 ) : null}
 
 {callState && !callMinimized ? (
-  callIsVideo ? (
+  callState.isGroup ? (
+    <GroupCallOverlay
+      callState={callState}
+      participants={callParticipants}
+      localStream={localStreamRef.current}
+      callStatusLabel={callStatusLabel}
+      callDurationLabel={callDurationLabel}
+      callMuted={callMuted}
+      callIsVideo={callIsVideo}
+      participantCount={callParticipantCount || 1 + callParticipants.length}
+      maxParticipants={groupCallLimits.maxParticipants}
+      onToggleMute={toggleCallMute}
+      onToggleVideo={() => runCallAction(toggleCallCamera, "Unable to toggle camera.")}
+      onEndCall={endActiveCall}
+    />
+  ) : callIsVideo ? (
     <div
       className="fixed inset-0 z-[300] bg-slate-950 text-white"
       onPointerDown={revealCallControls}

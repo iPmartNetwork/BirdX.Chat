@@ -1,6 +1,21 @@
 import { Bell, BellOff } from "../../../icons/lucide.js";
 import { useLanguage } from "../../../i18n/LanguageContext.jsx";
 
+function formatDndUntilLabel(untilIso, t) {
+  if (!untilIso) return "";
+  const ms = Date.parse(untilIso);
+  if (!Number.isFinite(ms)) return "";
+  if (ms <= Date.now()) return "";
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(ms));
+  } catch {
+    return new Date(ms).toLocaleString();
+  }
+}
+
 export function NotificationsSettingsPanel({
   notificationsActive,
   notificationsDisabled,
@@ -10,8 +25,14 @@ export function NotificationsSettingsPanel({
   testNotificationSent,
   notificationsEnabled,
   debugLine = "",
+  dndUntil = null,
+  dndBusy = false,
+  onSetDndUntil,
 }) {
   const { t } = useLanguage();
+  const dndActive =
+    Boolean(dndUntil) && Number.isFinite(Date.parse(dndUntil)) && Date.parse(dndUntil) > Date.now();
+  const dndLabel = dndActive ? formatDndUntilLabel(dndUntil, t) : "";
   const buttonBase =
     "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-start text-sm font-semibold transition";
   const buttonHover =
@@ -68,6 +89,48 @@ export function NotificationsSettingsPanel({
           {debugLine}
         </p>
       ) : null}
+
+      <div className="mt-4 rounded-2xl border border-emerald-200/70 bg-white/90 p-4 dark:border-emerald-500/30 dark:bg-slate-900/50">
+        <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+          {t("settings.notifications.dndTitle")}
+        </p>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          {dndActive && dndLabel
+            ? t("settings.notifications.dndUntil", { time: dndLabel })
+            : t("settings.notifications.dndOff")}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {[
+            { key: "1h", hours: 1, label: t("settings.notifications.dnd1h") },
+            { key: "8h", hours: 8, label: t("settings.notifications.dnd8h") },
+            { key: "24h", hours: 24, label: t("settings.notifications.dnd24h") },
+          ].map((preset) => (
+            <button
+              key={preset.key}
+              type="button"
+              disabled={dndBusy}
+              onClick={() =>
+                onSetDndUntil?.(
+                  new Date(Date.now() + preset.hours * 60 * 60 * 1000).toISOString(),
+                )
+              }
+              className="rounded-full border border-emerald-200/80 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-500/30 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+            >
+              {preset.label}
+            </button>
+          ))}
+          {dndActive ? (
+            <button
+              type="button"
+              disabled={dndBusy}
+              onClick={() => onSetDndUntil?.(null)}
+              className="rounded-full border border-rose-200/80 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-50 dark:border-rose-500/30 dark:text-rose-200 dark:hover:bg-rose-500/10"
+            >
+              {t("settings.notifications.dndClear")}
+            </button>
+          ) : null}
+        </div>
+      </div>
 
       <div
         className={`mt-4 ${buttonBase} ${buttonTheme} ${

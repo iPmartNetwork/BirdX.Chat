@@ -9,9 +9,16 @@ handle_exit() {
     return 0
   fi
 
-  printf "\n[BIRDX] Script exited with code %s.\n" "$exit_code" >&2
-  if [[ -f "$LOG_FILE" ]]; then
-    printf "[BIRDX] Review the log at %s for the last recorded step.\n" "$LOG_FILE" >&2
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "\n%bScript exited with code %s.%b\n" "$C_RED" "$exit_code" "$C_RESET" >&2
+    if [[ -f "$LOG_FILE" ]]; then
+      printf "%bReview the log: %s%b\n" "$C_DIM" "$LOG_FILE" "$C_RESET" >&2
+    fi
+  else
+    printf "\n[BirdX] Script exited with code %s.\n" "$exit_code" >&2
+    if [[ -f "$LOG_FILE" ]]; then
+      printf "[BirdX] Review the log at %s for the last recorded step.\n" "$LOG_FILE" >&2
+    fi
   fi
 }
 
@@ -26,7 +33,7 @@ trap 'handle_exit' EXIT
 APP_NAME="birdx"
 INSTALL_DIR="/opt/birdx"
 LOG_FILE="/opt/birdx/logs/install.log"
-REPO_URL="${REPO_URL:-https://github.com/iPmartNetwork/BirdX.git}"
+REPO_URL="${REPO_URL:-https://github.com/iPmartNetwork/BirdX.Chat.git}"
 SERVICE_USER="birdx"
 SERVICE_GROUP="birdx"
 SERVICE_FILE="/etc/systemd/system/birdx.service"
@@ -39,7 +46,7 @@ TURN_DEFAULT_FILE="/etc/default/coturn"
 DEFAULT_SERVER_PORT="5174"
 DEFAULT_CLIENT_PORT="80"
 DEFAULT_FILE_UPLOAD="true"
-DEFAULT_MAX_UPLOAD="78643200"
+DEFAULT_MAX_UPLOAD="157286400"
 DEFAULT_RETENTION_DAYS="7"
 DEFAULT_TEXT_RETENTION_DAYS="0"
 DEFAULT_ACCOUNT_CREATION="true"
@@ -102,14 +109,52 @@ MANUAL_CERT_FULLCHAIN_PATH=""
 MANUAL_CERT_PRIVKEY_PATH=""
 NODE_EXEC_PATH=""
 
+BIRDX_DOCS_URL="https://github.com/iPmartNetwork/BirdX.Chat"
+INSTALL_PHASE_CURRENT=0
+INSTALL_PHASE_TOTAL=9
+
+# Terminal UI (ANSI — disabled when not a TTY)
+UI_USE_COLOR="no"
+C_RESET=""
+C_BOLD=""
+C_DIM=""
+C_CYAN=""
+C_GREEN=""
+C_YELLOW=""
+C_RED=""
+C_MAGENTA=""
+C_BLUE=""
+UI_BOX_INNER=58
+
+ui_init_colors() {
+  UI_USE_COLOR="no"
+  if [[ ! -t 1 && "$PROMPT_FD_OUT" != "4" ]]; then
+    return 0
+  fi
+  UI_USE_COLOR="yes"
+  C_RESET=$'\033[0m'
+  C_BOLD=$'\033[1m'
+  C_DIM=$'\033[2m'
+  C_CYAN=$'\033[1;36m'
+  C_GREEN=$'\033[1;32m'
+  C_YELLOW=$'\033[1;33m'
+  C_RED=$'\033[1;31m'
+  C_MAGENTA=$'\033[1;35m'
+  C_BLUE=$'\033[0;34m'
+}
+
 log() {
   local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
   local log_dir="$(dirname "$LOG_FILE")"
 
-  printf "[BIRDX] %s\n" "$1"
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "%b\n" "${C_DIM}[${C_CYAN}BirdX${C_DIM}]${C_RESET} $1"
+  else
+    printf "[BirdX] %s\n" "$1"
+  fi
 
   if [[ -d "$log_dir" ]]; then
-    printf "[%s] [BIRDX] %s\n" "$timestamp" "$1" >> "$LOG_FILE" 2>/dev/null || true
+    printf "[%s] [BirdX] %s\n" "$timestamp" "$1" >> "$LOG_FILE" 2>/dev/null || true
   fi
 }
 
@@ -124,19 +169,299 @@ ensure_log_dir() {
 
 warn() {
   local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
-  printf "[%s] WARNING: %s\n" "BIRDX" "$*" >&2
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "%b\n" "${C_DIM}[${C_YELLOW}WARN${C_DIM}]${C_RESET} $*" >&2
+  else
+    printf "[BirdX] WARNING: %s\n" "$*" >&2
+  fi
   if [[ -f "$LOG_FILE" ]]; then
-    printf "[%s] [BIRDX] WARNING: %s\n" "$timestamp" "$*" >> "$LOG_FILE" 2>/dev/null || true
+    printf "[%s] [BirdX] WARNING: %s\n" "$timestamp" "$*" >> "$LOG_FILE" 2>/dev/null || true
   fi
 }
 
 fail() {
   local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
-  printf "[%s] ERROR: %s\n" "BIRDX" "$*" >&2
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "%b\n" "${C_DIM}[${C_RED}ERROR${C_DIM}]${C_RESET} $*" >&2
+  else
+    printf "[BirdX] ERROR: %s\n" "$*" >&2
+  fi
   if [[ -f "$LOG_FILE" ]]; then
-    printf "[%s] [BIRDX] ERROR: %s\n" "$timestamp" "$*" >> "$LOG_FILE" 2>/dev/null || true
+    printf "[%s] [BirdX] ERROR: %s\n" "$timestamp" "$*" >> "$LOG_FILE" 2>/dev/null || true
   fi
   exit 1
+}
+
+get_birdx_deploy_version() {
+  local script_dir="" vf=""
+  if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null)" || script_dir=""
+    vf="${script_dir}/../VERSION"
+    if [[ -f "$vf" ]]; then
+      tr -d ' \r\n' < "$vf" | head -1
+      return 0
+    fi
+  fi
+  if [[ -f "${INSTALL_DIR}/VERSION" ]]; then
+    tr -d ' \r\n' < "${INSTALL_DIR}/VERSION" | head -1
+    return 0
+  fi
+  printf "1.0.1"
+}
+
+birdx_service_status() {
+  if [[ ! -f "$SERVICE_FILE" ]]; then
+    printf "not installed"
+    return 0
+  fi
+  if run_as_root systemctl is-active --quiet birdx.service 2>/dev/null; then
+    printf "running"
+  elif run_as_root systemctl is-enabled --quiet birdx.service 2>/dev/null; then
+    printf "stopped"
+  else
+    printf "disabled"
+  fi
+}
+
+birdx_installed_version() {
+  local v=""
+  if [[ -d "${INSTALL_DIR}/.git" ]]; then
+    v="$(run_in_install_dir_output "git describe --tags --always 2>/dev/null" | tr -d '\r\n')"
+    if [[ -n "$v" ]]; then
+      printf "%s" "$v"
+      return 0
+    fi
+  fi
+  if [[ -f "${INSTALL_DIR}/VERSION" ]]; then
+    tr -d ' \r\n' < "${INSTALL_DIR}/VERSION" | head -1
+    return 0
+  fi
+  printf "—"
+}
+
+ui_blank_line() {
+  printf "\n"
+}
+
+ui_divider() {
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "  %s──────────────────────────────────────────────────────────────%s\n" "$C_DIM" "$C_RESET"
+  else
+    printf "  --------------------------------------------------------------\n"
+  fi
+}
+
+ui_title() {
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "\n  %b%s%b\n" "$C_BOLD" "$1" "$C_RESET"
+  else
+    printf "\n  %s\n" "$1"
+  fi
+}
+
+ui_subtitle() {
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "  %s%s%b\n" "$C_DIM" "$1" "$C_RESET"
+  else
+    printf "  %s\n" "$1"
+  fi
+}
+
+ui_step() {
+  local cur="$1" total="$2" msg="$3"
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "\n  %s▸ Step %s/%s%s  %s\n" "$C_MAGENTA" "$cur" "$total" "$C_RESET" "$msg"
+  else
+    printf "\n  >> Step %s/%s: %s\n" "$cur" "$total" "$msg"
+  fi
+  log "Step ${cur}/${total}: ${msg}"
+}
+
+install_phase() {
+  INSTALL_PHASE_CURRENT=$((INSTALL_PHASE_CURRENT + 1))
+  ui_step "$INSTALL_PHASE_CURRENT" "$INSTALL_PHASE_TOTAL" "$1"
+}
+
+ui_box_open() {
+  local title="${1:-}"
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "  %s┌────────────────────────────────────────────────────────────┐%s\n" "$C_CYAN" "$C_RESET"
+    if [[ -n "$title" ]]; then
+      printf "  %s│%s %-58s %s│%s\n" "$C_CYAN" "$C_RESET" "$title" "$C_CYAN" "$C_RESET"
+      printf "  %s├────────────────────────────────────────────────────────────┤%s\n" "$C_CYAN" "$C_RESET"
+    fi
+  else
+    printf "  +------------------------------------------------------------+\n"
+    if [[ -n "$title" ]]; then
+      printf "  | %-58s |\n" "$title"
+      printf "  +------------------------------------------------------------+\n"
+    fi
+  fi
+}
+
+ui_box_line() {
+  local text="${1:-}"
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "  %s│%s %-58s %s│%s\n" "$C_CYAN" "$C_RESET" "$text" "$C_CYAN" "$C_RESET"
+  else
+    printf "  | %-58s |\n" "$text"
+  fi
+}
+
+ui_box_kv() {
+  local key="$1" value="$2"
+  ui_box_line "$(printf '%-16s %s' "${key}:" "$value")"
+}
+
+ui_box_close() {
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "  %s└────────────────────────────────────────────────────────────┘%s\n" "$C_CYAN" "$C_RESET"
+  else
+    printf "  +------------------------------------------------------------+\n"
+  fi
+}
+
+ui_menu_item() {
+  local num="$1" icon="$2" label="$3"
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "  %s%2s)%s %s  %s\n" "$C_CYAN" "$num" "$C_RESET" "$icon" "$label"
+  else
+    printf "  %2s) %s  %s\n" "$num" "$icon" "$label"
+  fi
+}
+
+ui_status_chip() {
+  local label="$1" value="$2" tone="${3:-}"
+  local color="$C_DIM"
+  case "$tone" in
+    ok) color="$C_GREEN" ;;
+    warn) color="$C_YELLOW" ;;
+    err) color="$C_RED" ;;
+  esac
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "  %s•%s %-14s %b%s%b\n" "$C_DIM" "$C_RESET" "${label}:" "$color" "$value" "$C_RESET"
+  else
+    printf "  • %-14s %s\n" "${label}:" "$value"
+  fi
+}
+
+show_status_panel() {
+  local deploy_ver svc_status app_ver tone=""
+  deploy_ver="$(get_birdx_deploy_version)"
+  svc_status="$(birdx_service_status)"
+  app_ver="$(birdx_installed_version)"
+  tone="warn"
+  [[ "$svc_status" == "running" ]] && tone="ok"
+  [[ "$svc_status" == "not installed" ]] && tone=""
+
+  ui_divider
+  ui_title "System status"
+  ui_status_chip "Deploy tool" "v${deploy_ver}"
+  if [[ -d "$INSTALL_DIR/server" ]]; then
+    ui_status_chip "Installation" "$INSTALL_DIR" "ok"
+    ui_status_chip "App version" "$app_ver"
+    ui_status_chip "Service" "birdx.service · ${svc_status}" "$tone"
+  else
+    ui_status_chip "Installation" "not deployed yet" "warn"
+  fi
+  ui_divider
+}
+
+collect_install_visit_urls() {
+  local -n _out_arr=$1
+  _out_arr=()
+  if [[ "$CERT_MODE" == "http" ]]; then
+    if [[ "$DEPLOY_MODE" == "domain" ]]; then
+      local d
+      for d in "${DOMAIN_NAMES[@]}"; do
+        _out_arr+=("http://${d}:${CLIENT_PORT}")
+      done
+    else
+      _out_arr+=("http://<server-ip>:${CLIENT_PORT}")
+    fi
+    return 0
+  fi
+  if [[ "$DEPLOY_MODE" == "domain" ]]; then
+    local d
+    for d in "${DOMAIN_NAMES[@]}"; do
+      if [[ "$CLIENT_PORT" == "443" ]]; then
+        _out_arr+=("https://${d}")
+      else
+        _out_arr+=("https://${d}:${CLIENT_PORT}")
+      fi
+    done
+    return 0
+  fi
+  local visit_ip="${CERTBOT_IP_ADDRESS:-<server-ip>}"
+  if [[ "$CERT_MODE" == "files" ]]; then
+    visit_ip="<server-ip>"
+  fi
+  if [[ "$CLIENT_PORT" == "443" ]]; then
+    _out_arr+=("https://${visit_ip}")
+  else
+    _out_arr+=("https://${visit_ip}:${CLIENT_PORT}")
+  fi
+}
+
+print_install_success_summary() {
+  local urls=() u svc
+  collect_install_visit_urls urls
+  svc="$(birdx_service_status)"
+
+  ui_blank_line
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "  %s✔%b Installation completed successfully%b\n" "$C_GREEN" "$C_BOLD" "$C_RESET"
+  else
+    printf "  Installation completed successfully.\n"
+  fi
+  ui_blank_line
+
+  ui_box_open " BirdX Chat — deployment summary "
+  ui_box_kv "Scope" "server + web client (self-host)"
+  ui_box_kv "App version" "$(birdx_installed_version)"
+  ui_box_kv "Install path" "$INSTALL_DIR"
+  ui_box_kv "Service" "birdx.service ($svc)"
+  ui_box_kv "API (internal)" "127.0.0.1:${SERVER_PORT}"
+  ui_box_kv "Max upload" "$(format_bytes_human "$MAX_UPLOAD") (nginx + .env)"
+  ui_box_kv "Bootstrap owner" "birdxchat"
+  ui_box_kv "Admin panel" "/admin"
+  ui_box_kv "Install log" "$LOG_FILE"
+  ui_box_line ""
+  ui_box_line "Open your chat:"
+  for u in "${urls[@]}"; do
+    ui_box_line "  → $u"
+  done
+  if [[ "$TURN_ENABLED" == "true" ]]; then
+    ui_box_line ""
+    ui_box_line "Voice calls (TURN):"
+    ui_box_line "  → ${TURN_HOST}:3478  user: ${TURN_USERNAME}"
+  fi
+  ui_box_line ""
+  ui_box_line "Docs: ${BIRDX_DOCS_URL}"
+  ui_box_close
+
+  log "Marketing site and native apps are not part of this installer."
+  log "Change ADMIN_USERNAMES or promote users from the admin panel after first login."
+  if [[ "$TURN_ENABLED" == "true" ]]; then
+    log_turn_firewall_hint
+  fi
+}
+
+format_bytes_human() {
+  local bytes="${1:-0}"
+  if [[ ! "$bytes" =~ ^[0-9]+$ ]]; then
+    printf "%s" "$bytes"
+    return 0
+  fi
+  if (( bytes >= 1073741824 )); then
+    printf "%d GB" $(( (bytes + 536870912) / 1073741824 ))
+  elif (( bytes >= 1048576 )); then
+    printf "%d MB" $((bytes / 1048576))
+  elif (( bytes >= 1024 )); then
+    printf "%d KB" $((bytes / 1024))
+  else
+    printf "%s B" "$bytes"
+  fi
 }
 
 have_cmd() {
@@ -144,7 +469,11 @@ have_cmd() {
 }
 
 press_enter_to_continue() {
-  printf "\nPress Enter to return to the main menu..." >&$PROMPT_FD_OUT
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "\n%sPress Enter to continue…%s" "$C_DIM" "$C_RESET" >&$PROMPT_FD_OUT
+  else
+    printf "\nPress Enter to return to the main menu..." >&$PROMPT_FD_OUT
+  fi
   if ! IFS= read -r -u "$PROMPT_FD" _; then
     _=""
   fi
@@ -253,11 +582,13 @@ init_prompt_io() {
     exec 4>/dev/tty
     PROMPT_FD=3
     PROMPT_FD_OUT=4
+    ui_init_colors
     return 0
   fi
   if [[ -t 0 ]]; then
     PROMPT_FD=0
     PROMPT_FD_OUT=1
+    ui_init_colors
     return 0
   fi
   fail "No interactive TTY detected. Run this script in an interactive shell."
@@ -267,7 +598,11 @@ prompt_read() {
   local prompt="$1"
   local __result_var="$2"
   local input=""
-  printf "%s" "$prompt" >&$PROMPT_FD_OUT
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "%b%s%b" "$C_BLUE" "$prompt" "$C_RESET" >&$PROMPT_FD_OUT
+  else
+    printf "%s" "$prompt" >&$PROMPT_FD_OUT
+  fi
   if ! IFS= read -r -u "$PROMPT_FD" input; then
     input=""
   fi
@@ -715,8 +1050,7 @@ configure_mirrors_menu() {
   while true; do
     clear
     show_banner
-    printf "\n"
-    printf "Configure Mirrors\n"
+    ui_title "Download mirrors"
     printf $'1) 🔗  Set NodeSource mirror (current: %s)\n' "${MIRROR_NODESOURCE:-<default>}"
     printf $'2) 🔗  Set apt mirror source (current: %s)\n' "${MIRROR_APT_EXTRA:-<none>}"
     printf $'3) 🔗  Set npm registry mirror (current: %s)\n' "${MIRROR_NPM:-<default>}"
@@ -1567,8 +1901,9 @@ CLIENT_PORT=${CLIENT_PORT}
 APP_ENV=production
 APP_DEBUG=false
 ACCOUNT_CREATION=${ACCOUNT_CREATION}
+ADMIN_USERNAMES=birdxchat
 FILE_UPLOAD=${FILE_UPLOAD}
-FILE_UPLOAD_MAX_SIZE=26214400
+FILE_UPLOAD_MAX_SIZE=52428800
 FILE_UPLOAD_HARD_MAX_SIZE=${existing_file_upload_hard_max_size}
 FILE_UPLOAD_MAX_TOTAL_SIZE=${MAX_UPLOAD}
 FILE_UPLOAD_MAX_FILES=10
@@ -1697,6 +2032,11 @@ parse_domain_input() {
 
 
 collect_install_options() {
+  clear
+  show_banner
+  ui_title "Installation wizard"
+  ui_subtitle "Self-hosted BirdX Chat (server + web client). Settings can be changed later from the main menu."
+  ui_blank_line
   prompt_deploy_mode
 
   if [[ "$DEPLOY_MODE" == "domain" ]]; then
@@ -2627,12 +2967,17 @@ remove_birdx() {
 }
 
 install_birdx() {
+  INSTALL_PHASE_CURRENT=0
   prompt_source_mode
   collect_install_options
   prompt_install_backup_restore
+
+  install_phase "System packages and Node.js"
   install_required_packages
   ensure_nodejs_from_nodesource
   ensure_service_user_exists
+
+  install_phase "Application source"
   if [[ "$SOURCE_MODE" == "offline" ]]; then
     ensure_offline_source_ready "install" || return 0
     install_source_from_zip "$SOURCE_ZIP_PATH" || return 1
@@ -2643,6 +2988,8 @@ install_birdx() {
       return 1
     }
   fi
+
+  install_phase "Environment and data restore"
   ensure_log_dir
   write_full_env_with_defaults
   RESTORE_BACKUP_QUIET="yes"
@@ -2653,60 +3000,41 @@ install_birdx() {
     return 1
   fi
   RESTORE_BACKUP_QUIET="no"
+
+  install_phase "Voice calls (TURN)"
   apply_turn_env_settings "$INSTALL_DIR/.env"
   configure_turn_server
+
+  install_phase "Build dependencies and keys"
   install_birdx_dependencies
   ensure_runtime_layout
   ensure_vapid_keys
   apply_ownership
+
+  install_phase "Systemd service"
   configure_systemd_service
-  log "Starting nginx setup..."
+
+  install_phase "Nginx reverse proxy"
   if ! configure_nginx; then
     warn "Nginx setup failed. Review ${NGINX_SITE_FILE} and ${LOG_FILE}."
     press_enter_to_continue
     return 1
   fi
-  log "Starting TLS setup..."
+
+  install_phase "TLS certificates"
   if ! configure_ssl_if_needed; then
     warn "TLS setup failed. Review ${NGINX_SITE_FILE} and ${LOG_FILE}."
     press_enter_to_continue
     return 1
   fi
 
-  log "Installation complete."
-  log "BirdX has been installed successfully."
-  if [[ "$CERT_MODE" == "http" ]]; then
-    if [[ "$DEPLOY_MODE" == "domain" ]]; then
-      for d in "${DOMAIN_NAMES[@]}"; do
-        log "Visit: http://${d}:${CLIENT_PORT}"
-      done
-    else
-      log "Visit: http://<your-server-ip>:${CLIENT_PORT}"
-    fi
-  elif [[ "$DEPLOY_MODE" == "domain" ]]; then
-    for d in "${DOMAIN_NAMES[@]}"; do
-      if [[ "$CLIENT_PORT" == "443" ]]; then
-        log "Visit: https://${d}"
-      else
-        log "Visit: https://${d}:${CLIENT_PORT}"
-      fi
-    done
-  else
-    local visit_ip="${CERTBOT_IP_ADDRESS:-<your-server-ip>}"
-    if [[ "$CERT_MODE" == "files" ]]; then
-      visit_ip="<your-server-ip>"
-    fi
-    if [[ "$CLIENT_PORT" == "443" ]]; then
-      log "Visit: https://${visit_ip}"
-    else
-      log "Visit: https://${visit_ip}:${CLIENT_PORT}"
-    fi
-  fi
-  if [[ "$TURN_ENABLED" == "true" ]]; then
-    log "TURN endpoint: ${TURN_HOST}:3478 (username: ${TURN_USERNAME})"
-    log_turn_firewall_hint
-  fi
+  install_phase "Finalize and verify"
+  sync_values_from_env
+  run_as_root systemctl restart birdx.service 2>/dev/null || true
+  wait_for_birdx_service
+  run_as_root systemctl reload nginx 2>/dev/null || true
 
+  print_install_success_summary
   press_enter_to_continue
 }
 
@@ -2803,47 +3131,56 @@ show_nginx_error_logs() {
 
 
 show_banner() {
-  printf '\033[1;36m'   # bold cyan
+  local ver
+  ver="$(get_birdx_deploy_version)"
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf '%b' "$C_CYAN"
+  fi
   cat << 'EOF'
-╔═══════════════════════════════════════════════════════════════════════════╗
-║                                                                           ║
-║      ███████╗ ██████╗ ███╗   ██╗ ██████╗ ██████╗ ██╗██████╗ ██████╗       ║
-║      ██╔════╝██╔═══██╗████╗  ██║██╔════╝ ██╔══██╗██║██╔══██╗██╔══██╗      ║
-║      ███████╗██║   ██║██╔██╗ ██║██║  ███╗██████╔╝██║██████╔╝██║  ██║      ║
-║      ╚════██║██║   ██║██║╚██╗██║██║   ██║██╔══██╗██║██╔══██╗██║  ██║      ║
-║      ███████║╚██████╔╝██║ ╚████║╚██████╔╝██████╔╝██║██║  ██║██████╔╝      ║
-║      ╚══════╝ ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═╝╚═════╝       ║
-║                                                                           ║
-║                           D E P L O Y   T O O L                           ║
-╚═══════════════════════════════════════════════════════════════════════════╝
+  ╔══════════════════════════════════════════════════════════════╗
+  ║                                                              ║
+  ║   ██████╗ ██╗██████╗ ██████╗ ██╗  ██╗                        ║
+  ║   ██╔══██╗██║██╔══██╗██╔══██╗╚██╗██╔╝                        ║
+  ║   ██████╔╝██║██║  ██║██████╔╝ ╚███╔╝                         ║
+  ║   ██╔══██╗██║██║  ██║██╔══██╗ ██╔██╗                         ║
+  ║   ██████╔╝██║██████╔╝██║  ██║██╔╝ ██╗                        ║
+  ║   ╚═════╝ ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝                        ║
+  ║                                                              ║
+  ║        Self-Hosted Chat · Deploy Console                     ║
+  ╚══════════════════════════════════════════════════════════════╝
 EOF
-  printf '\033[0m'      # reset
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf '%b' "$C_RESET"
+    printf "  %sDeploy tool v%s · server + web client only%s\n" "$C_DIM" "$ver" "$C_RESET"
+  else
+    printf "  Deploy tool v%s · server + web client only\n" "$ver"
+  fi
 }
 
 
 show_menu() {
   clear
   show_banner
+  show_status_panel
+  ui_title "Main menu"
+  ui_menu_item 1 "📥" "Install BirdX Chat"
+  ui_menu_item 2 "🔄" "Update from GitHub"
+  ui_menu_item 3 "♻" "Restart service"
+  ui_menu_item 4 "⚙" "Edit settings (.env)"
+  ui_menu_item 5 "🗃" "Manage database"
+  ui_menu_item 6 "🗑" "Remove installation"
+  ui_menu_item 7 "🔗" "Reinstall birdx-deploy command"
+  ui_menu_item 8 "🌐" "Configure download mirrors"
+  ui_menu_item 9 "📋" "View logs"
+  ui_menu_item 10 "🚪" "Exit"
   printf "\n"
-  printf "BirdX Deploy Menu\n"
-  printf $'1) 📥  Install BirdX\n'
-  printf $'2) 🔄️  Update BirdX\n'
-  printf $'3) ♻️  Restart BirdX\n'
-  printf $'4) ⚙️  Edit Settings (.env)\n'
-  printf $'5) 🗃️  Manage Database\n'
-  printf $'6) 🗑️  Remove BirdX\n'
-  printf $'7) 🔄️  Reinstall global command (birdx-deploy)\n'
-  printf $'8) 🌐  Configure mirrors\n'
-  printf $'9) 📋  View Logs\n'
-  printf $'10) 🚪  Exit\n\n'
 }
 
 show_logs_menu() {
   while true; do
     clear
     show_banner
-    printf "\n"
-    printf "Logs Menu\n"
+    ui_title "Logs"
     printf $'1) 📋  View script logs\n'
     printf $'2) 📋  View service logs\n'
     printf $'3) 📋 View nginx access logs\n'
@@ -3411,8 +3748,7 @@ show_db_menu() {
   while true; do
     clear
     show_banner
-    printf "\n"
-    printf "Manage Database\n"
+    ui_title "Database management"
     printf "1) 👁️  Inspect database (summary)\n"
     printf "2) 👁️  Inspect chats metadata\n"
     printf "3) 👁️  Inspect users\n"
@@ -3489,7 +3825,7 @@ main() {
       8) configure_mirrors_menu ;;
       9) show_logs_menu ;;
       10) break ;;
-      *) printf "Invalid choice. Select a number from 1 to 10.\n" ;;
+      *) warn "Invalid choice. Enter a number from 1 to 10." ;;
     esac
   done
 }

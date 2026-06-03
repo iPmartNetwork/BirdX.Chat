@@ -4,6 +4,7 @@ import { normalizeHexColor, resolveUserRow } from "../lib/dbToolHelpers.js";
 
 const USERNAME_REGEX = /^[a-z0-9._]+$/;
 const ALLOWED_STATUSES = new Set(["online", "invisible"]);
+const ALLOWED_ROLES = new Set(["owner", "admin", "moderator", "support", "user"]);
 
 const clampEnvInt = (value, fallback, { min, max } = {}) => {
   const parsed = Number(value);
@@ -32,10 +33,11 @@ async function main() {
   const avatarUrlValue = getFlagValue(args, "--avatar-url");
   const statusValue = getFlagValue(args, "--status");
   const colorValue = getFlagValue(args, "--color");
+  const roleValue = getFlagValue(args, "--role");
 
   if (!userSelector) {
     console.error(
-      'Usage: npm run db:user:edit -- <user-id-or-username> [--username new_username] [--nickname "Display Name"] [--avatar-url /api/uploads/avatars/file.png] [--status online|invisible] [--color #10b981]',
+      'Usage: npm run db:user:edit -- <user-id-or-username> [--username new_username] [--nickname "Display Name"] [--avatar-url /api/uploads/avatars/file.png] [--status online|invisible] [--color #10b981] [--role owner|admin|moderator|support|user]',
     );
     process.exit(1);
   }
@@ -59,6 +61,17 @@ async function main() {
     process.exit(1);
   }
 
+  const nextRole =
+    roleValue === null
+      ? undefined
+      : String(roleValue || "")
+          .trim()
+          .toLowerCase();
+  if (nextRole !== undefined && !ALLOWED_ROLES.has(nextRole)) {
+    console.error("Invalid role. Allowed: owner, admin, moderator, support, user.");
+    process.exit(1);
+  }
+
   const remoteResult = await runAdminActionViaServer("edit_user", {
     userSelector,
     username: usernameValue === null ? undefined : usernameValue,
@@ -66,6 +79,7 @@ async function main() {
     avatarUrl: avatarUrlValue === null ? undefined : avatarUrlValue,
     status: nextStatus,
     color: normalizedColor,
+    role: nextRole,
   });
   if (remoteResult) {
     console.log(
@@ -102,6 +116,10 @@ async function main() {
       nextStatus === undefined
         ? String(user.status || "online").toLowerCase()
         : nextStatus;
+    const effectiveRole =
+      nextRole === undefined
+        ? String(user.role || "user").toLowerCase()
+        : nextRole;
 
     if (nextUsername.length < 3) {
       console.error("Username must be at least 3 characters.");
@@ -142,13 +160,14 @@ async function main() {
     }
 
     dbApi.run(
-      "UPDATE users SET username = ?, nickname = ?, avatar_url = ?, color = ?, status = ? WHERE id = ?",
+      "UPDATE users SET username = ?, nickname = ?, avatar_url = ?, color = ?, status = ?, role = ? WHERE id = ?",
       [
         nextUsername,
         nextNickname,
         nextAvatarUrl,
         nextColor,
         effectiveStatus,
+        effectiveRole,
         Number(user.id),
       ],
     );
@@ -158,6 +177,7 @@ async function main() {
     console.log(`User updated: id=${updated.id} username=${updated.username}`);
     console.log(`Nickname: ${updated.nickname || ""}`);
     console.log(`Color: ${updated.color || ""}`);
+    console.log(`Role: ${updated.role || "user"}`);
   } finally {
     dbApi.close();
   }

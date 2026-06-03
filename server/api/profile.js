@@ -31,6 +31,13 @@ function registerProfileRoutes(app, deps) {
     updateUserProfile,
     updateUserStatus,
     uploadAvatar,
+    listSessionsForUser,
+    deleteSessionByIdForUser,
+    deleteOtherSessionsForUser,
+    updateUserNotificationPrefs,
+    updateUserUiAccent,
+    parseCookies,
+    getSession,
   } = deps;
 
   const emitPresenceUpdate = (user) => {
@@ -375,17 +382,35 @@ function registerProfileRoutes(app, deps) {
 
     const { generateSecret, buildTotpUri, generateBackupCodes } = await import("../lib/totp.js");
 
-    // Check if already enabled
-    const existing = totpGetRow?.("SELECT enabled FROM user_totp WHERE user_id = ?", [session.id]);
+    const existing = totpGetRow?.(
+      "SELECT secret, backup_codes, enabled FROM user_totp WHERE user_id = ?",
+      [session.id],
+    );
     if (existing && Number(existing.enabled || 0)) {
       return res.status(400).json({ error: "2FA is already enabled. Disable it first." });
+    }
+
+    if (existing?.secret && !Number(existing.enabled || 0)) {
+      let backupCodes = [];
+      try {
+        backupCodes = JSON.parse(existing.backup_codes || "[]");
+      } catch {
+        backupCodes = [];
+      }
+      const uri = buildTotpUri(existing.secret, session.username);
+      return res.json({
+        ok: true,
+        secret: existing.secret,
+        uri,
+        backupCodes,
+        resumed: true,
+      });
     }
 
     const secret = generateSecret();
     const backupCodes = generateBackupCodes(8);
     const uri = buildTotpUri(secret, session.username);
 
-    // Store pending (not yet enabled)
     totpRun?.(
       `INSERT INTO user_totp (user_id, secret, backup_codes, enabled, created_at)
        VALUES (?, ?, ?, 0, datetime('now'))
@@ -394,16 +419,16 @@ function registerProfileRoutes(app, deps) {
     );
     totpSave?.();
 
-    res.json({ ok: true, secret, uri, backupCodes });
+    res.json({ ok: true, secret, uri, backupCodes, resumed: false });
   });
 
   app.post("/api/2fa/verify-setup", async (req, res) => {
     const session = requireSession(req, res);
     if (!session) return;
 
-    const { verifyTOTP } = await import("../lib/totp.js");
-    const token = String(req.body?.token || "").trim();
-    if (!token || token.length !== 6) {
+    const { verifyTOTP, normalizeTotpToken } = await import("../lib/totp.js");
+    const token = normalizeTotpToken(req.body?.token);
+    if (!token) {
       return res.status(400).json({ error: "A 6-digit code is required." });
     }
 
@@ -416,13 +441,26 @@ function registerProfileRoutes(app, deps) {
     }
 
     if (!verifyTOTP(row.secret, token)) {
-      return res.status(400).json({ error: "Invalid code. Please try again." });
+      return res.status(400).json({
+        error: "Invalid code. Check your authenticator time sync and try a fresh code.",
+      });
     }
 
     totpRun?.("UPDATE user_totp SET enabled = 1 WHERE user_id = ?", [session.id]);
     totpSave?.();
 
     res.json({ ok: true, message: "2FA enabled successfully." });
+  });
+
+  app.post("/api/2fa/cancel-setup", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    totpRun?.("DELETE FROM user_totp WHERE user_id = ? AND COALESCE(enabled, 0) = 0", [
+      session.id,
+    ]);
+    totpSave?.();
+    res.json({ ok: true });
   });
 
   app.post("/api/2fa/disable", async (req, res) => {
@@ -462,6 +500,142 @@ function registerProfileRoutes(app, deps) {
     }
 
     res.json({ ok: true, backupCodes: codes });
+  });
+
+  app.get("/api/sessions", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const username = req.query?.username?.toString();
+    if (!username) {
+      return res.status(400).json({ error: "Username is required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(String(username || "").toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const cookies = parseCookies?.(req) || {};
+    const currentToken = String(cookies.sid || session.token || "").trim();
+    const rows = listSessionsForUser(user.id).map((row) => ({
+      id: Number(row.id),
+      ipAddress: row.ip_address || null,
+      userAgent: row.user_agent || null,
+      createdAt: row.created_at,
+      lastSeen: row.last_seen,
+      isCurrent: String(row.token || "") === currentToken,
+    }));
+
+    return res.json({ sessions: rows });
+  });
+
+  app.delete("/api/sessions/others", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const username = req.body?.username?.toString();
+    if (!username) {
+      return res.status(400).json({ error: "Username is required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(String(username || "").toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const cookies = parseCookies?.(req) || {};
+    const currentToken = String(cookies.sid || session.token || "").trim();
+    deleteOtherSessionsForUser(user.id, currentToken);
+    return res.json({ ok: true });
+  });
+
+  app.delete("/api/sessions/:sessionId", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const sessionId = Number(req.params?.sessionId || 0);
+    const username = req.body?.username?.toString() || req.query?.username?.toString();
+    if (!sessionId || !username) {
+      return res.status(400).json({ error: "Session id and username are required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(String(username || "").toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    deleteSessionByIdForUser(sessionId, user.id);
+    return res.json({ ok: true });
+  });
+
+  app.put("/api/notification-prefs", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const username = req.body?.username?.toString();
+    if (!username) {
+      return res.status(400).json({ error: "Username is required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(String(username || "").toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    updateUserNotificationPrefs(user.id, {
+      dndUntil: Object.prototype.hasOwnProperty.call(req.body || {}, "dndUntil")
+        ? req.body.dndUntil
+        : undefined,
+      notificationsPaused: Object.prototype.hasOwnProperty.call(
+        req.body || {},
+        "notificationsPaused",
+      )
+        ? Boolean(req.body.notificationsPaused)
+        : undefined,
+    });
+
+    const refreshed = findUserById(user.id) || user;
+    return res.json({
+      ok: true,
+      dndUntil: refreshed?.dnd_until || null,
+      notificationsPaused: Boolean(Number(refreshed?.notifications_paused || 0)),
+    });
+  });
+
+  app.put("/api/profile/ui-prefs", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const username = req.body?.username?.toString();
+    if (!username) {
+      return res.status(400).json({ error: "Username is required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(String(username || "").toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const accent = Object.prototype.hasOwnProperty.call(req.body || {}, "uiAccentColor")
+      ? req.body.uiAccentColor
+      : req.body.accentColor;
+
+    if (!/^#[0-9a-fA-F]{6}$/.test(String(accent || "").trim()) && accent !== null && accent !== "") {
+      return res.status(400).json({ error: "Accent color must be a hex value like #10b981." });
+    }
+
+    updateUserUiAccent?.(user.id, accent || null);
+    const refreshed = findUserById(user.id) || user;
+    return res.json({
+      ok: true,
+      uiAccentColor: refreshed?.ui_accent_color || null,
+    });
   });
 }
 

@@ -13,6 +13,11 @@ client/dist/
 .env
 .env.local
 .env.*.local
+server/.env.development
+
+# Separate repositories (not published on BirdX.Chat)
+site/
+apps/
 
 # Logs
 logs/

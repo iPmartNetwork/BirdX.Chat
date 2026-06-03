@@ -14,6 +14,7 @@ export default function Avatar({
   imgClassName = "",
   placeholderClassName = "",
   style = undefined,
+  useAccentColor = false,
 }) {
   const avatarSrc = String(src || "").trim();
   const derivedInitials = initials ?? getAvatarInitials(name || alt || "S");
@@ -40,8 +41,11 @@ export default function Avatar({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-full ${className}`}
-      style={{ ...getAvatarStyle(color), ...style }}
+      className={`relative overflow-hidden rounded-full ${useAccentColor ? "birdx-accent-icon" : ""} ${className}`}
+      style={{
+        ...(useAccentColor ? { color: "#ffffff" } : getAvatarStyle(color)),
+        ...style,
+      }}
     >
       <div
         className={`absolute inset-0 flex items-center justify-center ${

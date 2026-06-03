@@ -1,0 +1,18 @@
+export const WEBHOOK_EVENTS = [
+  "message.new",
+  "message.edit",
+  "message.delete",
+  "user.register",
+  "user.login",
+  "user.ban",
+  "chat.create",
+  "chat.delete",
+  "chat.archive",
+  "member.join",
+  "member.leave",
+  "dm.request",
+  "call.started",
+  "call.ended",
+  "reaction.add",
+  "message.scheduled",
+];

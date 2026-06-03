@@ -31,6 +31,15 @@ import { migration030RequiredChannels } from "./030-required-channels.js";
 import { migration031UserUploadPolicy } from "./031-user-upload-policy.js";
 import { migration032E2eeKeys } from "./032-e2ee-keys.js";
 import { migration033DmPrivacy } from "./033-dm-privacy.js";
+import { migration034UserChatSettings } from "./034-user-chat-settings.js";
+import { migration035UserNotificationPrefs } from "./035-user-notification-prefs.js";
+import { migration036V2Platform } from "./036-v2-platform.js";
+import { migration037UserContacts } from "./037-user-contacts.js";
+import { migration038ContactRequestPolicy } from "./038-contact-request-policy.js";
+import { migration039MessagePolls } from "./039-message-polls.js";
+import { migration040BirdxchatOwner } from "./040-birdxchat-owner.js";
+import { migration041UserTotp } from "./041-user-totp.js";
+import { migration042MessageReports } from "./042-message-reports.js";
 
 export const migrations = [
   migration001InitialSchema,
@@ -66,4 +75,13 @@ export const migrations = [
   migration031UserUploadPolicy,
   migration032E2eeKeys,
   migration033DmPrivacy,
+  migration034UserChatSettings,
+  migration035UserNotificationPrefs,
+  migration036V2Platform,
+  migration037UserContacts,
+  migration038ContactRequestPolicy,
+  migration039MessagePolls,
+  migration040BirdxchatOwner,
+  migration041UserTotp,
+  migration042MessageReports,
 ];

@@ -16,6 +16,13 @@ function registerE2eeRoutes(app, deps) {
     requireSessionUsernameMatch,
     findUserByUsername,
     findUserById,
+    isMember,
+    isGroupE2eeEnabled,
+    setGroupE2eeEnabled,
+    upsertGroupE2eeWrappedKey,
+    listGroupE2eeWrappedKeys,
+    getGroupE2eeWrappedKey,
+    getChatMemberRole,
   } = deps;
 
   /**
@@ -259,6 +266,140 @@ function registerE2eeRoutes(app, deps) {
     );
 
     return res.json({ ok: true, count });
+  });
+
+  app.get("/api/e2ee/group/:chatId/status", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const chatId = Number(req.params.chatId || 0);
+    if (!chatId || !isMember(chatId, session.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+
+    return res.json({
+      ok: true,
+      chatId,
+      enabled: isGroupE2eeEnabled(chatId),
+    });
+  });
+
+  app.post("/api/e2ee/group/:chatId/enable", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const chatId = Number(req.params.chatId || 0);
+    if (!chatId || !isMember(chatId, session.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+
+    const role = String(getChatMemberRole?.(chatId, session.id) || "").toLowerCase();
+    if (!["owner", "admin"].includes(role)) {
+      return res.status(403).json({ error: "Only group admins can enable group E2EE." });
+    }
+
+    setGroupE2eeEnabled(chatId, true);
+    adminSave?.();
+    return res.json({ ok: true, chatId, enabled: true });
+  });
+
+  app.post("/api/e2ee/group/:chatId/disable", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const chatId = Number(req.params.chatId || 0);
+    if (!chatId || !isMember(chatId, session.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+
+    const role = String(getChatMemberRole?.(chatId, session.id) || "").toLowerCase();
+    if (!["owner", "admin"].includes(role)) {
+      return res.status(403).json({ error: "Only group admins can disable group E2EE." });
+    }
+
+    setGroupE2eeEnabled(chatId, false);
+    adminSave?.();
+    return res.json({ ok: true, chatId, enabled: false });
+  });
+
+  app.put("/api/e2ee/group/:chatId/keys", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const chatId = Number(req.params.chatId || 0);
+    const wrappedKey = String(req.body?.wrappedKey || "").trim();
+    const keyGeneration = Number(req.body?.keyGeneration || 1) || 1;
+    const requestedUserId = Number(req.body?.userId || session.id) || session.id;
+
+    if (!chatId || !wrappedKey) {
+      return res.status(400).json({ error: "Chat id and wrapped key are required." });
+    }
+    if (!isMember(chatId, session.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+    if (!isGroupE2eeEnabled(chatId)) {
+      return res.status(400).json({ error: "Group E2EE is not enabled for this chat." });
+    }
+
+    if (requestedUserId !== session.id) {
+      const role = String(getChatMemberRole?.(chatId, session.id) || "").toLowerCase();
+      const hasGroupKey = Boolean(getGroupE2eeWrappedKey(chatId, session.id)?.wrapped_key);
+      if (!["owner", "admin"].includes(role) && !hasGroupKey) {
+        return res.status(403).json({ error: "Only group admins or keyed members can upload keys for others." });
+      }
+      if (!isMember(chatId, requestedUserId)) {
+        return res.status(400).json({ error: "Target user is not a member of this group." });
+      }
+    }
+
+    upsertGroupE2eeWrappedKey({
+      chatId,
+      userId: requestedUserId,
+      wrappedKey,
+      keyGeneration,
+    });
+    adminSave?.();
+    return res.json({ ok: true, chatId, keyGeneration });
+  });
+
+  app.get("/api/e2ee/group/:chatId/keys", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const chatId = Number(req.params.chatId || 0);
+    if (!chatId || !isMember(chatId, session.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+    if (!isGroupE2eeEnabled(chatId)) {
+      return res.json({ ok: true, chatId, enabled: false, keys: [] });
+    }
+
+    const keys = listGroupE2eeWrappedKeys(chatId).map((row) => ({
+      userId: Number(row.user_id),
+      wrappedKey: row.wrapped_key,
+      keyGeneration: Number(row.key_generation || 1),
+      updatedAt: row.updated_at || null,
+    }));
+
+    return res.json({ ok: true, chatId, enabled: true, keys });
+  });
+
+  app.get("/api/e2ee/group/:chatId/keys/me", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const chatId = Number(req.params.chatId || 0);
+    if (!chatId || !isMember(chatId, session.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+
+    const row = getGroupE2eeWrappedKey(chatId, session.id);
+    return res.json({
+      ok: true,
+      chatId,
+      wrappedKey: row?.wrapped_key || null,
+      keyGeneration: Number(row?.key_generation || 0) || null,
+    });
   });
 }
 

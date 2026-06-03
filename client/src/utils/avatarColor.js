@@ -24,10 +24,14 @@ export function getAvatarTextColor(backgroundColor) {
   return luminance > 0.56 ? "#0f172a" : "#ffffff";
 }
 
-export function getAvatarStyle(backgroundColor, fallback = "#10b981") {
+export function getAvatarStyle(backgroundColor, fallback = "var(--birdx-accent, #10b981)") {
   const color = backgroundColor || fallback;
+  const textColor =
+    typeof color === "string" && color.startsWith("var(")
+      ? "#ffffff"
+      : getAvatarTextColor(color);
   return {
     backgroundColor: color,
-    color: getAvatarTextColor(color),
+    color: textColor,
   };
 }

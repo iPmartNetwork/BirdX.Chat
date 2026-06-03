@@ -6,6 +6,7 @@ import {
   normalizeDmPolicy,
   recordDmSecurityEvent,
 } from "../lib/dmPrivacy.js";
+import { normalizeContactRequestPolicy } from "../lib/contactPolicy.js";
 
 function registerDmPrivacyRoutes(app, deps) {
   const {
@@ -13,6 +14,7 @@ function registerDmPrivacyRoutes(app, deps) {
     adminRun,
     adminSave,
     blockUser,
+    cancelPendingContactRequestsBetween,
     countDmInitiationsToday,
     countNonSystemMessagesInChat,
     emitChatEvent,
@@ -25,14 +27,18 @@ function registerDmPrivacyRoutes(app, deps) {
     isBlockedBetween,
     isDmRejectionCooldownActive,
     isMember,
+    listBlockedUsers,
     listChatMembers,
     listDmRequestsForUser,
+    recordDmSecurityEvent,
+    removeMutualUserContacts,
     recordDmRejection,
     requireSession,
     requireSessionUsernameMatch,
     setChatDmState,
     unblockUser,
     unhideChat,
+    updateUserContactRequestPolicy,
     updateUserDmPolicy,
     usersShareNonDmChat,
   } = deps;
@@ -242,6 +248,53 @@ function registerDmPrivacyRoutes(app, deps) {
     res.json({ ok: true, dmPolicy: policy });
   });
 
+  app.patch("/api/profile/contact-request-policy", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const { username, contactRequestPolicy } = req.body || {};
+    if (!username) {
+      return res.status(400).json({ error: "Username is required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(username.toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const policy = normalizeContactRequestPolicy(contactRequestPolicy);
+    updateUserContactRequestPolicy(user.id, policy);
+
+    res.json({ ok: true, contactRequestPolicy: policy });
+  });
+
+  app.get("/api/users/blocked", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+
+    const username = req.query.username?.toString();
+    if (!username) {
+      return res.status(400).json({ error: "Username is required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+
+    const user = findUserByUsername(username.toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const blocked = listBlockedUsers(user.id).map((row) => ({
+      id: Number(row.id),
+      username: row.username,
+      nickname: row.nickname || row.username,
+      avatar_url: ensureAvatarExists(row.id, row.avatar_url),
+      color: row.color || "#10b981",
+    }));
+
+    res.json({ blocked });
+  });
+
   app.post("/api/users/block", (req, res) => {
     const session = requireSession(req, res);
     if (!session) return;
@@ -262,6 +315,11 @@ function registerDmPrivacyRoutes(app, deps) {
     }
 
     blockUser(blocker.id, blocked.id);
+    removeMutualUserContacts(blocker.id, blocked.id);
+    cancelPendingContactRequestsBetween(blocker.id, blocked.id);
+    adminSave?.();
+    emitSseEvent(blocker.username, { type: "contacts_updated" });
+    emitSseEvent(blocked.username, { type: "contacts_updated" });
     recordDmSecurityEvent(adminRun, adminSave, req, "dm.user.blocked", {
       username: blocker.username,
       userId: blocker.id,
@@ -290,6 +348,13 @@ function registerDmPrivacyRoutes(app, deps) {
     }
 
     unblockUser(blocker.id, blocked.id);
+    adminSave?.();
+    recordDmSecurityEvent(adminRun, adminSave, req, "dm.user.unblocked", {
+      username: blocker.username,
+      userId: blocker.id,
+      blockedUsername: blocked.username,
+      blockedUserId: blocked.id,
+    });
     res.json({ ok: true });
   });
 }
