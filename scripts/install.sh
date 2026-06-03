@@ -1401,6 +1401,7 @@ EOF
   else
     log_ok "All required base packages are already installed."
   fi
+  run_silent run_as_root apt-get install -y -qq python3-invoke 2>/dev/null || true
 }
 
 prefer_ipv4() {
@@ -1801,14 +1802,19 @@ update_source_from_zip() {
 
 install_birdx_dependencies() {
   local npm_registry_arg=""
+  local bootstrap="${INSTALL_DIR}/scripts/mediasoup-bootstrap.sh"
   if [[ -n "$MIRROR_NPM" ]]; then
     npm_registry_arg="--registry $(printf "%q" "$MIRROR_NPM")"
   fi
 
   ensure_mediasoup_build_deps
-  log "Installing server dependencies (mediasoup may compile — can take a few minutes)..."
-  run_in_install_dir "env PYTHON=python3 npm --prefix server ${npm_registry_arg} install" \
-    || fail "Failed to install server dependencies."
+  [[ -f "$bootstrap" ]] || fail "Missing scripts/mediasoup-bootstrap.sh — update BirdX.Chat source."
+  # shellcheck source=/dev/null
+  source "$bootstrap"
+
+  log "Installing server dependencies (mediasoup worker)..."
+  run_in_install_dir "source scripts/mediasoup-bootstrap.sh && env PYTHON=python3 PIP_INDEX_URL='${PIP_INDEX_URL:-}' birdx_install_server_npm '${INSTALL_DIR}' ${npm_registry_arg}" \
+    || fail "Failed to install server dependencies (mediasoup). Try export PIP_INDEX_URL=<pypi-mirror> or ensure GitHub releases are reachable."
 
   log "Installing client dependencies..."
   run_in_install_dir "npm --prefix client ${npm_registry_arg} install" || fail "Failed to install client dependencies."
@@ -3327,7 +3333,13 @@ ensure_remote_channel_dependencies() {
 
   warn "Remote Channel dependency 'telegram' is not installed. Installing server dependencies..."
   ensure_mediasoup_build_deps
-  if [[ -n "$MIRROR_NPM" ]]; then
+  if [[ -f "${INSTALL_DIR}/scripts/mediasoup-bootstrap.sh" ]]; then
+    if [[ -n "$MIRROR_NPM" ]]; then
+      run_db_command bash -lc "source scripts/mediasoup-bootstrap.sh && env PYTHON=python3 PIP_INDEX_URL='${PIP_INDEX_URL:-}' birdx_install_server_npm '${INSTALL_DIR}' --registry $(printf '%q' "$MIRROR_NPM")"
+    else
+      run_db_command bash -lc "source scripts/mediasoup-bootstrap.sh && env PYTHON=python3 PIP_INDEX_URL='${PIP_INDEX_URL:-}' birdx_install_server_npm '${INSTALL_DIR}'"
+    fi
+  elif [[ -n "$MIRROR_NPM" ]]; then
     run_db_command env PYTHON=python3 npm --prefix server --registry "$MIRROR_NPM" install
   else
     run_db_command env PYTHON=python3 npm --prefix server install

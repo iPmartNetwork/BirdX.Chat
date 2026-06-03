@@ -36,7 +36,8 @@ jobs:
         run: |
           npm ci
           npm ci --prefix client
-          npm ci --prefix server
+          source scripts/mediasoup-bootstrap.sh
+          birdx_install_server_npm "$PWD"
 
       - name: Build client
         run: npm run build
