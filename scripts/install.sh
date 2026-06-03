@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Strip CRLF when copied from Windows (must run before set -o).
+if grep -q $'\r' "$0" 2>/dev/null; then
+  sed -i 's/\r$//' "$0"
+  exec /usr/bin/env bash "$0" "$@"
+fi
 
 set -uo pipefail
 
@@ -124,6 +129,7 @@ C_YELLOW=""
 C_RED=""
 C_MAGENTA=""
 C_BLUE=""
+C_PINK=""
 UI_BOX_INNER=58
 
 ui_init_colors() {
@@ -141,21 +147,39 @@ ui_init_colors() {
   C_RED=$'\033[1;31m'
   C_MAGENTA=$'\033[1;35m'
   C_BLUE=$'\033[0;34m'
+  C_PINK=$'\033[95m'
+}
+
+_log_write_file() {
+  local timestamp="$1" level="$2" msg="$3"
+  local log_dir="$(dirname "$LOG_FILE")"
+  if [[ -d "$log_dir" ]]; then
+    printf "[%s] [BirdX] %s%s\n" "$timestamp" "$level" "$msg" >>"$LOG_FILE" 2>/dev/null || true
+  fi
 }
 
 log() {
   local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
-  local log_dir="$(dirname "$LOG_FILE")"
 
   if [[ "$UI_USE_COLOR" == "yes" ]]; then
-    printf "%b\n" "${C_DIM}[${C_CYAN}BirdX${C_DIM}]${C_RESET} $1"
+    printf "%b%s%b - %s\n" "$C_CYAN" "$timestamp" "$C_RESET" "$1"
   else
-    printf "[BirdX] %s\n" "$1"
+    printf "[%s] [BirdX] %s\n" "$timestamp" "$1"
   fi
 
-  if [[ -d "$log_dir" ]]; then
-    printf "[%s] [BirdX] %s\n" "$timestamp" "$1" >> "$LOG_FILE" 2>/dev/null || true
+  _log_write_file "$timestamp" "" "$1"
+}
+
+log_ok() {
+  local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+
+  if [[ "$UI_USE_COLOR" == "yes" ]]; then
+    printf "%b%s%b - %b%s%b\n" "$C_CYAN" "$timestamp" "$C_RESET" "$C_GREEN" "$1" "$C_RESET"
+  else
+    printf "[%s] [BirdX] OK: %s\n" "$timestamp" "$1"
   fi
+
+  _log_write_file "$timestamp" "OK: " "$1"
 }
 
 
@@ -170,25 +194,21 @@ ensure_log_dir() {
 warn() {
   local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
   if [[ "$UI_USE_COLOR" == "yes" ]]; then
-    printf "%b\n" "${C_DIM}[${C_YELLOW}WARN${C_DIM}]${C_RESET} $*" >&2
+    printf "%b%s%b - %bWARN:%b %s\n" "$C_CYAN" "$timestamp" "$C_RESET" "$C_YELLOW" "$C_RESET" "$*" >&2
   else
-    printf "[BirdX] WARNING: %s\n" "$*" >&2
+    printf "[%s] [BirdX] WARNING: %s\n" "$timestamp" "$*" >&2
   fi
-  if [[ -f "$LOG_FILE" ]]; then
-    printf "[%s] [BirdX] WARNING: %s\n" "$timestamp" "$*" >> "$LOG_FILE" 2>/dev/null || true
-  fi
+  _log_write_file "$timestamp" "WARNING: " "$*"
 }
 
 fail() {
   local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
   if [[ "$UI_USE_COLOR" == "yes" ]]; then
-    printf "%b\n" "${C_DIM}[${C_RED}ERROR${C_DIM}]${C_RESET} $*" >&2
+    printf "%b%s%b - %bERROR:%b %s\n" "$C_CYAN" "$timestamp" "$C_RESET" "$C_RED" "$C_RESET" "$*" >&2
   else
-    printf "[BirdX] ERROR: %s\n" "$*" >&2
+    printf "[%s] [BirdX] ERROR: %s\n" "$timestamp" "$*" >&2
   fi
-  if [[ -f "$LOG_FILE" ]]; then
-    printf "[%s] [BirdX] ERROR: %s\n" "$timestamp" "$*" >> "$LOG_FILE" 2>/dev/null || true
-  fi
+  _log_write_file "$timestamp" "ERROR: " "$*"
   exit 1
 }
 
@@ -606,6 +626,7 @@ prompt_read() {
   if ! IFS= read -r -u "$PROMPT_FD" input; then
     input=""
   fi
+  input="${input//$'\r'/}"
   printf -v "$__result_var" "%s" "$input"
 }
 
@@ -1334,11 +1355,14 @@ install_required_packages() {
     gnupg
     lsb-release
     build-essential
+    python3
+    python3-pip
     nginx
     ffmpeg
     nano
     zip
     unzip
+    xz-utils
   )
   if [[ "$TURN_ENABLED" == "true" ]]; then
     required_pkgs+=(coturn)
@@ -1375,8 +1399,56 @@ EOF
     log "Installing missing packages: ${missing_pkgs[*]}"
     run_silent run_as_root apt-get install -y --allow-downgrades "${missing_pkgs[@]}" || fail "Failed to install required packages."
   else
-    log "All required base packages are already installed."
+    log_ok "All required base packages are already installed."
   fi
+}
+
+prefer_ipv4() {
+  local gai="/etc/gai.conf"
+  if [[ -f "$gai" ]] && grep -q 'precedence ::ffff:0:0/96' "$gai" 2>/dev/null; then
+    return 0
+  fi
+  run_as_root bash -c "printf '\n# BirdX: prefer IPv4 (NodeSource/CDN timeouts on IPv6)\nprecedence ::ffff:0:0/96  100\n' >>\"$gai\"" 2>/dev/null || true
+}
+
+install_node_via_official_tarball() {
+  local uname_m arch ver url tmp extract
+  uname_m="$(uname -m)"
+  case "$uname_m" in
+    x86_64|amd64) arch="x64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *) fail "Unsupported CPU for Node.js binary: ${uname_m}" ;;
+  esac
+
+  log "Fetching Node.js v${NODE_MAJOR}.x from nodejs.org (IPv4)..."
+  ver="$(curl -4fsSL https://nodejs.org/dist/index.json \
+    | grep -oE "\"version\":\"v${NODE_MAJOR}\.[0-9]+\.[0-9]+\"" \
+    | head -1 \
+    | cut -d'"' -f4)"
+  ver="${ver#v}"
+  [[ -n "$ver" ]] || return 1
+
+  url="https://nodejs.org/dist/v${ver}/node-v${ver}-linux-${arch}.tar.xz"
+  tmp="$(mktemp -d)"
+  curl -4fsSL "$url" -o "${tmp}/node.tar.xz"
+  tar -xJf "${tmp}/node.tar.xz" -C "$tmp"
+  extract="${tmp}/node-v${ver}-linux-${arch}"
+  [[ -x "${extract}/bin/node" ]] || return 1
+
+  run_as_root install -m 0755 "${extract}/bin/node" /usr/local/bin/node
+  run_as_root install -m 0755 "${extract}/bin/npm" /usr/local/bin/npm
+  run_as_root install -m 0755 "${extract}/bin/npx" /usr/local/bin/npx
+  [[ -f "${extract}/bin/corepack" ]] && run_as_root install -m 0755 "${extract}/bin/corepack" /usr/local/bin/corepack
+  rm -rf "$tmp"
+  hash -r
+  return 0
+}
+
+ensure_mediasoup_build_deps() {
+  if ! python3 -m pip --version &>/dev/null; then
+    fail "python3-pip is required for mediasoup (voice/SFU). Re-run install after: apt install -y python3-pip build-essential"
+  fi
+  log_ok "mediasoup build dependencies ready (python3-pip, build-essential)."
 }
 
 ensure_nodejs_from_nodesource() {
@@ -1384,10 +1456,12 @@ ensure_nodejs_from_nodesource() {
     local current_major
     current_major="$(node -e 'process.stdout.write(String(process.versions.node.split(".")[0]))')"
     if (( current_major >= NODE_MAJOR )); then
-      log "Node.js ${current_major}.x already installed. Skipping."
+      log_ok "Node.js ${current_major}.x already installed."
       return 0
     fi
   fi
+
+  prefer_ipv4
 
   if [[ -n "$MIRROR_NODESOURCE" ]]; then
     # Detect tarball vs setup-script mirror by checking for .tar.gz suffix
@@ -1398,38 +1472,50 @@ ensure_nodejs_from_nodesource() {
       tmp_dir="$(mktemp -d)"
       local tarball="${tmp_dir}/node.tar.gz"
 
-      curl -fsSL "$MIRROR_NODESOURCE" -o "$tarball"
+      curl -4fsSL "$MIRROR_NODESOURCE" -o "$tarball"
 
       local install_dir="/usr/local"
       run_silent run_as_root tar -xzf "$tarball" -C "$install_dir" --strip-components=1
 
       rm -rf "$tmp_dir"
 
-      log "Node.js installed from tarball to ${install_dir}."
+      log_ok "Node.js installed from tarball to ${install_dir}."
       return 0
     else
       # NodeSource-compatible mirror: mirror base URL + /setup_XX.x
       local setup_url="${MIRROR_NODESOURCE%/}/setup_${NODE_MAJOR}.x"
       log "Installing Node.js ${NODE_MAJOR}.x via NodeSource-style mirror: ${setup_url}"
       if [[ -n "$SUDO" ]]; then
-        curl -fsSL "$setup_url" | $SUDO -E bash -
+        curl -4fsSL "$setup_url" | $SUDO -E bash -
       else
-        curl -fsSL "$setup_url" | bash -
+        curl -4fsSL "$setup_url" | bash -
       fi
-      run_silent run_as_root apt-get install -y nodejs
+      if run_silent run_as_root apt-get -o Acquire::ForceIPv4=true install -y nodejs; then
+        log_ok "Node.js installed via mirror."
+        return 0
+      fi
+      warn "Mirror apt install failed; trying nodejs.org binary..."
+      install_node_via_official_tarball || fail "Failed to install Node.js ${NODE_MAJOR}.x"
       return 0
     fi
   fi
 
-  # Default: official NodeSource
+  # Default: official NodeSource, then nodejs.org tarball fallback
   local setup_url="https://deb.nodesource.com/setup_${NODE_MAJOR}.x"
   log "Installing Node.js ${NODE_MAJOR}.x via NodeSource..."
+  local nodesource_ok="no"
   if [[ -n "$SUDO" ]]; then
-    curl -fsSL "$setup_url" | $SUDO -E bash -
+    curl -4fsSL "$setup_url" | $SUDO -E bash - && nodesource_ok="yes" || true
   else
-    curl -fsSL "$setup_url" | bash -
+    curl -4fsSL "$setup_url" | bash - && nodesource_ok="yes" || true
   fi
-  run_silent run_as_root apt-get install -y nodejs
+  if [[ "$nodesource_ok" == "yes" ]] && run_silent run_as_root apt-get -o Acquire::ForceIPv4=true install -y nodejs; then
+    log_ok "Node.js installed via NodeSource."
+    return 0
+  fi
+  warn "NodeSource failed (often IPv6 timeout). Trying nodejs.org binary (IPv4)..."
+  install_node_via_official_tarball || fail "Failed to install Node.js ${NODE_MAJOR}.x"
+  log_ok "Node.js installed from nodejs.org tarball."
 }
 
 resolve_node_exec_path() {
@@ -1719,14 +1805,17 @@ install_birdx_dependencies() {
     npm_registry_arg="--registry $(printf "%q" "$MIRROR_NPM")"
   fi
 
-  log "Installing server dependencies..."
-  run_in_install_dir "npm --prefix server ${npm_registry_arg} install" || fail "Failed to install server dependencies."
+  ensure_mediasoup_build_deps
+  log "Installing server dependencies (mediasoup may compile — can take a few minutes)..."
+  run_in_install_dir "env PYTHON=python3 npm --prefix server ${npm_registry_arg} install" \
+    || fail "Failed to install server dependencies."
 
   log "Installing client dependencies..."
   run_in_install_dir "npm --prefix client ${npm_registry_arg} install" || fail "Failed to install client dependencies."
 
   log "Building client..."
   run_in_install_dir "npm --prefix client run build" || fail "Failed to build client assets."
+  log_ok "Server and client dependencies installed."
 }
 
 get_existing_env_value() {
@@ -3151,7 +3240,7 @@ show_banner() {
 EOF
   if [[ "$UI_USE_COLOR" == "yes" ]]; then
     printf '%b' "$C_RESET"
-    printf "  %sDeploy tool v%s · server + web client only%s\n" "$C_DIM" "$ver" "$C_RESET"
+    printf "  %bDeploy tool v%s · server + web client only%b\n" "$C_PINK" "$ver" "$C_RESET"
   else
     printf "  Deploy tool v%s · server + web client only\n" "$ver"
   fi
@@ -3237,10 +3326,11 @@ ensure_remote_channel_dependencies() {
   fi
 
   warn "Remote Channel dependency 'telegram' is not installed. Installing server dependencies..."
+  ensure_mediasoup_build_deps
   if [[ -n "$MIRROR_NPM" ]]; then
-    run_db_command npm --prefix server --registry "$MIRROR_NPM" install
+    run_db_command env PYTHON=python3 npm --prefix server --registry "$MIRROR_NPM" install
   else
-    run_db_command npm --prefix server install
+    run_db_command env PYTHON=python3 npm --prefix server install
   fi
 
   if ! run_db_command node -e "$resolve_telegram" >/dev/null 2>&1; then

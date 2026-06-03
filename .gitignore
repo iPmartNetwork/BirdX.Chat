@@ -19,6 +19,9 @@ server/.env.development
 site/
 apps/
 
+# Internal full-stack installer (birdx.chat + app) — iPmart only, never push to public repos
+deploy/private/
+
 # Logs
 logs/
 *.log

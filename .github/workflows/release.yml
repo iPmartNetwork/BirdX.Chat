@@ -13,6 +13,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+      PYTHON: python3
 
     steps:
       - name: Checkout
@@ -25,6 +28,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
+
+      - name: Install build tools (mediasoup worker)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-pip
 
       - name: Install dependencies
         run: |
