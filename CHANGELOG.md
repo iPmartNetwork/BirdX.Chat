@@ -10,6 +10,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## v1.0.2 - 2026-06-04
+
+### Fixed
+
+- **Group call limits ignored `.env`**: `GROUP_CALL_MODE`, `GROUP_CALL_MIN_MEMBERS`, and `GROUP_CALL_MAX_PARTICIPANTS` were evaluated at module load (before `dotenv` ran), so they always fell back to defaults. Config is now read lazily and honours `.env`.
+- **Group call overlay crash**: `ParticipantTile` referenced an undefined `t()` translation helper; the local participant label is now passed as a prop.
+- **Calls unreachable on mobile/Capacitor**: Socket.IO authentication now falls back to an `auth.token` handshake when the session cookie is not sent by the WebView.
+
+### Added
+
+- `GET /api/socket-token` — returns the current session token for Socket.IO auth on clients where cookies are unavailable (mobile/Capacitor).
+- `APP_ALLOWED_ORIGINS` — optional Socket.IO CORS allow-list (comma/space separated). Empty allows any origin (session auth still enforced); Capacitor/mobile origins are always allowed.
+
+### Changed
+
+- Socket.IO CORS in production is now configurable via `APP_ALLOWED_ORIGINS` instead of being locked to same-origin only.
+
+---
+
 ## v1.0.1 - 2026-06-02
 
 ### Added

@@ -159,6 +159,8 @@ BirdX.Chat/
 
 Copy [`.env.example`](./.env.example) → `.env`. See comments for DM policy, uploads, retention, TURN, VAPID, and `STORAGE_ENCRYPTION_KEY` (do not change after first run).
 
+**Voice/video calls:** set `APP_TURN_URLS` / `APP_TURN_USERNAME` / `APP_TURN_CREDENTIAL` for reliable audio on mobile and strict NATs. Group call behaviour is controlled by `GROUP_CALL_MODE` (`mesh` default, or `sfu`), `GROUP_CALL_MIN_MEMBERS`, and `GROUP_CALL_MAX_PARTICIPANTS`. If a reverse proxy or mobile (Capacitor) shell connects from a different origin, list allowed origins in `APP_ALLOWED_ORIGINS` (empty = allow any; session auth is always enforced).
+
 Database tools: `npm --prefix server run db:help`
 
 ---

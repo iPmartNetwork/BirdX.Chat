@@ -113,6 +113,8 @@ BirdX.Chat/
 - [`.env.example`](./.env.example)
 - [`deploy/README.md`](./deploy/README.md)
 
+**تماس صوتی/تصویری:** برای صدای پایدار روی موبایل و NATهای سخت‌گیر، `APP_TURN_URLS` / `APP_TURN_USERNAME` / `APP_TURN_CREDENTIAL` را تنظیم کنید. رفتار تماس گروهی با `GROUP_CALL_MODE` (پیش‌فرض `mesh` یا `sfu`)، `GROUP_CALL_MIN_MEMBERS` و `GROUP_CALL_MAX_PARTICIPANTS` کنترل می‌شود. اگر reverse proxy یا اپ موبایل (Capacitor) از origin متفاوتی وصل می‌شود، originهای مجاز را در `APP_ALLOWED_ORIGINS` فهرست کنید (خالی = مجاز بودن همه؛ احراز هویت نشست همیشه اجباری است).
+
 ---
 
 ## پشتیبانی
