@@ -5,6 +5,8 @@ function registerPushRoutes(app, deps) {
     findUserByUsername,
     upsertPushSubscription,
     deletePushSubscription,
+    upsertDeviceToken,
+    deleteDeviceToken,
     VAPID_PUBLIC_KEY,
     sendPushNotificationToUsers,
     listPushSubscriptionsByUserIds,
@@ -57,6 +59,45 @@ function registerPushRoutes(app, deps) {
     }
     if (!requireSessionUsernameMatch(res, session, username)) return;
     deletePushSubscription(endpoint);
+    return res.json({ ok: true });
+  });
+
+  // --- Native (Capacitor/FCM) device token registration ---
+
+  app.post("/api/push/device-token", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const { username, token, platform } = req.body || {};
+    if (!username || !token) {
+      return res
+        .status(400)
+        .json({ error: "Username and token are required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+    const user = findUserByUsername(String(username || "").toLowerCase());
+    if (!user) return res.status(404).json({ error: "User not found." });
+    try {
+      upsertDeviceToken(user.id, token, platform || "android");
+      return res.json({ ok: true });
+    } catch (error) {
+      // R2.5: surface a server error to the client; do not retry.
+      return res
+        .status(500)
+        .json({ error: error?.message || "Unable to save device token." });
+    }
+  });
+
+  app.delete("/api/push/device-token", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const { username, token } = req.body || {};
+    if (!username || !token) {
+      return res
+        .status(400)
+        .json({ error: "Username and token are required." });
+    }
+    if (!requireSessionUsernameMatch(res, session, username)) return;
+    deleteDeviceToken(token);
     return res.json({ ok: true });
   });
 

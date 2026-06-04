@@ -15,6 +15,11 @@ client/dist/
 .env.*.local
 server/.env.development
 
+# Firebase service account (server FCM credential — never commit)
+*service-account*.json
+firebase-service-account*.json
+server/firebase-service-account*.json
+
 # Separate repositories (not published on BirdX.Chat)
 site/
 apps/

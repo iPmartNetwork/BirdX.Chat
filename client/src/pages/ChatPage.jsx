@@ -52,6 +52,7 @@ import { useE2ee } from "../hooks/chat/useE2ee.js";
 import { useGroupE2ee } from "../hooks/useGroupE2ee.js";
 import { useCallContacts } from "../hooks/useCallContacts.js";
 import { useContacts } from "../hooks/useContacts.js";
+import { useNativeBridge } from "../hooks/useNativeBridge.js";
 import GroupCallOverlay from "../components/calls/GroupCallOverlay.jsx";
 import { createMeshCallManager } from "../utils/calls/meshCallManager.js";
 import PollModal from "../components/modals/PollModal.jsx";
@@ -7830,8 +7831,29 @@ useEffect(() => {
     }
   }
 
+  const handleNativeOpenChat = useCallback((chatId) => {
+    const numericChatId = Number(chatId || 0);
+    if (!numericChatId) return;
+    if (typeof window !== "undefined") {
+      // Reuse the existing deep-link mechanism so it works even right after
+      // a cold launch (the pending id is consumed once chats are loaded).
+      window.sessionStorage.setItem(OPEN_CHAT_ID_KEY, String(numericChatId));
+    }
+    setActiveChatId(numericChatId);
+    setActivePeer(null);
+    setMobileTab("chat");
+  }, []);
+
+  const { unregisterCurrentDeviceToken } = useNativeBridge({
+    user,
+    onOpenChat: handleNativeOpenChat,
+  });
+
   function handleLogout() {
-    logout().catch(() => null);
+    // Detach this device's FCM token first (native only), then end the session.
+    void unregisterCurrentDeviceToken(user?.username).finally(() => {
+      logout().catch(() => null);
+    });
     setUser(null);
     setShowSettings(false);
     setMobileTab("chats");

@@ -973,7 +973,11 @@ function registerMessageRoutes(app, deps) {
               await sendPushNotificationToUsers(recipientIds, {
                 title,
                 body: notifyBody,
-                data: { url: "/" },
+                data: {
+                  url: `/chat?openChatId=${chatId}`,
+                  chatId: String(chatId),
+                  type: "message",
+                },
               });
             }
           } catch {
@@ -1152,7 +1156,11 @@ function registerMessageRoutes(app, deps) {
         await sendPushNotificationToUsers(recipientIds, {
           title,
           body: notifyBody,
-          data: { url: "/" },
+          data: {
+            url: `/chat?openChatId=${chatId}`,
+            chatId: String(chatId),
+            type: "message",
+          },
         });
       }
     } catch {
@@ -1656,6 +1664,8 @@ function registerMessageRoutes(app, deps) {
         body: `📊 ${preview}`,
         data: {
           url: `/chat?openChatId=${encodeURIComponent(String(chatId))}`,
+          chatId: String(chatId),
+          type: "poll",
         },
       }).catch(() => null);
     }

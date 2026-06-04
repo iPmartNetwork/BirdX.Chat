@@ -15,6 +15,8 @@ import { ensureValidVapidKeys } from "./lib/vapid.js";
 import { createSseHub } from "./lib/sse.js";
 import { initWebhookDispatcher, fireWebhookEvent } from "./lib/webhookDispatcher.js";
 import { createPushService } from "./lib/push.js";
+import { createFirebaseAdmin } from "./lib/firebaseAdmin.js";
+import { createFcmService } from "./lib/fcm.js";
 import { createUploadTools } from "./lib/uploads.js";
 import { createVideoTranscodeManager } from "./lib/videoTranscode.js";
 import { createMessageFileJobs } from "./lib/messageFileJobs.js";
@@ -32,7 +34,7 @@ import { isLoopbackRequest, parseUploadFileMetadata } from "./lib/requestUtils.j
 import { getGroupCallLimits } from "./lib/groupCallConfig.js";
 import { registerSfuSocketHandlers } from "./lib/sfu/sfuSocketHandlers.js";
 import { USER_COLORS, setUserColor } from "./settings/colors.js";
-import { readEnvBool, readEnvInt } from "./settings/env.js";
+import { readEnvBool, readEnvInt, readEnvString } from "./settings/env.js";
 import { createServer } from "node:http";
 import { Server as SocketIOServer } from "socket.io";
 import {
@@ -160,6 +162,9 @@ import {
   upsertRemoteChannelSource,
   deletePushSubscription,
   listPushSubscriptionsByUserIds,
+  upsertDeviceToken,
+  deleteDeviceToken,
+  listDeviceTokensByUserIds,
   listMutedUserIdsForChat,
   getMessageReactions,
   createPollMessage,
@@ -460,11 +465,20 @@ function trackCallRoomEnded(roomId) {
   users.forEach((uid) => setUserInCall(uid, false));
 }
 
+const firebaseAdmin = createFirebaseAdmin({ readEnvString });
+const fcmService = createFcmService({
+  firebaseAdmin,
+  listDeviceTokensByUserIds,
+  deleteDeviceToken,
+});
+
 const pushService = createPushService({
   webpush,
   listPushSubscriptionsByUserIds,
   deletePushSubscription,
   vapid,
+  fcmService,
+  findUserById,
 });
 const { PUSH_ENABLED, VAPID_PUBLIC_KEY, sendPushNotificationToUsers } = pushService;
 
@@ -741,6 +755,9 @@ const apiDeps = {
   isRequiredChannel,
   isVideoFileProcessing,
   listPushSubscriptionsByUserIds,
+  upsertDeviceToken,
+  deleteDeviceToken,
+  listDeviceTokensByUserIds,
   listCallLogsForChat,
   listCallLogsForUser,
   listChatMembers,

@@ -40,6 +40,7 @@ import { migration039MessagePolls } from "./039-message-polls.js";
 import { migration040BirdxchatOwner } from "./040-birdxchat-owner.js";
 import { migration041UserTotp } from "./041-user-totp.js";
 import { migration042MessageReports } from "./042-message-reports.js";
+import { migration043DeviceTokens } from "./043-device-tokens.js";
 
 export const migrations = [
   migration001InitialSchema,
@@ -84,4 +85,5 @@ export const migrations = [
   migration040BirdxchatOwner,
   migration041UserTotp,
   migration042MessageReports,
+  migration043DeviceTokens,
 ];

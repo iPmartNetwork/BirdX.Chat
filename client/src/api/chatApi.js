@@ -105,6 +105,20 @@ export const unsubscribePush = ({ username, endpoint }) =>
     body: JSON.stringify({ username, endpoint }),
   });
 
+export const registerDeviceToken = ({ username, token, platform = "android" }) =>
+  apiFetch(`${API_BASE}/api/push/device-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, token, platform }),
+  });
+
+export const unregisterDeviceToken = ({ username, token }) =>
+  apiFetch(`${API_BASE}/api/push/device-token`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, token }),
+  });
+
 export const sendPushTest = ({ username }) =>
   apiFetch(`${API_BASE}/api/push/test`, {
     method: "POST",

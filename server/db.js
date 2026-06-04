@@ -217,7 +217,10 @@ function runDatabaseMigrations() {
 
 runDatabaseMigrations();
 
-saveDatabase();
+// Force-persist schema after migrations. Migrations use raw db.run()/setSchemaVersion()
+// which do not flag the DB as dirty, so the conditional saveDatabase() would skip the
+// write on an existing file and new tables/columns would only live in memory.
+writeDatabaseToDisk();
 
 const USER_ROLE_SELECT_SQL = hasColumn("users", "role") ? "role" : "'user' AS role";
 const USER_ROLE_QUALIFIED_SELECT_SQL = hasColumn("users", "role")
@@ -2860,6 +2863,45 @@ export function listPushSubscriptionsByUserIds(userIds = []) {
   return getAll(
     `SELECT user_id, endpoint, p256dh, auth
      FROM push_subscriptions
+     WHERE user_id IN (${placeholders})`,
+    ids,
+  );
+}
+
+export function upsertDeviceToken(userId, token, platform = "android") {
+  const uid = Number(userId || 0);
+  const safeToken = String(token || "").trim();
+  if (!uid || !safeToken) return;
+  run(
+    `INSERT INTO device_tokens (user_id, token, platform, updated_at)
+     VALUES (?, ?, ?, datetime('now'))
+     ON CONFLICT(token) DO UPDATE SET
+       user_id = excluded.user_id,
+       platform = excluded.platform,
+       updated_at = datetime('now')`,
+    [uid, safeToken, String(platform || "android")],
+  );
+}
+
+export function deleteDeviceToken(token) {
+  const safeToken = String(token || "").trim();
+  if (!safeToken) return;
+  run("DELETE FROM device_tokens WHERE token = ?", [safeToken]);
+}
+
+export function listDeviceTokensByUserIds(userIds = []) {
+  const ids = Array.from(
+    new Set(
+      (Array.isArray(userIds) ? userIds : [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0),
+    ),
+  );
+  if (!ids.length) return [];
+  const placeholders = ids.map(() => "?").join(", ");
+  return getAll(
+    `SELECT id, user_id, token, platform
+     FROM device_tokens
      WHERE user_id IN (${placeholders})`,
     ids,
   );

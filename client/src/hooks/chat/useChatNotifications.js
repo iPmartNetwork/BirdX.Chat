@@ -122,6 +122,11 @@ export function useChatNotifications({
 
   const ensurePushSubscription = useCallback(async () => {
     if (typeof window === "undefined") return;
+    // In the native app FCM handles push; skip the Web Push/VAPID path (R6.3).
+    if (window.__BIRDX_NATIVE__ === true) {
+      setPushSubscribeStatus("native");
+      return null;
+    }
     if (!("serviceWorker" in navigator)) {
       setPushSubscribeStatus("no-sw");
       return null;
