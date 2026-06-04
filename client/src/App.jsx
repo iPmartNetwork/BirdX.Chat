@@ -146,7 +146,12 @@ export default function App() {
   const [auth2FARequired, setAuth2FARequired] = useState(false)
   const [auth2FACredentials, setAuth2FACredentials] = useState(null)
   const accountCreationEnabled = APP_CONFIG.accountCreationEnabled
+  const isNativeAppShell =
+    typeof window !== 'undefined' &&
+    (window.Capacitor?.isNativePlatform?.() === true ||
+      /Capacitor/i.test(window.navigator?.userAgent || ''))
   const isStandaloneDisplay =
+    isNativeAppShell ||
     window.matchMedia?.('(display-mode: standalone)')?.matches ||
     window.navigator?.standalone
   const isIOS = /iP(ad|hone|od)/i.test(navigator.userAgent)
