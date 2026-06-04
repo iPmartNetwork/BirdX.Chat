@@ -2,7 +2,7 @@ import { getAvatarInitials } from "../../utils/avatarInitials.js";
 import { Mic, MicOff, PhoneOff, Video } from "../../icons/lucide.js";
 import { useLanguage } from "../../i18n/LanguageContext.jsx";
 
-function ParticipantTile({ participant, isVideoCall, isLocal, compact = false }) {
+function ParticipantTile({ participant, isVideoCall, isLocal, localLabel, compact = false }) {
   const name = participant?.name || "Participant";
   const stream = participant?.stream;
   const hasVideo =
@@ -38,7 +38,7 @@ function ParticipantTile({ participant, isVideoCall, isLocal, compact = false })
       )}
       <div className="relative mt-auto bg-gradient-to-t from-black/75 to-transparent px-3 py-2">
         <p className="truncate text-xs font-semibold text-white">
-          {isLocal ? t("call.group.you") : name}
+          {isLocal ? localLabel : name}
         </p>
       </div>
     </div>
@@ -110,6 +110,7 @@ export default function GroupCallOverlay({
             participant={tile}
             isVideoCall={callIsVideo}
             isLocal={tile.isLocal}
+            localLabel={t("call.group.you")}
             compact={compactTiles}
           />
         ))}
