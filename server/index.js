@@ -1125,9 +1125,37 @@ remoteChannelManager.start();
 
 const httpServer = createServer(app);
 
+// Allowed origins for Socket.io CORS. Configure via APP_ALLOWED_ORIGINS
+// (comma/space separated). Capacitor/mobile WebView origins are always allowed.
+const ALLOWED_ORIGINS = String(process.env.APP_ALLOWED_ORIGINS || "")
+  .split(/[,\s]+/)
+  .map((item) => item.trim().toLowerCase())
+  .filter(Boolean);
+
+const ALWAYS_ALLOWED_ORIGINS = new Set([
+  "capacitor://localhost",
+  "ionic://localhost",
+  "https://localhost",
+  "http://localhost",
+]);
+
+function isOriginAllowed(origin) {
+  // No origin header = same-origin / native request → allow.
+  if (!origin) return true;
+  const normalized = String(origin).toLowerCase();
+  if (ALWAYS_ALLOWED_ORIGINS.has(normalized)) return true;
+  if (ALLOWED_ORIGINS.includes(normalized)) return true;
+  // If no explicit allow-list is configured, reflect the request origin.
+  // Socket.io still enforces session auth (cookie/token) below.
+  if (!ALLOWED_ORIGINS.length) return true;
+  return false;
+}
+
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: isProduction ? false : "*",
+    origin: isProduction
+      ? (origin, callback) => callback(null, isOriginAllowed(origin))
+      : "*",
     credentials: true,
   },
 });
@@ -1140,8 +1168,11 @@ io.use((socket, next) => {
       if (name) acc[name] = decodeURIComponent(rest.join("="));
       return acc;
     }, {});
-    if (!cookies.sid) return next(new Error("Authentication required"));
-    const session = getSession(cookies.sid);
+
+    // Try cookie-based auth first, then fall back to auth.token (for mobile/Capacitor)
+    const sid = cookies.sid || socket.handshake?.auth?.token || "";
+    if (!sid) return next(new Error("Authentication required"));
+    const session = getSession(sid);
     if (!session) return next(new Error("Invalid session"));
     socket.data = { userId: session.id, username: session.username };
     next();
