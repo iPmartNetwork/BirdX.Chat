@@ -294,6 +294,16 @@ function registerAuthRoutes(app, deps) {
     });
   });
 
+  /** Returns the session token for Socket.io auth (mobile/Capacitor fallback). */
+  app.get("/api/socket-token", (req, res) => {
+    const cookies = parseCookies(req);
+    const sid = cookies.sid;
+    if (!sid) return res.status(401).json({ error: "Not authenticated." });
+    const session = getSession(sid);
+    if (!session) return res.status(401).json({ error: "Invalid session." });
+    res.json({ ok: true, token: sid });
+  });
+
   app.post("/api/logout", (req, res) => {
     const cookies = parseCookies(req);
 

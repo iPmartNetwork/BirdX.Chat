@@ -1,5 +1,6 @@
 import { readAppMeta } from "../lib/appMeta.js";
 import { getGroupCallConfig } from "../lib/groupCallConfig.js";
+import { getRtcPublicConfig } from "../lib/rtcConfig.js";
 
 function registerAppRoutes(app, deps) {
   const { REMOTE_CHANNELS, fs, path, projectRootDir, getAppBranding } = deps;
@@ -34,6 +35,7 @@ function registerAppRoutes(app, deps) {
         proxyConfigured: Boolean(REMOTE_CHANNELS?.proxyConfigured),
       },
       groupCalls: getGroupCallConfig(),
+      rtc: getRtcPublicConfig(),
     });
   });
 }
