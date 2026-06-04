@@ -1,4 +1,4 @@
-import { GROUP_CALL_MODE } from "../groupCallConfig.js";
+import { getGroupCallMode } from "../groupCallConfig.js";
 import { createMediasoupHub } from "./mediasoupHub.js";
 
 const hub = createMediasoupHub();
@@ -18,7 +18,7 @@ function withAck(callback) {
 }
 
 export function registerSfuSocketHandlers(io, socket) {
-  if (GROUP_CALL_MODE !== "sfu") return () => {};
+  if (getGroupCallMode() !== "sfu") return () => {};
 
   const emitToRoomExcept = (roomId, excludeSocketId, event, data) => {
     socket.to(roomId).emit(event, data);
