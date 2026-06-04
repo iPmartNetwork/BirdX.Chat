@@ -28,7 +28,9 @@
 
 This repository is the **BirdX Chat application**: `client/` (React PWA) and `server/` (Node.js API). Deploy it on **your own domain** for your team or community.
 
-It does **not** include the public marketing site ([birdx.chat](https://birdx.chat)), pre-built Windows/Android installers, or iOS builds. Those are part of the **hosted BirdX** product operated by [iPmart Network](https://github.com/iPmartNetwork). Self-hosters use the browser/PWA on their server URL.
+The marketing site lives in a **separate repo**: [birdx-marketing](https://github.com/iPmartNetwork/birdx-marketing) ([birdx.chat](https://birdx.chat)). See [WORKSPACE.md](./WORKSPACE.md) for how to lay out both projects on disk.
+
+Pre-built Windows/Android installers and iOS builds are part of the **hosted BirdX** product operated by [iPmart Network](https://github.com/iPmartNetwork). Self-hosters use the browser/PWA on their server URL.
 
 ### Hosted BirdX (official)
 
