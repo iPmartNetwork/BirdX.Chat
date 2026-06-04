@@ -1,4 +1,4 @@
-﻿import {
+import {
   Component,
   Suspense,
   lazy,
@@ -57,6 +57,12 @@ import { createMeshCallManager } from "../utils/calls/meshCallManager.js";
 import PollModal from "../components/modals/PollModal.jsx";
 import { buildStickerBody } from "../utils/stickers.js";
 import { createSfuCallManager } from "../utils/calls/sfuCallManager.js";
+import {
+  buildIceServersFromRtcPayload,
+  buildIceServersFromViteEnv,
+  iceServersHaveTurn,
+  mergeIceServers,
+} from "../utils/calls/iceServers.js";
 import {
   decryptGroupMessage,
   encryptGroupMessage,
@@ -404,39 +410,6 @@ const patchChatAndMoveToFront = (chats, chatId, updateChat) => {
   return nextChats;
 };
 
-const splitEnvList = (value) =>
-  String(value || "")
-    .split(/[,\s]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-const resolveCallIceServers = () => {
-  const turnUrls = splitEnvList(
-    import.meta.env.APP_TURN_URLS ||
-      import.meta.env.CHAT_TURN_URLS ||
-      import.meta.env.APP_TURN_URL ||
-      import.meta.env.CHAT_TURN_URL,
-  );
-  const turnUsername =
-    import.meta.env.APP_TURN_USERNAME || import.meta.env.CHAT_TURN_USERNAME || "";
-  const turnCredential =
-    import.meta.env.APP_TURN_CREDENTIAL || import.meta.env.CHAT_TURN_CREDENTIAL || "";
-  const iceServers = [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-  ];
-  if (turnUrls.length) {
-    iceServers.push({
-      urls: turnUrls,
-      ...(turnUsername ? { username: turnUsername } : {}),
-      ...(turnCredential ? { credential: turnCredential } : {}),
-    });
-  }
-  return iceServers;
-};
-
-const CALL_ICE_SERVERS = resolveCallIceServers();
-
 const CALL_TYPES = new Set(["voice", "video"]);
 
 const normalizeCallType = (callType) => {
@@ -510,6 +483,28 @@ const resolveSocketOrigin = () => {
   }
   return origin;
 };
+
+function waitForSocketConnected(socket, timeoutMs = 12000) {
+  if (socket?.connected) return Promise.resolve();
+  if (!socket) {
+    return Promise.reject(new Error("Call service is not connected yet."));
+  }
+  return new Promise((resolve, reject) => {
+    const onConnect = () => {
+      window.clearTimeout(timer);
+      socket.off("connect", onConnect);
+      resolve();
+    };
+    const timer = window.setTimeout(() => {
+      socket.off("connect", onConnect);
+      reject(new Error("Call service is not connected yet."));
+    }, timeoutMs);
+    socket.on("connect", onConnect);
+    if (socket.connected) {
+      onConnect();
+    }
+  });
+}
 
 function formatI18nTemplate(template, vars = {}) {
   return String(template || "").replace(/\{(\w+)\}/g, (_, key) =>
@@ -658,6 +653,14 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const joinedCallRoomsRef = useRef(new Set());
   const chatsRef = useRef([]);
   const appInfoRef = useRef(null);
+  const callIceServersRef = useRef(buildIceServersFromViteEnv());
+  const getCallIceServers = useCallback(
+    () =>
+      callIceServersRef.current?.length
+        ? callIceServersRef.current
+        : buildIceServersFromViteEnv(),
+    [],
+  );
   const pendingOfferRef = useRef(null);
   const pendingAnswerRef = useRef(null);
   const pendingIceCandidatesRef = useRef([]);
@@ -838,7 +841,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   function ensureMeshCallManager() {
     if (meshCallManagerRef.current) return meshCallManagerRef.current;
     meshCallManagerRef.current = createMeshCallManager({
-      iceServers: CALL_ICE_SERVERS,
+      iceServers: getCallIceServers(),
       getLocalStream: () => localStreamRef.current,
       emit: (event, payload) => socketRef.current?.emit?.(event, payload),
       onParticipantStream: (socketId, stream) => {
@@ -862,7 +865,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     if (sfuCallManagerRef.current) return sfuCallManagerRef.current;
     sfuCallManagerRef.current = createSfuCallManager({
       socket: socketRef.current,
-      iceServers: CALL_ICE_SERVERS,
+      iceServers: getCallIceServers(),
       getLocalStream: () => localStreamRef.current,
       onParticipantStream: (socketId, stream) => {
         const audio = document.createElement("audio");
@@ -1878,7 +1881,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     syncLocalAudioMute(callMuted);
 
     const peer = new RTCPeerConnection({
-      iceServers: CALL_ICE_SERVERS,
+      iceServers: getCallIceServers(),
       iceCandidatePoolSize: 4,
     });
     peerRef.current = peer;
@@ -2029,9 +2032,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     setCallDurationSeconds(0);
 
     try {
-      if (!socket?.connected) {
-        throw new Error("Call service is not connected yet.");
-      }
+      await waitForSocketConnected(socket);
       joinCallRoom(roomId, socket);
       await prepareCallPeer(roomId, normalizedCallType);
       socket.emit("call-user", {
@@ -2152,9 +2153,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
 
     try {
       const socket = socketRef.current;
-      if (!socket?.connected) {
-        throw new Error("Call service is not connected yet.");
-      }
+      await waitForSocketConnected(socket);
       joinCallRoom(roomId, socket);
       await prepareCallPeer(roomId, payload?.callType);
       socket.emit("accept-call", { roomId, userId: user?.id || null });
@@ -2439,16 +2438,31 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   }, [activeChatId]);
 
   useEffect(() => {
-    const socket = io(resolveSocketOrigin(), {
-      path: "/socket.io/",
-      transports: ["websocket", "polling"],
-      withCredentials: true,
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      timeout: 10000,
-    });
+    /** Fetch socket auth token for environments where cookies may not be sent (e.g. Capacitor). */
+    async function getSocketToken() {
+      try {
+        const res = await fetch("/api/socket-token", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          return data?.token || "";
+        }
+      } catch { /* ignore */ }
+      return "";
+    }
 
-    socketRef.current = socket;
+    async function initSocket() {
+      const token = await getSocketToken();
+      const socket = io(resolveSocketOrigin(), {
+        path: "/socket.io/",
+        transports: ["polling", "websocket"],
+        withCredentials: true,
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        timeout: 10000,
+        auth: token ? { token } : undefined,
+      });
+
+      socketRef.current = socket;
 
     socket.on("connect", () => {
       joinedCallRoomsRef.current.clear();
@@ -2633,8 +2647,13 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       sfuCallManagerRef.current?.handlePeerLeft?.(payload);
       syncCallParticipants();
     });
+    } // end of initSocket
+
+    initSocket();
 
     return () => {
+      const socket = socketRef.current;
+      if (!socket) return;
       socket.off("connect");
       socket.off("connect_error");
       socket.off("incoming-call");
@@ -2772,6 +2791,14 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   useEffect(() => {
     appInfoRef.current = appInfo;
   }, [appInfo]);
+
+  useEffect(() => {
+    const fromApi = buildIceServersFromRtcPayload(appInfo?.rtc);
+    const fallback = buildIceServersFromViteEnv();
+    callIceServersRef.current = mergeIceServers(fromApi, fallback);
+    meshCallManagerRef.current = null;
+    sfuCallManagerRef.current = null;
+  }, [appInfo?.rtc]);
   const { isAppActive } = useAppActivity();
   const { isMobileViewport } = useMobileViewport();
   const {
@@ -10251,7 +10278,7 @@ useEffect(() => {
         </div>
 
         <div className="px-6 py-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400">
-          {CALL_ICE_SERVERS.some((server) => String([].concat(server.urls || []).join(" ")).includes("turn:"))
+          {iceServersHaveTurn(getCallIceServers())
             ? "Relay ready for strict mobile networks"
             : "Add a TURN server for the most reliable mobile audio"}
           <span className="mt-1 block">
