@@ -458,6 +458,42 @@ const getCallErrorMessage = (error, callType = "voice") => {
   return error?.message || `${isVideoCall ? "Video" : "Voice"} call could not be started.`;
 };
 
+/**
+ * getUserMedia with retry for the Android "already in use" race.
+ *
+ * On Android WebView, after a previous stream's tracks are stopped (e.g. the
+ * permission-probe stream), the OS may take a few hundred ms to release the
+ * mic/camera. A call started immediately can fail with NotReadableError /
+ * "already in use". We retry a few times with a short backoff before giving up.
+ */
+const IN_USE_ERROR_NAMES = new Set([
+  "NotReadableError",
+  "TrackStartError",
+  "AbortError",
+]);
+
+async function getUserMediaWithRetry(constraints, { attempts = 5, delayMs = 350, initialDelayMs = 0 } = {}) {
+  if (initialDelayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, initialDelayMs));
+  }
+  let lastError = null;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (error) {
+      lastError = error;
+      const name = String(error?.name || "");
+      // Only retry the transient "device busy" errors; fail fast on others
+      // (e.g. NotAllowedError = permission denied, NotFoundError = no device).
+      if (!IN_USE_ERROR_NAMES.has(name) || i === attempts - 1) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs * (i + 1)));
+    }
+  }
+  throw lastError;
+}
+
 const buildCallChatUrl = (chatId) => {
   const numericChatId = Number(chatId || 0);
   if (!numericChatId) return "/chat";
@@ -1817,7 +1853,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
         ?.some((track) => track.readyState === "live");
       const hasLiveVideo = streamHasLiveVideo(localStreamRef.current);
       if (!hasLiveAudio || (isVideoCall && !hasLiveVideo)) {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        const stream = await getUserMediaWithRetry({
           audio: buildCallAudioConstraints(),
           video: isVideoCall
             ? buildCallVideoConstraints(undefined, { isGroup: true })
@@ -1861,10 +1897,16 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     cleanupCallMedia();
     ensureRemoteAudioElement();
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: buildCallAudioConstraints(),
-      video: isVideoCall ? buildCallVideoConstraints() : false,
-    });
+    // Give Android a moment to release the mic/camera after cleanupCallMedia()
+    // stopped any previous tracks (e.g. the permission-probe stream), otherwise
+    // getUserMedia can fail with "already in use".
+    const stream = await getUserMediaWithRetry(
+      {
+        audio: buildCallAudioConstraints(),
+        video: isVideoCall ? buildCallVideoConstraints() : false,
+      },
+      { initialDelayMs: 250 },
+    );
     localStreamRef.current = stream;
     const audioDeviceId = stream.getAudioTracks?.()?.[0]?.getSettings?.()?.deviceId;
     const videoDeviceId = stream.getVideoTracks?.()?.[0]?.getSettings?.()?.deviceId;
