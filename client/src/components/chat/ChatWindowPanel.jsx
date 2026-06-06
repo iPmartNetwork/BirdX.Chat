@@ -24,6 +24,7 @@ import { getAvatarStyle } from "../../utils/avatarColor.js";
 import { hasPersian } from "../../utils/fontUtils.js";
 import { getAvatarInitials } from "../../utils/avatarInitials.js";
 import Avatar from "../common/Avatar.jsx";
+import LastSeenLabel from "../common/LastSeenLabel.jsx";
 import { useLanguage } from "../../i18n/LanguageContext.jsx";
 import {
   FocusedMediaModal,
@@ -1285,21 +1286,7 @@ export default function ChatWindowPanel({
                       </span>
                     ) : (
                       <>
-                        <span
-                          className={`h-2 w-2 rounded-full ${
-                            peerIsOnline ? "bg-emerald-400" : "bg-slate-400"
-                          }`}
-                        />
-                        <span
-                          className={`block min-w-0 truncate leading-[1.2] ${
-                            hasPersian(peerStatusLabel) ? "font-fa sb-fa-baseline-fix" : ""
-                          }`}
-                          dir="auto"
-                          style={{ unicodeBidi: "plaintext" }}
-                          title={peerStatusLabel}
-                        >
-                          {peerStatusLabel}
-                        </span>
+                        <LastSeenLabel status={peerIsOnline ? "online" : "offline"} lastSeen={activeHeaderPeer?.last_seen} />
                       </>
                     )}
                   </p>

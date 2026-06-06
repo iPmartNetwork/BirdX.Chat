@@ -1885,6 +1885,36 @@ function registerMessageRoutes(app, deps) {
     });
     return res.json({ ok: true, ...result });
   });
+
+  // --- Anonymous Admin Posting ---
+  app.post("/api/messages/send-anonymous", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const { chatId, body } = req.body || {};
+    const numericChatId = Number(chatId || 0);
+    if (!numericChatId || !body?.trim()) {
+      return res.status(400).json({ error: "chatId and body are required." });
+    }
+    if (!isMember(numericChatId, session.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+    const chat = findChatById(numericChatId);
+    if (!chat || !Number(chat.allow_anonymous_admin)) {
+      return res.status(403).json({ error: "Anonymous posting is not enabled for this chat." });
+    }
+    const role = getChatMemberRole(numericChatId, session.id);
+    if (!["owner", "admin"].includes(String(role || "").toLowerCase())) {
+      return res.status(403).json({ error: "Only admins can post anonymously." });
+    }
+    // Create the message with sent_as_anonymous flag
+    const msgId = createMessage(numericChatId, session.id, body.trim());
+    if (msgId) {
+      deps.adminRun?.("UPDATE chat_messages SET sent_as_anonymous = 1 WHERE id = ?", [msgId]);
+      deps.adminSave?.();
+    }
+    emitChatEvent(numericChatId, { type: "new_message", chatId: numericChatId, messageId: msgId, anonymous: true });
+    return res.json({ ok: true, messageId: msgId });
+  });
 }
 
 export { registerMessageRoutes };

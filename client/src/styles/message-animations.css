@@ -49,3 +49,43 @@
 .typing-dot-1 { animation: typing-dot 1.2s infinite 0ms; }
 .typing-dot-2 { animation: typing-dot 1.2s infinite 200ms; }
 .typing-dot-3 { animation: typing-dot 1.2s infinite 400ms; }
+
+
+/* ─── Compact Mode ─────────────────────────────────────── */
+.compact-mode .message-item {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.compact-mode .message-avatar {
+  width: 20px;
+  height: 20px;
+  font-size: 9px;
+}
+
+.compact-mode .message-bubble {
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.compact-mode .message-gap {
+  margin-bottom: 2px;
+}
+
+.compact-mode .message-name {
+  font-size: 11px;
+}
+
+.compact-mode .message-time {
+  font-size: 9px;
+}
+
+.compact-mode .chat-list-item {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.compact-mode .chat-list-avatar {
+  width: 32px;
+  height: 32px;
+}

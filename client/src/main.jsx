@@ -1,6 +1,7 @@
 ﻿import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
+import "./styles/message-animations.css";
 import { migrateLegacyStorageKeys } from './utils/legacyStorageMigrate.js'
 
 migrateLegacyStorageKeys()

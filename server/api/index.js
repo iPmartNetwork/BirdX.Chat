@@ -14,6 +14,7 @@ import { registerRemoteChannelRoutes } from "./remoteChannels.js";
 import { registerThreadRoutes } from "./threads.js";
 import { registerStoryRoutes } from "./stories.js";
 import { registerLinkPreviewRoutes } from "./linkPreview.js";
+import { registerChatFolderRoutes } from "./chatFolders.js";
 
 /* 🔥 BirdX API */
 function registerBirdxRoutes(app) {
@@ -45,6 +46,7 @@ function registerApiRoutes(app, deps) {
   registerThreadRoutes(app, deps);
   registerStoryRoutes(app, deps);
   registerLinkPreviewRoutes(app, deps);
+  registerChatFolderRoutes(app, deps);
 
   /* 🔥 BirdX Custom */
   registerBirdxRoutes(app);

@@ -33,6 +33,8 @@ import { resolveMention } from "../../../utils/mentions.js";
 import { summarizeFiles } from "../../../utils/messagePreview.js";
 import Avatar from "../../common/Avatar.jsx";
 import ThreadBadge from "./ThreadBadge.jsx";
+import ReadReceipt from "./ReadReceipt.jsx";
+import LinkPreviewCard from "./LinkPreviewCard.jsx";
 
 const MAX_MESSAGE_HTML_CACHE_ENTRIES = 800;
 const messageBodyHtmlCache = new Map();
@@ -1074,6 +1076,7 @@ export const MessageItem = memo(function MessageItem({
                     }}
                   />
                 ) : null}
+                {msg.body && /https?:\/\//.test(msg.body) ? <LinkPreviewCard body={msg.body} /> : null}
                 {mentionDebugEnabled ? (
                   <div className="sb-mention-debug" aria-hidden="true">
                     @{mentionDebug?.active ?? 0}/{mentionDebug?.total ?? 0}
@@ -1234,6 +1237,7 @@ export const MessageItem = memo(function MessageItem({
                   }}
                 />
               ) : null}
+              {msg.body && /https?:\/\//.test(msg.body) ? <LinkPreviewCard body={msg.body} /> : null}
               {mentionDebugEnabled ? (
                 <div className="sb-mention-debug" aria-hidden="true">
                   @{mentionDebug?.active ?? 0}/{mentionDebug?.total ?? 0}
@@ -1262,6 +1266,7 @@ export const MessageItem = memo(function MessageItem({
                 <span className="inline-flex items-center gap-1">
                   <span>{msg._timeLabel || formatTime(msg.created_at)}</span>
                   {isEdited ? <span>edited</span> : null}
+                  {isOwn ? <ReadReceipt status={msg.read_at ? "read" : "delivered"} className="ml-1" /> : null}
                   {isOwn || isChannelChat ? (
                     <span
                       className={`inline-flex items-center gap-1 ${
