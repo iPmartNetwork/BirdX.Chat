@@ -9548,12 +9548,6 @@ useEffect(() => {
         paddingRight: "max(0px, env(safe-area-inset-right))",
       }}
     >
-      <StoriesCarousel
-        users={storyUsers}
-        currentUser={user}
-        onViewStory={handleViewStory}
-        onCreateStory={handleCreateStory}
-      />
       <ChatSidebar
         mobileTab={mobileTab}
         isConnected={isConnected}
@@ -9695,14 +9689,6 @@ useEffect(() => {
         onStartVideoCallFromHistory={handleStartVideoCallFromHistory}
         onSelectChatsTab={() => setMobileTab("chats")}
         onSelectCallsTab={() => setMobileTab("calls")}
-      />
-
-      <PinnedMessageBar
-        chatId={activeChatId}
-        onNavigateToMessage={(msg) => {
-          const msgId = Number(msg?.id || 0);
-          if (msgId) setActiveChatId(Number(msg.chat_id || activeChatId));
-        }}
       />
 
       <DragDropOverlay onFilesDropped={(files) => setPendingUploadFiles(files)}>
