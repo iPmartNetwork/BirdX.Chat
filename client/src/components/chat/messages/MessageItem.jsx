@@ -1,8 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
-  Check,
-  CheckCheck,
   Clock12,
   ClockFading,
   Eye,
@@ -1087,7 +1085,7 @@ export const MessageItem = memo(function MessageItem({
                     }}
                   />
                 ) : null}
-                {msg.body && /https?:\/\//.test(msg.body) ? <LinkPreviewCard body={msg.body} /> : null}
+                {!hasPoll && !hasSticker && !isPollPlaceholder && !isStickerPlaceholder && msg.body && /https?:\/\//.test(msg.body) ? <LinkPreviewCard body={msg.body} /> : null}
                 {mentionDebugEnabled ? (
                   <div className="sb-mention-debug" aria-hidden="true">
                     @{mentionDebug?.active ?? 0}/{mentionDebug?.total ?? 0}
@@ -1235,7 +1233,31 @@ export const MessageItem = memo(function MessageItem({
                 docFullWidth={isGroupChat && !isOwn && !isDesktop}
                 {...messageFilesProps}
               />
-              {!shouldHideGeneratedFileBody ? (
+              {hasPoll ? (
+                <MessagePoll
+                  poll={msg.poll}
+                  onVote={(optionIndex) => onVotePoll?.(msg, optionIndex)}
+                />
+              ) : null}
+              {hasSticker ? (
+                <div
+                  className="mt-1 flex min-h-[4.5rem] items-center justify-center text-5xl"
+                  title={msg._sticker.label}
+                  aria-label={msg._sticker.label}
+                >
+                  {msg._sticker.emoji}
+                </div>
+              ) : isStickerPlaceholder ? (
+                <div className="mt-1 flex min-h-[3rem] items-center justify-center text-3xl text-slate-400">
+                  🎭
+                </div>
+              ) : null}
+              {isPollPlaceholder ? (
+                <div className="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-white/10 dark:bg-slate-900">
+                  📊 Poll (loading...)
+                </div>
+              ) : null}
+              {!hasPoll && !hasSticker && !shouldHideGeneratedFileBody && !isPollPlaceholder && !isStickerPlaceholder ? (
                 <div
                   ref={messageBodyRef}
                   dir="auto"
@@ -1248,7 +1270,7 @@ export const MessageItem = memo(function MessageItem({
                   }}
                 />
               ) : null}
-              {msg.body && /https?:\/\//.test(msg.body) ? <LinkPreviewCard body={msg.body} /> : null}
+              {!hasPoll && !hasSticker && !isPollPlaceholder && !isStickerPlaceholder && msg.body && /https?:\/\//.test(msg.body) ? <LinkPreviewCard body={msg.body} /> : null}
               {mentionDebugEnabled ? (
                 <div className="sb-mention-debug" aria-hidden="true">
                   @{mentionDebug?.active ?? 0}/{mentionDebug?.total ?? 0}
