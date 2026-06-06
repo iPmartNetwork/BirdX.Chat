@@ -3015,6 +3015,130 @@ export function searchMessagesInChat(chatId, {
   return { messages, total };
 }
 
+// --- Message Threads ---
+
+export function createThreadReply(chatId, userId, body, threadRootId, options = {}) {
+  const rootId = Number(threadRootId || 0);
+  if (!rootId) return null;
+  const msgId = createMessage(chatId, userId, body, options.replyToMessageId || null, options.expiresAt || null, options.clientRequestId || null);
+  if (msgId) {
+    run("UPDATE chat_messages SET thread_root_id = ? WHERE id = ?", [rootId, msgId]);
+    run(
+      `UPDATE chat_messages SET
+        thread_reply_count = COALESCE(thread_reply_count, 0) + 1,
+        thread_last_reply_at = datetime('now')
+       WHERE id = ?`,
+      [rootId],
+    );
+  }
+  return msgId;
+}
+
+export function getThreadReplies(threadRootId, limit = 100, offset = 0) {
+  const rootId = Number(threadRootId || 0);
+  if (!rootId) return [];
+  return getAll(
+    `SELECT cm.id, cm.chat_id, cm.user_id, cm.body, cm.created_at, cm.thread_root_id,
+            u.username, u.nickname, u.avatar_url, u.color
+     FROM chat_messages cm
+     LEFT JOIN users u ON u.id = cm.user_id
+     WHERE cm.thread_root_id = ? AND cm.hidden_everyone_at IS NULL
+     ORDER BY cm.created_at ASC
+     LIMIT ? OFFSET ?`,
+    [rootId, Math.min(500, Math.max(1, limit)), Math.max(0, offset)],
+  ).map(decryptMessageRow);
+}
+
+export function getThreadInfo(threadRootId) {
+  const rootId = Number(threadRootId || 0);
+  if (!rootId) return null;
+  return getRow(
+    `SELECT id, thread_reply_count, thread_last_reply_at FROM chat_messages WHERE id = ?`,
+    [rootId],
+  );
+}
+
+// --- Stories ---
+
+export function createStory(userId, { type = "text", body = "", mediaUrl = "", mediaType = "", backgroundColor = "", fontStyle = "", durationSeconds = 86400 } = {}) {
+  const uid = Number(userId || 0);
+  if (!uid) return null;
+  const safeDuration = Math.max(3600, Math.min(604800, Number(durationSeconds) || 86400));
+  run(
+    `INSERT INTO stories (user_id, type, body, media_url, media_type, background_color, font_style, duration_seconds, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+' || ? || ' seconds'))`,
+    [uid, type, body || "", mediaUrl || "", mediaType || "", backgroundColor || "", fontStyle || "", safeDuration, safeDuration],
+  );
+  return getLastInsertId();
+}
+
+export function listActiveStories(viewerUserId = null) {
+  const stories = getAll(
+    `SELECT s.id, s.user_id, s.type, s.body, s.media_url, s.media_type,
+            s.background_color, s.font_style, s.created_at, s.expires_at, s.view_count,
+            u.username, u.nickname, u.avatar_url, u.color
+     FROM stories s
+     LEFT JOIN users u ON u.id = s.user_id
+     WHERE s.expires_at > datetime('now')
+     ORDER BY s.created_at DESC`,
+  );
+  if (viewerUserId) {
+    const viewedIds = new Set(
+      getAll(
+        "SELECT story_id FROM story_views WHERE viewer_user_id = ?",
+        [Number(viewerUserId)],
+      ).map((r) => Number(r.story_id)),
+    );
+    return stories.map((s) => ({ ...s, viewed: viewedIds.has(Number(s.id)) }));
+  }
+  return stories;
+}
+
+export function getStoriesByUser(userId) {
+  return getAll(
+    `SELECT id, type, body, media_url, media_type, background_color, font_style,
+            created_at, expires_at, view_count
+     FROM stories
+     WHERE user_id = ? AND expires_at > datetime('now')
+     ORDER BY created_at DESC`,
+    [Number(userId)],
+  );
+}
+
+export function viewStory(storyId, viewerUserId) {
+  const sid = Number(storyId || 0);
+  const uid = Number(viewerUserId || 0);
+  if (!sid || !uid) return;
+  run(
+    "INSERT OR IGNORE INTO story_views (story_id, viewer_user_id) VALUES (?, ?)",
+    [sid, uid],
+  );
+  run("UPDATE stories SET view_count = view_count + 1 WHERE id = ?", [sid]);
+}
+
+export function getStoryViewers(storyId) {
+  return getAll(
+    `SELECT sv.viewer_user_id, sv.viewed_at,
+            u.username, u.nickname, u.avatar_url
+     FROM story_views sv
+     LEFT JOIN users u ON u.id = sv.viewer_user_id
+     WHERE sv.story_id = ?
+     ORDER BY sv.viewed_at DESC`,
+    [Number(storyId)],
+  );
+}
+
+export function deleteStory(storyId, userId) {
+  const sid = Number(storyId || 0);
+  const uid = Number(userId || 0);
+  if (!sid) return;
+  run("DELETE FROM stories WHERE id = ? AND user_id = ?", [sid, uid]);
+}
+
+export function cleanupExpiredStories() {
+  run("DELETE FROM stories WHERE expires_at <= datetime('now')");
+}
+
 export function listMutedUserIdsForChat(chatId) {
   const id = Number(chatId || 0);
   if (!id) return [];

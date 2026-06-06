@@ -42,6 +42,8 @@ import { migration041UserTotp } from "./041-user-totp.js";
 import { migration042MessageReports } from "./042-message-reports.js";
 import { migration043DeviceTokens } from "./043-device-tokens.js";
 import { migration044MessagePinning } from "./044-message-pinning.js";
+import { migration045MessageThreads } from "./045-message-threads.js";
+import { migration046Stories } from "./046-stories.js";
 
 export const migrations = [
   migration001InitialSchema,
@@ -88,4 +90,6 @@ export const migrations = [
   migration042MessageReports,
   migration043DeviceTokens,
   migration044MessagePinning,
+  migration045MessageThreads,
+  migration046Stories,
 ];

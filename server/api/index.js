@@ -11,6 +11,8 @@ import { registerProfileRoutes } from "./profile.js";
 import { registerDmPrivacyRoutes } from "./dmPrivacy.js";
 import { registerContactsRoutes } from "./contacts.js";
 import { registerRemoteChannelRoutes } from "./remoteChannels.js";
+import { registerThreadRoutes } from "./threads.js";
+import { registerStoryRoutes } from "./stories.js";
 
 /* 🔥 BirdX API */
 function registerBirdxRoutes(app) {
@@ -39,6 +41,8 @@ function registerApiRoutes(app, deps) {
   registerPushRoutes(app, deps);
   registerRemoteChannelRoutes(app, deps);
   registerE2eeRoutes(app, deps);
+  registerThreadRoutes(app, deps);
+  registerStoryRoutes(app, deps);
 
   /* 🔥 BirdX Custom */
   registerBirdxRoutes(app);
