@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Eye, EyeOff, FileText } from "../../../icons/lucide.js";
+import { Download, Eye, EyeOff, File } from "../../../icons/lucide.js";
 
 const PDF_MIME = "application/pdf";
 
@@ -33,7 +33,7 @@ export default function FilePreview({ file, downloadUrl }) {
     <div className="mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900">
       {/* File header */}
       <div className="flex items-center gap-3 px-3 py-2">
-        <FileText size={20} className="shrink-0 text-emerald-500" />
+        <File size={20} className="shrink-0 text-emerald-500" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">
             {name}

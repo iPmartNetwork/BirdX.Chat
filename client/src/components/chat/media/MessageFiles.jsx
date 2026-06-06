@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Download, File, Pause, Play } from "../../../icons/lucide.js";
+import FilePreview from "./FilePreview.jsx";
 import { CHAT_PAGE_CONFIG } from "../../../settings/chatPageConfig.js";
 import { CACHE_STORES } from "../../../utils/cacheDb.js";
 import { canUseIdb, readIdbCache, writeIdbCache } from "../../../utils/chatCache.js";
@@ -1320,6 +1321,20 @@ export function MessageFiles({
         const docChipClass = isDesktop
           ? "inline-flex w-full min-w-0 max-w-full overflow-hidden"
           : "inline-flex w-full min-w-0 max-w-full overflow-hidden";
+
+        const isPdf = String(file?.mimeType || "").toLowerCase() === "application/pdf" ||
+          String(file?.name || "").toLowerCase().endsWith(".pdf");
+
+        // PDF files get an inline preview with expand/collapse
+        if (file.url && isPdf) {
+          return (
+            <FilePreview
+              key={key}
+              file={file}
+              downloadUrl={file.url}
+            />
+          );
+        }
 
         return file.url ? (
           <a
