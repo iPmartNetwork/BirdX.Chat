@@ -9691,7 +9691,6 @@ useEffect(() => {
         onSelectCallsTab={() => setMobileTab("calls")}
       />
 
-      <DragDropOverlay onFilesDropped={(files) => setPendingUploadFiles(files)}>
       <ChatWindowPanel
         mobileTab={mobileTab}
         activeChatId={activeChatId}
@@ -9806,7 +9805,6 @@ useEffect(() => {
             dismissPermissionsPrompt(mode || activePermissionPrompt),
         }}
       />
-      </DragDropOverlay>
 
       <ImageEditor
         imageUrl={imageEditorFile ? URL.createObjectURL(imageEditorFile) : null}
