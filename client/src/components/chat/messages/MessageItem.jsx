@@ -1266,7 +1266,6 @@ export const MessageItem = memo(function MessageItem({
                 <span className="inline-flex items-center gap-1">
                   <span>{msg._timeLabel || formatTime(msg.created_at)}</span>
                   {isEdited ? <span>edited</span> : null}
-                  {isOwn ? <ReadReceipt status={msg.read_at ? "read" : "delivered"} className="ml-1" /> : null}
                   {isOwn || isChannelChat ? (
                     <span
                       className={`inline-flex items-center gap-1 ${
@@ -1304,15 +1303,9 @@ export const MessageItem = memo(function MessageItem({
                           />
                           <span>{formatSeenCount(seenCount)}</span>
                         </>
-                      ) : isRead ? (
-                        <CheckCheck
-                          size={15}
-                          strokeWidth={2.5}
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <Check size={15} strokeWidth={2.5} aria-hidden="true" />
-                      )}
+                      ) : isOwn ? (
+                        <ReadReceipt status={isRead ? "read" : "delivered"} />
+                      ) : null}
                     </span>
                   ) : null}
                 </span>

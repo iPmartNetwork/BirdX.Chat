@@ -25,8 +25,8 @@ export function StoriesCarousel({ users = [], currentUser, onViewStory, onCreate
           <div className="relative flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20">
             <Plus size={20} className="text-emerald-500" />
           </div>
-          <span className="max-w-[56px] truncate text-[10px] text-slate-500 dark:text-slate-400">
-            {t("stories.yourStory") || "Your story"}
+          <span className="max-w-[64px] truncate text-[10px] text-slate-500 dark:text-slate-400">
+            My story
           </span>
         </button>
 

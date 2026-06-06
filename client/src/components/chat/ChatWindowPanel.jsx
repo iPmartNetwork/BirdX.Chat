@@ -923,10 +923,8 @@ export default function ChatWindowPanel({
       backgroundColor: isDark
         ? "var(--birdx-chat-bg-dark, #0b1320)"
         : "var(--birdx-chat-bg-light, #ecfdf5)",
-      backgroundImage: chatWallpaper || (isDark
-        ? "var(--birdx-chat-bg-image-dark)"
-        : "var(--birdx-chat-bg-image-light)"),
-      backgroundSize: chatWallpaper ? "cover" : "var(--birdx-chat-bg-size)",
+      backgroundImage: chatWallpaper || "none",
+      backgroundSize: chatWallpaper ? "cover" : undefined,
       scrollbarGutter: "stable both-edges",
       overscrollBehaviorY:
         !isDesktop && composerFocused ? "none" : "contain",
@@ -1662,7 +1660,6 @@ export default function ChatWindowPanel({
 
       {showComposer ? (
         <>
-          <FormattingToolbar inputRef={composerInputRef} onTextChange={onMessageInput} />
           <MessageComposer
             activeChatId={activeChatId}
             isDesktop={isDesktop}
