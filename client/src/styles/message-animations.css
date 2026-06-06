@@ -1,0 +1,51 @@
+/* Message bubble entrance animations */
+@keyframes message-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes message-slide-in-own {
+  0% {
+    opacity: 0;
+    transform: translateX(12px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.message-enter {
+  animation: message-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.message-enter-own {
+  animation: message-slide-in-own 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Reaction pop animation */
+@keyframes reaction-pop {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.reaction-enter {
+  animation: reaction-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Typing dots bounce */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.typing-dot-1 { animation: typing-dot 1.2s infinite 0ms; }
+.typing-dot-2 { animation: typing-dot 1.2s infinite 200ms; }
+.typing-dot-3 { animation: typing-dot 1.2s infinite 400ms; }
