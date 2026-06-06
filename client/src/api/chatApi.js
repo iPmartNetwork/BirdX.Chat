@@ -803,6 +803,24 @@ export const reportMessage = (payload = {}) =>
     body: JSON.stringify(payload || {}),
   });
 
+// --- Message Pinning ---
+export const pinMessage = ({ chatId, messageId }) =>
+  apiFetch(`${API_BASE}/api/messages/pin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chatId, messageId }),
+  });
+
+export const unpinMessage = ({ chatId, messageId }) =>
+  apiFetch(`${API_BASE}/api/messages/unpin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chatId, messageId }),
+  });
+
+export const fetchPinnedMessages = (chatId) =>
+  apiFetch(`${API_BASE}/api/messages/pinned/${encodeURIComponent(chatId)}`);
+
 // --- Admin: Scheduled Messages ---
 export const fetchAdminScheduledMessages = () =>
   apiFetch(`${API_BASE}/api/admin/scheduled-messages`);

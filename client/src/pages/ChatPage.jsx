@@ -154,6 +154,9 @@ import {
   removeGroupAvatar,
   regenerateGroupInviteLink,
   reportMessage,
+  pinMessage,
+  unpinMessage,
+  fetchPinnedMessages,
   setChatMute,
   updateChatSettings,
   fetchArchivedChats,
@@ -8736,6 +8739,43 @@ useEffect(() => {
     setReportMessageTarget(message);
   }
 
+  async function handlePinMessage(message) {
+    const messageId = Number(message?.id || 0);
+    const chatId = Number(activeChatId || 0);
+    if (!messageId || !chatId) return;
+    try {
+      await pinMessage({ chatId, messageId });
+      // Update message in local state to reflect pinned status
+      setMessages((prev) =>
+        prev.map((msg) =>
+          Number(msg.id) === messageId
+            ? { ...msg, pinned_at: new Date().toISOString(), pinned_by_user_id: user?.id }
+            : msg,
+        ),
+      );
+    } catch (error) {
+      console.warn("[pin] failed:", error?.message || error);
+    }
+  }
+
+  async function handleUnpinMessage(message) {
+    const messageId = Number(message?.id || 0);
+    const chatId = Number(activeChatId || 0);
+    if (!messageId || !chatId) return;
+    try {
+      await unpinMessage({ chatId, messageId });
+      setMessages((prev) =>
+        prev.map((msg) =>
+          Number(msg.id) === messageId
+            ? { ...msg, pinned_at: null, pinned_by_user_id: null }
+            : msg,
+        ),
+      );
+    } catch (error) {
+      console.warn("[unpin] failed:", error?.message || error);
+    }
+  }
+
   async function submitReportMessage({ reason, details }) {
     const messageId = Number(reportMessageTarget?.id || 0);
     if (!messageId) return;
@@ -9084,6 +9124,8 @@ useEffect(() => {
     onOpenProfile: openMemberProfileFromList,
     onBlockUser: handleBlockUser,
     onReportMessage: handleReportMessage,
+    onPinMessage: handlePinMessage,
+    onUnpinMessage: handleUnpinMessage,
     onRemoveGroupMember: handleRemoveGroupMember,
     onMarkChatSeen: handleMarkChatSeen,
     onToggleChatMute: toggleMuteChat,

@@ -47,6 +47,8 @@ export function useAppContextMenu({
   onToggleChatArchive,
   onDeleteChats,
   onReportMessage,
+  onPinMessage,
+  onUnpinMessage,
 }) {
   const { t } = useLanguage();
   const [contextMenu, setContextMenu] = useState(null);
@@ -157,6 +159,23 @@ export function useAppContextMenu({
       icon: Forward,
       onSelect: () => onForwardMessage?.(message),
     },
+    ...(onPinMessage && onUnpinMessage
+      ? [
+          message?.pinned_at
+            ? {
+                id: "unpin",
+                label: t("chat.unpinMessage") || "Unpin",
+                icon: Pin,
+                onSelect: () => onUnpinMessage?.(message),
+              }
+            : {
+                id: "pin",
+                label: t("chat.pinMessage") || "Pin",
+                icon: Pin,
+                onSelect: () => onPinMessage?.(message),
+              },
+        ]
+      : []),
     ...(onReportMessage &&
     String(message?.author_username || message?.username || "").toLowerCase() !==
       String(currentUsername || "").toLowerCase()
