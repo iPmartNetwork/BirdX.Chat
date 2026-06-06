@@ -1,0 +1,457 @@
+openapi: 3.1.0
+info:
+  title: BirdX Chat API
+  description: |
+    BirdX self-hosted chat platform REST API.
+    All endpoints require session authentication via cookie (`sid`) unless noted.
+    Bot endpoints use Bearer token authentication.
+  version: 1.1.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  contact:
+    name: iPmart Network
+    url: https://github.com/iPmartNetwork/BirdX.Chat
+
+servers:
+  - url: https://app.birdx.chat
+    description: Official hosted instance
+  - url: http://localhost:5174
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Authentication and session management
+  - name: Messages
+    description: Send, edit, delete, search messages
+  - name: Chats
+    description: Chat/group/channel management
+  - name: Calls
+    description: Voice/video call signaling
+  - name: Push
+    description: Push notifications (Web Push + FCM)
+  - name: Profile
+    description: User profile management
+  - name: Contacts
+    description: Contact management and requests
+  - name: Threads
+    description: Message thread replies
+  - name: Stories
+    description: Stories/Status updates (24h expiry)
+  - name: E2EE
+    description: End-to-end encryption key exchange
+  - name: Admin
+    description: Admin panel operations
+  - name: Bot
+    description: Bot API (token-based)
+  - name: Health
+    description: Server health and status
+
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  uptime: { type: number }
+
+  /api/app/info:
+    get:
+      tags: [Health]
+      summary: App info, version, RTC config
+      responses:
+        '200':
+          description: App metadata and configuration
+
+  /api/register:
+    post:
+      tags: [Auth]
+      summary: Create a new account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string, minLength: 3, maxLength: 16 }
+                password: { type: string, minLength: 6 }
+                nickname: { type: string }
+      responses:
+        '200': { description: Account created, session cookie set }
+        '400': { description: Validation error }
+        '403': { description: Account creation disabled }
+        '409': { description: Username already exists }
+
+  /api/login:
+    post:
+      tags: [Auth]
+      summary: Login with credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+                totpToken: { type: string, description: 2FA code if enabled }
+      responses:
+        '200': { description: Login successful or 2FA required }
+        '401': { description: Invalid credentials }
+        '403': { description: Account banned }
+
+  /api/me:
+    get:
+      tags: [Auth]
+      summary: Get current session user info
+      responses:
+        '200': { description: User profile }
+        '401': { description: Not authenticated }
+
+  /api/logout:
+    post:
+      tags: [Auth]
+      summary: End current session
+      responses:
+        '200': { description: Logged out }
+
+  /api/messages:
+    get:
+      tags: [Messages]
+      summary: Get messages for a chat
+      parameters:
+        - name: chatId
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: username
+          in: query
+          required: true
+          schema: { type: string }
+        - name: beforeId
+          in: query
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        '200': { description: Messages list with pagination }
+
+    post:
+      tags: [Messages]
+      summary: Send a message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chatId, username, body]
+              properties:
+                chatId: { type: integer }
+                username: { type: string }
+                body: { type: string, maxLength: 4000 }
+                replyToMessageId: { type: integer }
+      responses:
+        '200': { description: Message sent }
+
+  /api/messages/search/{chatId}:
+    get:
+      tags: [Messages]
+      summary: Advanced message search with filters
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: q
+          in: query
+          description: Text search query
+          schema: { type: string }
+        - name: fromUserId
+          in: query
+          description: Filter by sender
+          schema: { type: integer }
+        - name: hasFiles
+          in: query
+          description: Filter messages with/without files
+          schema: { type: boolean }
+        - name: dateFrom
+          in: query
+          description: ISO date (from)
+          schema: { type: string, format: date-time }
+        - name: dateTo
+          in: query
+          description: ISO date (to)
+          schema: { type: string, format: date-time }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Search results with total count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  messages: { type: array }
+                  total: { type: integer }
+
+  /api/messages/pin:
+    post:
+      tags: [Messages]
+      summary: Pin a message (admin/owner only in groups)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chatId, messageId]
+              properties:
+                chatId: { type: integer }
+                messageId: { type: integer }
+      responses:
+        '200': { description: Message pinned }
+
+  /api/messages/unpin:
+    post:
+      tags: [Messages]
+      summary: Unpin a message
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chatId, messageId]
+              properties:
+                chatId: { type: integer }
+                messageId: { type: integer }
+      responses:
+        '200': { description: Message unpinned }
+
+  /api/messages/pinned/{chatId}:
+    get:
+      tags: [Messages]
+      summary: List pinned messages in a chat
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Pinned messages list }
+
+  /api/threads/{messageId}:
+    get:
+      tags: [Threads]
+      summary: Get thread replies for a message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200': { description: Thread replies }
+
+  /api/threads/{messageId}/reply:
+    post:
+      tags: [Threads]
+      summary: Post a reply in a thread
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string }
+      responses:
+        '200': { description: Reply created }
+
+  /api/stories:
+    get:
+      tags: [Stories]
+      summary: List all active stories (grouped by user)
+      responses:
+        '200': { description: Stories grouped by user }
+
+    post:
+      tags: [Stories]
+      summary: Create a new story
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type: { type: string, enum: [text, image, video] }
+                body: { type: string }
+                mediaUrl: { type: string }
+                mediaType: { type: string }
+                backgroundColor: { type: string }
+                fontStyle: { type: string }
+                durationSeconds: { type: integer, default: 86400 }
+      responses:
+        '200': { description: Story created }
+
+  /api/stories/{id}/view:
+    post:
+      tags: [Stories]
+      summary: Mark a story as viewed
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: View recorded }
+
+  /api/stories/{id}/viewers:
+    get:
+      tags: [Stories]
+      summary: Get viewers of own story
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Viewer list }
+
+  /api/stories/{id}:
+    delete:
+      tags: [Stories]
+      summary: Delete own story
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Story deleted }
+
+  /api/push/public-key:
+    get:
+      tags: [Push]
+      summary: Get VAPID public key for Web Push
+      responses:
+        '200': { description: Public key }
+
+  /api/push/subscribe:
+    post:
+      tags: [Push]
+      summary: Subscribe to Web Push notifications
+      responses:
+        '200': { description: Subscribed }
+
+  /api/push/device-token:
+    post:
+      tags: [Push]
+      summary: Register FCM device token (mobile/Capacitor)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, token]
+              properties:
+                username: { type: string }
+                token: { type: string }
+                platform: { type: string, default: android }
+      responses:
+        '200': { description: Token registered }
+        '401': { description: Not authenticated }
+
+    delete:
+      tags: [Push]
+      summary: Unregister FCM device token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, token]
+              properties:
+                username: { type: string }
+                token: { type: string }
+      responses:
+        '200': { description: Token removed }
+
+  /api/bot/send-message:
+    post:
+      tags: [Bot]
+      summary: Send a message as bot
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chatId, body]
+              properties:
+                chatId: { type: integer }
+                body: { type: string }
+      responses:
+        '200': { description: Message sent }
+        '401': { description: Invalid bot token }
+
+  /api/bot/chats:
+    get:
+      tags: [Bot]
+      summary: List chats (bot)
+      security:
+        - BearerAuth: []
+      responses:
+        '200': { description: Chat list }
+
+  /api/bot/users:
+    get:
+      tags: [Bot]
+      summary: List users (bot)
+      security:
+        - BearerAuth: []
+      responses:
+        '200': { description: User list }
+
+components:
+  securitySchemes:
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: sid
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Bot API token from admin panel
+
+security:
+  - CookieAuth: []
