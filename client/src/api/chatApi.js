@@ -821,6 +821,20 @@ export const unpinMessage = ({ chatId, messageId }) =>
 export const fetchPinnedMessages = (chatId) =>
   apiFetch(`${API_BASE}/api/messages/pinned/${encodeURIComponent(chatId)}`);
 
+export const searchMessagesInChat = ({ chatId, q, fromUserId, hasFiles, dateFrom, dateTo, limit, offset }) => {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (fromUserId) params.set("fromUserId", String(fromUserId));
+  if (hasFiles === true) params.set("hasFiles", "true");
+  if (hasFiles === false) params.set("hasFiles", "false");
+  if (dateFrom) params.set("dateFrom", dateFrom);
+  if (dateTo) params.set("dateTo", dateTo);
+  if (limit) params.set("limit", String(limit));
+  if (offset) params.set("offset", String(offset));
+  const query = params.toString();
+  return apiFetch(`${API_BASE}/api/messages/search/${encodeURIComponent(chatId)}${query ? `?${query}` : ""}`);
+};
+
 // --- Admin: Scheduled Messages ---
 export const fetchAdminScheduledMessages = () =>
   apiFetch(`${API_BASE}/api/admin/scheduled-messages`);

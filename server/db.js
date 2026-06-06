@@ -2951,6 +2951,70 @@ export function getPinnedMessageCount(chatId) {
   return Number(row?.count || 0);
 }
 
+// --- Message Search ---
+
+export function searchMessagesInChat(chatId, {
+  query = "",
+  fromUserId = null,
+  hasFiles = null,
+  dateFrom = null,
+  dateTo = null,
+  limit = 50,
+  offset = 0,
+} = {}) {
+  const id = Number(chatId || 0);
+  if (!id) return { messages: [], total: 0 };
+
+  const conditions = ["cm.chat_id = ?", "cm.hidden_everyone_at IS NULL"];
+  const params = [id];
+
+  if (query) {
+    conditions.push("cm.body LIKE ?");
+    params.push(`%${String(query).trim()}%`);
+  }
+  if (fromUserId) {
+    conditions.push("cm.user_id = ?");
+    params.push(Number(fromUserId));
+  }
+  if (hasFiles === true) {
+    conditions.push("EXISTS (SELECT 1 FROM chat_message_files WHERE chat_message_files.message_id = cm.id)");
+  }
+  if (hasFiles === false) {
+    conditions.push("NOT EXISTS (SELECT 1 FROM chat_message_files WHERE chat_message_files.message_id = cm.id)");
+  }
+  if (dateFrom) {
+    conditions.push("cm.created_at >= ?");
+    params.push(String(dateFrom));
+  }
+  if (dateTo) {
+    conditions.push("cm.created_at <= ?");
+    params.push(String(dateTo));
+  }
+
+  const where = conditions.join(" AND ");
+  const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+  const safeOffset = Math.max(0, Number(offset) || 0);
+
+  const countRow = getRow(
+    `SELECT COUNT(*) AS total FROM chat_messages cm WHERE ${where}`,
+    params,
+  );
+  const total = Number(countRow?.total || 0);
+
+  const messages = getAll(
+    `SELECT cm.id, cm.chat_id, cm.user_id, cm.body, cm.created_at, cm.pinned_at,
+            u.username, u.nickname, u.avatar_url, u.color
+     FROM chat_messages cm
+     LEFT JOIN users u ON u.id = cm.user_id
+     WHERE ${where}
+     ORDER BY cm.created_at DESC
+     LIMIT ? OFFSET ?`,
+    [...params, safeLimit, safeOffset],
+  ).map(decryptMessageRow);
+
+  return { messages, total };
+}
+
 export function listMutedUserIdsForChat(chatId) {
   const id = Number(chatId || 0);
   if (!id) return [];

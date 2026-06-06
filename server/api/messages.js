@@ -1853,6 +1853,38 @@ function registerMessageRoutes(app, deps) {
     const count = getPinnedMessageCount(numericChatId);
     return res.json({ ok: true, messages, count });
   });
+
+  // --- Advanced Message Search ---
+  app.get("/api/messages/search/:chatId", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const numericChatId = Number(req.params.chatId || 0);
+    if (!numericChatId) {
+      return res.status(400).json({ error: "chatId is required." });
+    }
+    if (!isMember(numericChatId, session.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+    const { searchMessagesInChat } = deps;
+    const query = req.query.q?.toString() || "";
+    const fromUserId = req.query.fromUserId ? Number(req.query.fromUserId) : null;
+    const hasFiles = req.query.hasFiles === "true" ? true : req.query.hasFiles === "false" ? false : null;
+    const dateFrom = req.query.dateFrom?.toString() || null;
+    const dateTo = req.query.dateTo?.toString() || null;
+    const limit = Number(req.query.limit || 50);
+    const offset = Number(req.query.offset || 0);
+
+    const result = searchMessagesInChat(numericChatId, {
+      query,
+      fromUserId,
+      hasFiles,
+      dateFrom,
+      dateTo,
+      limit,
+      offset,
+    });
+    return res.json({ ok: true, ...result });
+  });
 }
 
 export { registerMessageRoutes };
