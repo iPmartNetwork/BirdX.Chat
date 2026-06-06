@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search, X, Filter, Calendar, User, FileText } from "../../icons/lucide.js";
+import { Search, Close, Settings, Clock12, User, File } from "../../icons/lucide.js";
 import { useLanguage } from "../../i18n/LanguageContext.jsx";
 import { getAvatarInitials } from "../../utils/avatarInitials.js";
 import { formatTime } from "../../utils/chatFormat.js";
@@ -104,7 +104,7 @@ export default function SearchModal({ chatId, members = [], open, onClose, onNav
             }`}
             aria-label="Toggle filters"
           >
-            <Filter size={16} />
+            <Settings size={16} />
           </button>
           <button
             type="button"
@@ -112,7 +112,7 @@ export default function SearchModal({ chatId, members = [], open, onClose, onNav
             className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10"
             aria-label="Close search"
           >
-            <X size={16} />
+            <Close size={16} />
           </button>
         </div>
 
@@ -141,7 +141,7 @@ export default function SearchModal({ chatId, members = [], open, onClose, onNav
             {/* Has files */}
             <label className="block">
               <span className="flex items-center gap-1 text-[10px] font-semibold uppercase text-slate-500">
-                <FileText size={12} /> Files
+                <File size={12} /> Files
               </span>
               <select
                 value={hasFiles}
@@ -157,7 +157,7 @@ export default function SearchModal({ chatId, members = [], open, onClose, onNav
             {/* Date from */}
             <label className="block">
               <span className="flex items-center gap-1 text-[10px] font-semibold uppercase text-slate-500">
-                <Calendar size={12} /> From date
+                <Clock12 size={12} /> From date
               </span>
               <input
                 type="date"
@@ -170,7 +170,7 @@ export default function SearchModal({ chatId, members = [], open, onClose, onNav
             {/* Date to */}
             <label className="block">
               <span className="flex items-center gap-1 text-[10px] font-semibold uppercase text-slate-500">
-                <Calendar size={12} /> To date
+                <Clock12 size={12} /> To date
               </span>
               <input
                 type="date"

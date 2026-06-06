@@ -49,6 +49,7 @@ export default function ChatWindowPanel({
   mobileTab,
   onStartCall,
   onStartVideoCall,
+  onSearchMessages,
   groupCallLimitHint = "",
   activeChatId,
   activeChat = null,
@@ -1293,6 +1294,17 @@ export default function ChatWindowPanel({
                 ) : null}
               </>
             </ContextMenuSurface>
+            {typeof onSearchMessages === "function" ? (
+              <button
+                type="button"
+                onClick={onSearchMessages}
+                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white/80 text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50 dark:border-white/10 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-white/10"
+                aria-label="Search messages"
+                title="Search messages"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              </button>
+            ) : null}
             {typeof onStartCall === "function" && !isChannelChat ? (
               <button
                 type="button"

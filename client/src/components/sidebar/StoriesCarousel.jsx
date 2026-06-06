@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, X, ChevronLeft, ChevronRight } from "../../icons/lucide.js";
+import { useEffect, useRef, useState } from "react";
+import { Plus, Close } from "../../icons/lucide.js";
 import { useLanguage } from "../../i18n/LanguageContext.jsx";
 import { getAvatarInitials } from "../../utils/avatarInitials.js";
 
@@ -154,7 +154,7 @@ export function StoryViewer({ user, stories = [], onClose, onView, onNext, onPre
           className="inline-flex h-8 w-8 items-center justify-center rounded-full text-white hover:bg-white/20"
           aria-label="Close"
         >
-          <X size={20} />
+          <Close size={20} />
         </button>
       </div>
 
@@ -197,7 +197,7 @@ export function StoryViewer({ user, stories = [], onClose, onView, onNext, onPre
         className="absolute left-2 top-1/2 -translate-y-1/2 inline-flex h-10 w-10 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
         aria-label="Previous"
       >
-        <ChevronLeft size={24} />
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
       </button>
       <button
         type="button"
@@ -205,7 +205,7 @@ export function StoryViewer({ user, stories = [], onClose, onView, onNext, onPre
         className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-10 w-10 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
         aria-label="Next"
       >
-        <ChevronRight size={24} />
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
       </button>
     </div>
   );

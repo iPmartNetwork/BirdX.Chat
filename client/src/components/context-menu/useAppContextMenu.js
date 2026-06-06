@@ -15,6 +15,7 @@ import {
   VolumeX,
   Pin,
   Archive,
+  MessageSquare,
 } from "../../icons/lucide.js";
 import { copyTextToClipboard } from "../../utils/clipboard.js";
 import {
@@ -49,6 +50,7 @@ export function useAppContextMenu({
   onReportMessage,
   onPinMessage,
   onUnpinMessage,
+  onViewThread,
 }) {
   const { t } = useLanguage();
   const [contextMenu, setContextMenu] = useState(null);
@@ -174,6 +176,16 @@ export function useAppContextMenu({
                 icon: Pin,
                 onSelect: () => onPinMessage?.(message),
               },
+        ]
+      : []),
+    ...(onViewThread
+      ? [
+          {
+            id: "thread",
+            label: t("chat.viewThread") || "View thread",
+            icon: MessageSquare,
+            onSelect: () => onViewThread?.(message),
+          },
         ]
       : []),
     ...(onReportMessage &&

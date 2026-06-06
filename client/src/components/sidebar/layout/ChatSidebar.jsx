@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import ChatsListPanel from "../list/ChatsListPanel.jsx";
 import CallsListPanel from "../list/CallsListPanel.jsx";
+import { StoriesCarousel } from "../StoriesCarousel.jsx";
 import {
   MobileSettingsPanel,
   SettingsMenuPopover,

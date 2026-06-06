@@ -54,6 +54,9 @@ import { useCallContacts } from "../hooks/useCallContacts.js";
 import { useContacts } from "../hooks/useContacts.js";
 import { useNativeBridge } from "../hooks/useNativeBridge.js";
 import GroupCallOverlay from "../components/calls/GroupCallOverlay.jsx";
+import SearchModal from "../components/chat/SearchModal.jsx";
+import ThreadPanel from "../components/chat/ThreadPanel.jsx";
+import { StoriesCarousel, StoryViewer } from "../components/sidebar/StoriesCarousel.jsx";
 import { createMeshCallManager } from "../utils/calls/meshCallManager.js";
 import PollModal from "../components/modals/PollModal.jsx";
 import { buildStickerBody } from "../utils/stickers.js";
@@ -157,6 +160,11 @@ import {
   pinMessage,
   unpinMessage,
   fetchPinnedMessages,
+  fetchThreadReplies,
+  postThreadReply,
+  fetchStories,
+  createStory as createStoryApi,
+  viewStory as viewStoryApi,
   setChatMute,
   updateChatSettings,
   fetchArchivedChats,
@@ -609,6 +617,14 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const [reportMessageTarget, setReportMessageTarget] = useState(null);
   const [forwardMessageTarget, setForwardMessageTarget] = useState(null);
   const [forwardSavedChat, setForwardSavedChat] = useState(null);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [threadPanelMessage, setThreadPanelMessage] = useState(null);
+  const [threadReplies, setThreadReplies] = useState([]);
+  const [threadLoading, setThreadLoading] = useState(false);
+  const [threadReplyCount, setThreadReplyCount] = useState(0);
+  const [storyUsers, setStoryUsers] = useState([]);
+  const [storyViewerUser, setStoryViewerUser] = useState(null);
+  const [storyViewerStories, setStoryViewerStories] = useState([]);
   const [copyToastVisible, setCopyToastVisible] = useState(false);
   const [callState, setCallState] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
@@ -8776,6 +8792,84 @@ useEffect(() => {
     }
   }
 
+  // --- Thread handlers ---
+  async function openThread(message) {
+    const messageId = Number(message?.id || 0);
+    if (!messageId) return;
+    setThreadPanelMessage(message);
+    setThreadLoading(true);
+    setThreadReplies([]);
+    try {
+      const res = await fetchThreadReplies(messageId);
+      const data = await res.json();
+      if (data.ok) {
+        setThreadReplies(data.replies || []);
+        setThreadReplyCount(data.replyCount || 0);
+      }
+    } catch (error) {
+      console.warn("[thread] load failed:", error?.message || error);
+    } finally {
+      setThreadLoading(false);
+    }
+  }
+
+  async function handleSendThreadReply(text) {
+    const messageId = Number(threadPanelMessage?.id || 0);
+    if (!messageId || !text) return;
+    try {
+      const res = await postThreadReply({ messageId, body: text });
+      const data = await res.json();
+      if (data.ok) {
+        // Reload thread replies
+        const refreshRes = await fetchThreadReplies(messageId);
+        const refreshData = await refreshRes.json();
+        if (refreshData.ok) {
+          setThreadReplies(refreshData.replies || []);
+          setThreadReplyCount(refreshData.replyCount || 0);
+        }
+      }
+    } catch (error) {
+      console.warn("[thread] reply failed:", error?.message || error);
+    }
+  }
+
+  function closeThread() {
+    setThreadPanelMessage(null);
+    setThreadReplies([]);
+    setThreadReplyCount(0);
+  }
+
+  // --- Stories handlers ---
+  async function loadStories() {
+    try {
+      const res = await fetchStories();
+      const data = await res.json();
+      if (data.ok) setStoryUsers(data.users || []);
+    } catch { /* ignore */ }
+  }
+
+  useEffect(() => {
+    if (user?.username) loadStories();
+  }, [user?.username]);
+
+  function handleViewStory(storyUser) {
+    setStoryViewerUser(storyUser);
+    setStoryViewerStories(storyUser.stories || []);
+  }
+
+  async function handleCreateStory() {
+    const body = window.prompt("Enter story text:");
+    if (!body?.trim()) return;
+    try {
+      await createStoryApi({ type: "text", body: body.trim(), backgroundColor: "#10b981" });
+      await loadStories();
+    } catch { /* ignore */ }
+  }
+
+  async function handleStoryView(storyId) {
+    try { await viewStoryApi(storyId); } catch { /* ignore */ }
+  }
+
   async function submitReportMessage({ reason, details }) {
     const messageId = Number(reportMessageTarget?.id || 0);
     if (!messageId) return;
@@ -9126,6 +9220,7 @@ useEffect(() => {
     onReportMessage: handleReportMessage,
     onPinMessage: handlePinMessage,
     onUnpinMessage: handleUnpinMessage,
+    onViewThread: openThread,
     onRemoveGroupMember: handleRemoveGroupMember,
     onMarkChatSeen: handleMarkChatSeen,
     onToggleChatMute: toggleMuteChat,
@@ -9424,6 +9519,12 @@ useEffect(() => {
         paddingRight: "max(0px, env(safe-area-inset-right))",
       }}
     >
+      <StoriesCarousel
+        users={storyUsers}
+        currentUser={user}
+        onViewStory={handleViewStory}
+        onCreateStory={handleCreateStory}
+      />
       <ChatSidebar
         mobileTab={mobileTab}
         isConnected={isConnected}
@@ -9579,6 +9680,7 @@ useEffect(() => {
         typingIndicator={typingIndicator}
         onStartCall={canStartVoiceCall ? () => startOutgoingCall("voice") : null}
         onStartVideoCall={canStartVoiceCall ? () => startOutgoingCall("video") : null}
+        onSearchMessages={() => setSearchModalOpen(true)}
         groupCallLimitHint={isActiveGroupChat ? groupCallLimitHint : ""}
         isGroupChat={isActiveGroupChat}
         isChannelChat={isActiveChannelChat}
@@ -9754,6 +9856,59 @@ useEffect(() => {
             onSubmit={submitReportMessage}
           />
         </Suspense>
+      ) : null}
+
+      {/* Search Modal */}
+      <SearchModal
+        chatId={activeChatId}
+        members={activeMembers}
+        open={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        onNavigateToMessage={(msg) => {
+          setSearchModalOpen(false);
+          // Navigate to the message in chat (scroll to it)
+          const msgId = Number(msg?.id || 0);
+          if (msgId) {
+            // Use the existing mechanism to jump to a message
+            setActiveChatId(Number(msg.chat_id || activeChatId));
+          }
+        }}
+      />
+
+      {/* Thread Panel (side panel) */}
+      {threadPanelMessage ? (
+        <div className="fixed inset-y-0 right-0 z-[150] w-full md:w-[360px] shadow-2xl">
+          <ThreadPanel
+            rootMessage={threadPanelMessage}
+            replies={threadReplies}
+            replyCount={threadReplyCount}
+            loading={threadLoading}
+            onClose={closeThread}
+            onSendReply={handleSendThreadReply}
+            currentUser={user}
+          />
+        </div>
+      ) : null}
+
+      {/* Story Viewer (fullscreen overlay) */}
+      {storyViewerUser ? (
+        <StoryViewer
+          user={storyViewerUser}
+          stories={storyViewerStories}
+          onClose={() => { setStoryViewerUser(null); setStoryViewerStories([]); }}
+          onView={handleStoryView}
+          onNext={() => {
+            const idx = storyUsers.findIndex((u) => u.userId === storyViewerUser.userId);
+            const next = storyUsers[idx + 1];
+            if (next) { setStoryViewerUser(next); setStoryViewerStories(next.stories || []); }
+            else { setStoryViewerUser(null); setStoryViewerStories([]); }
+          }}
+          onPrev={() => {
+            const idx = storyUsers.findIndex((u) => u.userId === storyViewerUser.userId);
+            const prev = storyUsers[idx - 1];
+            if (prev) { setStoryViewerUser(prev); setStoryViewerStories(prev.stories || []); }
+          }}
+        />
       ) : null}
 
       {forwardMessageTarget ? (

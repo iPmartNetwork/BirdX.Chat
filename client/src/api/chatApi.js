@@ -835,6 +835,42 @@ export const searchMessagesInChat = ({ chatId, q, fromUserId, hasFiles, dateFrom
   return apiFetch(`${API_BASE}/api/messages/search/${encodeURIComponent(chatId)}${query ? `?${query}` : ""}`);
 };
 
+// --- Threads ---
+export const fetchThreadReplies = (messageId, { limit, offset } = {}) => {
+  const params = new URLSearchParams();
+  if (limit) params.set("limit", String(limit));
+  if (offset) params.set("offset", String(offset));
+  const query = params.toString();
+  return apiFetch(`${API_BASE}/api/threads/${encodeURIComponent(messageId)}${query ? `?${query}` : ""}`);
+};
+
+export const postThreadReply = ({ messageId, body }) =>
+  apiFetch(`${API_BASE}/api/threads/${encodeURIComponent(messageId)}/reply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+
+// --- Stories ---
+export const fetchStories = () => apiFetch(`${API_BASE}/api/stories`);
+
+export const createStory = (payload) =>
+  apiFetch(`${API_BASE}/api/stories`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+export const viewStory = (storyId) =>
+  apiFetch(`${API_BASE}/api/stories/${encodeURIComponent(storyId)}/view`, {
+    method: "POST",
+  });
+
+export const deleteStory = (storyId) =>
+  apiFetch(`${API_BASE}/api/stories/${encodeURIComponent(storyId)}`, {
+    method: "DELETE",
+  });
+
 // --- Admin: Scheduled Messages ---
 export const fetchAdminScheduledMessages = () =>
   apiFetch(`${API_BASE}/api/admin/scheduled-messages`);
