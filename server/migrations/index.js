@@ -44,6 +44,9 @@ import { migration043DeviceTokens } from "./043-device-tokens.js";
 import { migration044MessagePinning } from "./044-message-pinning.js";
 import { migration045MessageThreads } from "./045-message-threads.js";
 import { migration046Stories } from "./046-stories.js";
+import { migration047ChatFolders } from "./047-chat-folders.js";
+import { migration048AnonymousAdmin } from "./048-anonymous-admin.js";
+import { migration049ChatWallpaper } from "./049-chat-wallpaper.js";
 
 export const migrations = [
   migration001InitialSchema,
@@ -92,4 +95,7 @@ export const migrations = [
   migration044MessagePinning,
   migration045MessageThreads,
   migration046Stories,
+  migration047ChatFolders,
+  migration048AnonymousAdmin,
+  migration049ChatWallpaper,
 ];
