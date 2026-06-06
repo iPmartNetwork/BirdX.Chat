@@ -251,6 +251,8 @@ export const MessageItem = memo(function MessageItem({
         /^Sent a voice message$/i.test(normalizedBodyText)));
   const hasPoll = Boolean(msg?.poll?.question);
   const hasSticker = Boolean(msg?._sticker);
+  const isPollPlaceholder = !hasPoll && normalizedBodyText === "[[poll]]";
+  const isStickerPlaceholder = !hasSticker && /^\[\[sticker:/.test(normalizedBodyText);
   const messageBodyRef = useRef(null);
   const suppressCodeClickUntilRef = useRef(0);
   const mentionDebugEnabled =
@@ -1062,8 +1064,17 @@ export const MessageItem = memo(function MessageItem({
                   >
                     {msg._sticker.emoji}
                   </div>
+                ) : isStickerPlaceholder ? (
+                  <div className="mt-1 flex min-h-[3rem] items-center justify-center text-3xl text-slate-400">
+                    🎭
+                  </div>
                 ) : null}
-                {!hasPoll && !hasSticker && !shouldHideGeneratedFileBody ? (
+                {isPollPlaceholder ? (
+                  <div className="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-white/10 dark:bg-slate-900">
+                    📊 Poll (loading...)
+                  </div>
+                ) : null}
+                {!hasPoll && !hasSticker && !shouldHideGeneratedFileBody && !isPollPlaceholder && !isStickerPlaceholder ? (
                   <div
                     ref={messageBodyRef}
                     dir="auto"
