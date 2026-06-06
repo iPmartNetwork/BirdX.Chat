@@ -5,6 +5,20 @@ import { getAvatarInitials } from "../../utils/avatarInitials.js";
 import { formatTime } from "../../utils/chatFormat.js";
 import { searchMessagesInChat } from "../../api/chatApi.js";
 
+function HighlightText({ text, highlight }) {
+  if (!highlight || !text) return <>{text}</>;
+  const parts = String(text).split(new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === highlight.toLowerCase()
+          ? <mark key={i} className="bg-amber-200 text-amber-900 dark:bg-amber-500/30 dark:text-amber-200 rounded-sm px-0.5">{part}</mark>
+          : part
+      )}
+    </>
+  );
+}
+
 /**
  * Search Modal — advanced message search with filters.
  * Supports: text query, from user, has files, date range.
@@ -221,7 +235,7 @@ export default function SearchModal({ chatId, members = [], open, onClose, onNav
                         </span>
                       </div>
                       <p className="mt-0.5 truncate text-sm text-slate-600 dark:text-slate-300">
-                        {msg.body}
+                        <HighlightText text={msg.body} highlight={query.trim()} />
                       </p>
                     </div>
                   </button>

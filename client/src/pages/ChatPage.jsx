@@ -56,7 +56,9 @@ import { useNativeBridge } from "../hooks/useNativeBridge.js";
 import GroupCallOverlay from "../components/calls/GroupCallOverlay.jsx";
 import SearchModal from "../components/chat/SearchModal.jsx";
 import ThreadPanel from "../components/chat/ThreadPanel.jsx";
+import PinnedMessageBar from "../components/chat/PinnedMessageBar.jsx";
 import { StoriesCarousel, StoryViewer } from "../components/sidebar/StoriesCarousel.jsx";
+import CreateStoryModal from "../components/sidebar/CreateStoryModal.jsx";
 import { createMeshCallManager } from "../utils/calls/meshCallManager.js";
 import PollModal from "../components/modals/PollModal.jsx";
 import { buildStickerBody } from "../utils/stickers.js";
@@ -625,6 +627,7 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const [storyUsers, setStoryUsers] = useState([]);
   const [storyViewerUser, setStoryViewerUser] = useState(null);
   const [storyViewerStories, setStoryViewerStories] = useState([]);
+  const [createStoryModalOpen, setCreateStoryModalOpen] = useState(false);
   const [copyToastVisible, setCopyToastVisible] = useState(false);
   const [callState, setCallState] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
@@ -8858,10 +8861,28 @@ useEffect(() => {
   }
 
   async function handleCreateStory() {
-    const body = window.prompt("Enter story text:");
-    if (!body?.trim()) return;
+    setCreateStoryModalOpen(true);
+  }
+
+  async function handleSubmitStory(storyData) {
     try {
-      await createStoryApi({ type: "text", body: body.trim(), backgroundColor: "#10b981" });
+      if (storyData.mediaFile) {
+        // For media stories, upload first then create
+        // Simple: use a data URL or direct URL (depends on server upload support)
+        // For now, create as text with media URL placeholder
+        await createStoryApi({
+          type: storyData.type,
+          body: storyData.body || "",
+          backgroundColor: storyData.backgroundColor || "",
+          mediaType: storyData.mediaType || "",
+        });
+      } else {
+        await createStoryApi({
+          type: "text",
+          body: storyData.body,
+          backgroundColor: storyData.backgroundColor || "#10b981",
+        });
+      }
       await loadStories();
     } catch { /* ignore */ }
   }
@@ -9668,6 +9689,14 @@ useEffect(() => {
         onSelectCallsTab={() => setMobileTab("calls")}
       />
 
+      <PinnedMessageBar
+        chatId={activeChatId}
+        onNavigateToMessage={(msg) => {
+          const msgId = Number(msg?.id || 0);
+          if (msgId) setActiveChatId(Number(msg.chat_id || activeChatId));
+        }}
+      />
+
       <ChatWindowPanel
         mobileTab={mobileTab}
         activeChatId={activeChatId}
@@ -9910,6 +9939,13 @@ useEffect(() => {
           }}
         />
       ) : null}
+
+      {/* Create Story Modal */}
+      <CreateStoryModal
+        open={createStoryModalOpen}
+        onClose={() => setCreateStoryModalOpen(false)}
+        onSubmit={handleSubmitStory}
+      />
 
       {forwardMessageTarget ? (
         <Suspense fallback={null}>
