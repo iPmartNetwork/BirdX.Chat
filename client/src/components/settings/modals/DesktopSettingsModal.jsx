@@ -9,6 +9,7 @@ import { AboutSettingsPanel } from "../panels/AboutSettingsPanel.jsx";
 import { DataSettingsPanel } from "../panels/DataSettingsPanel.jsx";
 import { LanguageSettingsPanel } from "../panels/LanguageSettingsPanel.jsx";
 import { ThemeSettingsPanel } from "../panels/ThemeSettingsPanel.jsx";
+import WallpaperSettingsPanel from "../panels/WallpaperSettingsPanel.jsx";
 import ScheduledMessagesPanel from "../panels/ScheduledMessagesPanel.jsx";
 import { PrivacySettingsPanel } from "../panels/PrivacySettingsPanel.jsx";
 import TwoFactorSettings from "../panels/TwoFactorSettings.jsx";
@@ -88,6 +89,8 @@ export function DesktopSettingsModal({
                     ? t("settings.language")
                     : settingsPanel === "theme"
                       ? t("settings.theme")
+                    : settingsPanel === "wallpaper"
+                      ? (t("settings.wallpaper") || "Wallpaper")
                     : t("settings.about")}
           </h3>
           <button
@@ -432,6 +435,19 @@ export function DesktopSettingsModal({
               onUserUpdate={onUserUpdate}
               onClose={handleClosePanel}
               variant="desktop"
+            />
+          </div>
+        ) : null}
+
+        {settingsPanel === "wallpaper" ? (
+          <div className="app-scroll mt-4 min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+            <WallpaperSettingsPanel
+              currentWallpaper={typeof window !== "undefined" ? window.localStorage.getItem("birdx-chat-wallpaper") || "" : ""}
+              onSelect={(value) => {
+                if (typeof window !== "undefined") {
+                  window.localStorage.setItem("birdx-chat-wallpaper", value || "");
+                }
+              }}
             />
           </div>
         ) : null}

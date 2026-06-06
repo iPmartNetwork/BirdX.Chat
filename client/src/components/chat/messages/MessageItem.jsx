@@ -32,6 +32,7 @@ import {
 import { resolveMention } from "../../../utils/mentions.js";
 import { summarizeFiles } from "../../../utils/messagePreview.js";
 import Avatar from "../../common/Avatar.jsx";
+import ThreadBadge from "./ThreadBadge.jsx";
 
 const MAX_MESSAGE_HTML_CACHE_ENTRIES = 800;
 const messageBodyHtmlCache = new Map();
@@ -1333,6 +1334,13 @@ export const MessageItem = memo(function MessageItem({
               ) : null}
             </ContextMenuSurface>
           )}
+          {msg.thread_reply_count > 0 ? (
+            <ThreadBadge
+              replyCount={msg.thread_reply_count}
+              lastReplyAt={msg.thread_last_reply_at}
+              onClick={() => messageFilesProps?.onViewThread?.(msg)}
+            />
+          ) : null}
         </div>
       ) : null}
     </div>

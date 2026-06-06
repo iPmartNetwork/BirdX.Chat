@@ -35,6 +35,8 @@ import {
 } from "./index.js";
 import ContextMenuSurface from "../context-menu/ContextMenuSurface.jsx";
 import ContactAddBanner from "./ContactAddBanner.jsx";
+import FormattingToolbar from "./FormattingToolbar.jsx";
+import TypingIndicatorBubble from "./TypingIndicatorBubble.jsx";
 import { CACHE_STORES } from "../../utils/cacheDb.js";
 import {
   MEDIA_POSTER_CACHE_KEY,
@@ -59,6 +61,7 @@ export default function ChatWindowPanel({
   peerStatusLabel,
   peerIsOnline = false,
   typingIndicator = null,
+  typingUsers = [],
   isGroupChat = false,
   isChannelChat = false,
   _isSavedChat = false,
@@ -139,6 +142,7 @@ export default function ChatWindowPanel({
   onVotePoll = null,
   canSendPoll = true,
   canSendSticker = true,
+  onViewThread = null,
 }) {
   const { t } = useLanguage();
   const MEDIA_CACHE_VERSION = 1;
@@ -153,6 +157,11 @@ export default function ChatWindowPanel({
     typeof window !== "undefined"
       ? window.matchMedia("(max-width: 767px) and (pointer: coarse)").matches
       : false,
+  );
+  const [chatWallpaper] = useState(() =>
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("birdx-chat-wallpaper") || ""
+      : "",
   );
   const activePeerColor =
     activeHeaderPeer?.color ||
@@ -913,10 +922,10 @@ export default function ChatWindowPanel({
       backgroundColor: isDark
         ? "var(--birdx-chat-bg-dark, #0b1320)"
         : "var(--birdx-chat-bg-light, #ecfdf5)",
-      backgroundImage: isDark
+      backgroundImage: chatWallpaper || (isDark
         ? "var(--birdx-chat-bg-image-dark)"
-        : "var(--birdx-chat-bg-image-light)",
-      backgroundSize: "var(--birdx-chat-bg-size)",
+        : "var(--birdx-chat-bg-image-light)"),
+      backgroundSize: chatWallpaper ? "cover" : "var(--birdx-chat-bg-size)",
       scrollbarGutter: "stable both-edges",
       overscrollBehaviorY:
         !isDesktop && composerFocused ? "none" : "contain",
@@ -935,6 +944,7 @@ export default function ChatWindowPanel({
     }),
     [
       activeChatId,
+      chatWallpaper,
       composerFocused,
       insecureConnection,
       isDark,
@@ -1010,6 +1020,7 @@ export default function ChatWindowPanel({
       onMessageMediaLoaded,
       handleVideoThumbLoadedMetadata,
       getFileRenderType,
+      onViewThread,
     }),
     [
       isDesktop,
@@ -1021,6 +1032,7 @@ export default function ChatWindowPanel({
       onMessageMediaLoaded,
       handleVideoThumbLoadedMetadata,
       getFileRenderType,
+      onViewThread,
     ],
   );
 
@@ -1659,7 +1671,11 @@ export default function ChatWindowPanel({
         )}
       </div>
 
+      <TypingIndicatorBubble typingUsers={typingUsers} />
+
       {showComposer ? (
+        <>
+          <FormattingToolbar inputRef={composerInputRef} onTextChange={onMessageInput} />
           <MessageComposer
             activeChatId={activeChatId}
             isDesktop={isDesktop}
@@ -1702,6 +1718,7 @@ export default function ChatWindowPanel({
             canSendPoll={canSendPoll}
             canSendSticker={canSendSticker}
           />
+        </>
       ) : null}
 
       {activeChatId ? (

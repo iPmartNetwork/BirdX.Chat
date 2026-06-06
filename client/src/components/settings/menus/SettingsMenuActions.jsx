@@ -4,6 +4,7 @@ import {
   Clock12,
   Database,
   Globe,
+  ImageIcon,
   LayoutDashboard,
   Sun,
   Info,
@@ -107,6 +108,14 @@ export function SettingsMenuActions({
       >
         <Sun size={18} className="icon-anim-sway" />
         {t("settings.theme")}
+      </button>
+      <button
+        type="button"
+        onClick={() => setSettingsPanel("wallpaper")}
+        className={`mt-1 ${buttonBase} ${accentHover}`}
+      >
+        <ImageIcon size={18} className="icon-anim-sway" />
+        {t("settings.wallpaper") || "Wallpaper"}
       </button>
       <button
         type="button"

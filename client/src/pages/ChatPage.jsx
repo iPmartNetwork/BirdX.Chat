@@ -12,6 +12,9 @@ import {
 import MobileTabMenu from "../components/navigation/MobileTabMenu.jsx";
 import { useLanguage } from "../i18n/LanguageContext.jsx";
 import ChatWindowPanel from "../components/chat/ChatWindowPanel.jsx";
+import DragDropOverlay from "../components/chat/DragDropOverlay.jsx";
+import ImageEditor from "../components/chat/ImageEditor.jsx";
+import TypingIndicatorBubble from "../components/chat/TypingIndicatorBubble.jsx";
 import { ChatSidebar } from "../components/sidebar/index.js";
 import AppContextMenu from "../components/context-menu/AppContextMenu.jsx";
 import { useAppContextMenu } from "../components/context-menu/useAppContextMenu.js";
@@ -94,6 +97,7 @@ import {
   Volume2,
 } from "../icons/lucide.js";
 import { CLIPBOARD_COPY_EVENT } from "../utils/clipboard.js";
+import { updateUnreadBadge, clearUnreadBadge } from "../utils/unreadBadge.js";
 import { CACHE_STORES } from "../utils/cacheDb.js";
 import { downloadMessageFiles } from "../utils/fileDownload.js";
 import { io } from "socket.io-client";
@@ -609,6 +613,8 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
   const [unreadMarkerId, setUnreadMarkerId] = useState(null);
   const [pendingUploadFiles, setPendingUploadFiles] = useState([]);
   const [pendingUploadType, setPendingUploadType] = useState("");
+  const [imageEditorOpen, setImageEditorOpen] = useState(false);
+  const [imageEditorFile, setImageEditorFile] = useState(null);
   const [pendingVoiceMessage, setPendingVoiceMessage] = useState(null);
   const [uploadError, setUploadError] = useState("");
   const [activeUploadProgress, setActiveUploadProgress] = useState(null);
@@ -3992,6 +3998,8 @@ useEffect(() => {
         navigator.clearAppBadge().catch(() => null);
       }
     }
+    updateUnreadBadge(totalUnreadCount);
+    return () => clearUnreadBadge();
   }, [chats]);
 
   const getNetworkBackoffMultiplier = () => {
@@ -9697,6 +9705,7 @@ useEffect(() => {
         }}
       />
 
+      <DragDropOverlay onFilesDropped={(files) => setPendingUploadFiles(files)}>
       <ChatWindowPanel
         mobileTab={mobileTab}
         activeChatId={activeChatId}
@@ -9707,6 +9716,7 @@ useEffect(() => {
         peerStatusLabel={resolvedHeaderSubtitle}
         peerIsOnline={peerIsOnline}
         typingIndicator={typingIndicator}
+        typingUsers={activeTypingUsers.map((u) => ({ username: u.username, nickname: u.displayName }))}
         onStartCall={canStartVoiceCall ? () => startOutgoingCall("voice") : null}
         onStartVideoCall={canStartVoiceCall ? () => startOutgoingCall("video") : null}
         onSearchMessages={() => setSearchModalOpen(true)}
@@ -9792,6 +9802,7 @@ useEffect(() => {
         canSendPoll={canSendInActiveChat}
         canSendSticker={canSendInActiveChat}
         e2eeActive={shouldUseE2ee || groupE2eeActive}
+        onViewThread={openThread}
         permissionsPrompt={{
           show: showPermissionsPrompt,
           mode: activePermissionPrompt,
@@ -9807,6 +9818,23 @@ useEffect(() => {
           },
           onDismiss: (mode) =>
             dismissPermissionsPrompt(mode || activePermissionPrompt),
+        }}
+      />
+      </DragDropOverlay>
+
+      <ImageEditor
+        imageUrl={imageEditorFile ? URL.createObjectURL(imageEditorFile) : null}
+        imageName={imageEditorFile?.name}
+        open={imageEditorOpen}
+        onClose={() => { setImageEditorOpen(false); setImageEditorFile(null); }}
+        onSave={(_blobUrl, editedFile) => {
+          if (editedFile) {
+            setPendingUploadFiles((prev) =>
+              prev.map((f) => (f === imageEditorFile ? editedFile : f))
+            );
+          }
+          setImageEditorOpen(false);
+          setImageEditorFile(null);
         }}
       />
 

@@ -1,7 +1,27 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import EmojiReactionPicker from "../chat/messages/EmojiReactionPicker.jsx";
 
 const SCREEN_GAP = 12;
+
+function ReactionPickerToggle({ onReact }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-9 w-9 items-center justify-center rounded-full text-sm text-slate-400 transition hover:scale-110 hover:bg-black/5 dark:hover:bg-white/10"
+        aria-label="More reactions"
+      >
+        {open ? "−" : "+"}
+      </button>
+      {open ? (
+        <EmojiReactionPicker onSelect={onReact} onClose={() => setOpen(false)} />
+      ) : null}
+    </div>
+  );
+}
 
 export default function AppContextMenu({ menu, onClose }) {
   const menuRef = useRef(null);
@@ -73,7 +93,7 @@ export default function AppContextMenu({ menu, onClose }) {
     return (
       <div
         key={item.id}
-        className="flex items-center justify-center gap-2 px-3 py-2"
+        className="relative flex items-center justify-center gap-2 px-3 py-2"
       >
         {item.emojis.map((emoji) => (
           <button
@@ -89,6 +109,7 @@ export default function AppContextMenu({ menu, onClose }) {
             {emoji}
           </button>
         ))}
+        <ReactionPickerToggle onReact={(emoji) => { item.onReact?.(emoji); onClose?.(); }} />
       </div>
     );
   }
