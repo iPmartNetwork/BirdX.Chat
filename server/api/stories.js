@@ -9,6 +9,11 @@ function registerStoryRoutes(app, deps) {
     deleteStory,
     findUserByUsername,
     emitSseEvent,
+    uploadFiles,
+    uploadRootDir,
+    removeUploadedFiles,
+    hasEnoughFreeDiskSpace,
+    FILE_UPLOAD,
   } = deps;
 
   // List all active (non-expired) stories
@@ -77,6 +82,50 @@ function registerStoryRoutes(app, deps) {
       return res.status(500).json({ error: "Failed to create story." });
     }
     return res.json({ ok: true, storyId });
+  });
+
+  // Create a story with media upload (image/video)
+  app.post("/api/stories/upload", uploadFiles.single("media"), (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) {
+      if (req.file) removeUploadedFiles([req.file], uploadRootDir);
+      return;
+    }
+
+    if (!(FILE_UPLOAD)) {
+      if (req.file) removeUploadedFiles([req.file], uploadRootDir);
+      return res.status(503).json({ error: "File uploads are disabled on this server." });
+    }
+
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: "No media file provided." });
+    }
+
+    if (!hasEnoughFreeDiskSpace(Number(file.size || 0))) {
+      removeUploadedFiles([file], uploadRootDir);
+      return res.status(507).json({ error: "Not enough disk space." });
+    }
+
+    const { type, body, backgroundColor, fontStyle, durationSeconds } = req.body || {};
+    const mediaUrl = `/api/uploads/messages/${file.filename}`;
+    const mediaType = file.mimetype || "";
+
+    const storyId = createStory(session.id, {
+      type: type || (mediaType.startsWith("video/") ? "video" : "image"),
+      body: body || "",
+      mediaUrl,
+      mediaType,
+      backgroundColor: backgroundColor || "",
+      fontStyle: fontStyle || "",
+      durationSeconds,
+    });
+
+    if (!storyId) {
+      removeUploadedFiles([file], uploadRootDir);
+      return res.status(500).json({ error: "Failed to create story." });
+    }
+    return res.json({ ok: true, storyId, mediaUrl });
   });
 
   // Mark story as viewed

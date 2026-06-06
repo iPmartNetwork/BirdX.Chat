@@ -7,7 +7,7 @@ export default function StickerPicker({ open, onClose, onSelect }) {
   if (!open) return null;
 
   return (
-    <div className="absolute bottom-full start-0 z-30 mb-2 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-emerald-200/80 bg-white p-3 shadow-xl dark:border-emerald-500/25 dark:bg-slate-950">
+    <div className="absolute bottom-full start-0 z-30 mb-2 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-emerald-200/80 bg-white p-3 shadow-xl dark:border-emerald-500/25 dark:bg-slate-950">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-200">
           {t("chat.stickers.title")}
@@ -21,7 +21,7 @@ export default function StickerPicker({ open, onClose, onSelect }) {
           <Close size={14} />
         </button>
       </div>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid max-h-[240px] grid-cols-6 gap-1.5 overflow-y-auto overflow-x-hidden pr-1 scrollbar-thin">
         {DEFAULT_STICKER_PACK.stickers.map((sticker) => (
           <button
             key={sticker.id}
@@ -31,7 +31,7 @@ export default function StickerPicker({ open, onClose, onSelect }) {
               onSelect?.(DEFAULT_STICKER_PACK.id, sticker.id);
               onClose?.();
             }}
-            className="flex h-12 w-full items-center justify-center rounded-xl border border-emerald-100/80 bg-emerald-50/50 text-2xl transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+            className="flex h-10 w-full items-center justify-center rounded-lg border border-emerald-100/80 bg-emerald-50/50 text-xl transition hover:border-emerald-300 hover:bg-emerald-100 hover:scale-110 dark:border-emerald-500/20 dark:bg-emerald-500/10"
           >
             {sticker.emoji}
           </button>

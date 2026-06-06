@@ -138,6 +138,10 @@ export default function ChatSidebar({
   onStartVideoCallFromHistory,
   onSelectChatsTab,
   onSelectCallsTab,
+  storyUsers = [],
+  currentUser = null,
+  onViewStory,
+  onCreateStory,
 }) {
   const chatsScrollRef = useRef(null);
   const chatsContentRef = useRef(null);
@@ -250,6 +254,15 @@ export default function ChatSidebar({
         className="flex min-h-0 flex-1 flex-col overflow-hidden py-4"
         style={{ overscrollBehavior: "contain" }}
       >
+        {mobileTab !== "settings" && mobileTab !== "calls" && storyUsers.length > 0 ? (
+          <StoriesCarousel
+            users={storyUsers}
+            currentUser={currentUser}
+            onViewStory={onViewStory}
+            onCreateStory={onCreateStory}
+          />
+        ) : null}
+
         {mobileTab === "settings" ? (
           <div
             key={`settings-scroll-${scrollEpoch}`}

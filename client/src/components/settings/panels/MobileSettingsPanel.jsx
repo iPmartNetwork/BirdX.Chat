@@ -16,6 +16,7 @@ import { AboutSettingsPanel } from "./AboutSettingsPanel.jsx";
 import { DataSettingsPanel } from "./DataSettingsPanel.jsx";
 import { LanguageSettingsPanel } from "./LanguageSettingsPanel.jsx";
 import { ThemeSettingsPanel } from "./ThemeSettingsPanel.jsx";
+import WallpaperSettingsPanel from "./WallpaperSettingsPanel.jsx";
 import ScheduledMessagesPanel from "./ScheduledMessagesPanel.jsx";
 import { PrivacySettingsPanel } from "./PrivacySettingsPanel.jsx";
 import { NotificationsSettingsPanel } from "./NotificationsSettingsPanel.jsx";
@@ -585,6 +586,32 @@ export function MobileSettingsPanel({
             onUserUpdate={onUserUpdate}
             onClose={handleClosePanel}
             variant="mobile"
+          />
+        </div>
+      ) : null}
+
+      {settingsPanel === "wallpaper" ? (
+        <div className="md:hidden">
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-emerald-100/70 bg-white/80 p-4 dark:border-emerald-500/30 dark:bg-slate-950/60">
+            <button
+              type="button"
+              onClick={() => setSettingsPanel(null)}
+              className="inline-flex items-center justify-center rounded-full border border-emerald-200 p-2 text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+              aria-label={t("settings.back")}
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
+              {t("settings.wallpaper") || "Wallpaper"}
+            </h4>
+          </div>
+          <WallpaperSettingsPanel
+            currentWallpaper={typeof window !== "undefined" ? window.localStorage.getItem("birdx-chat-wallpaper") || "" : ""}
+            onSelect={(value) => {
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem("birdx-chat-wallpaper", value);
+              }
+            }}
           />
         </div>
       ) : null}

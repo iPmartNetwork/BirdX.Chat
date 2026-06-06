@@ -38,6 +38,8 @@ import ContextMenuSurface from "../context-menu/ContextMenuSurface.jsx";
 import ContactAddBanner from "./ContactAddBanner.jsx";
 import FormattingToolbar from "./FormattingToolbar.jsx";
 import TypingIndicatorBubble from "./TypingIndicatorBubble.jsx";
+import PinnedMessageBar from "./PinnedMessageBar.jsx";
+import DragDropOverlay from "./DragDropOverlay.jsx";
 import { CACHE_STORES } from "../../utils/cacheDb.js";
 import {
   MEDIA_POSTER_CACHE_KEY,
@@ -144,6 +146,7 @@ export default function ChatWindowPanel({
   canSendPoll = true,
   canSendSticker = true,
   onViewThread = null,
+  onFilesDropped = null,
 }) {
   const { t } = useLanguage();
   const MEDIA_CACHE_VERSION = 1;
@@ -1111,6 +1114,7 @@ export default function ChatWindowPanel({
   );
 
   return (
+    <DragDropOverlay onFilesDropped={activeChatId ? onFilesDropped : undefined}>
     <section
       ref={sectionRef}
       className={
@@ -1592,6 +1596,16 @@ export default function ChatWindowPanel({
       ) : null}
 
       <div className="flex-1 min-h-0">
+        {activeChatId ? (
+          <PinnedMessageBar
+            chatId={activeChatId}
+            onNavigateToMessage={(msg) => {
+              const node = document.querySelector(`[data-message-id="${msg?.id}"]`);
+              if (node) node.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+          />
+        ) : null}
+
         {activeChatId && floatingDay.key && isTimelineScrollable ? (
           <div
             className="absolute left-1/2 z-[3] -translate-x-1/2"
@@ -1807,5 +1821,6 @@ export default function ChatWindowPanel({
         getFocusAspectRatio={getFocusAspectRatio}
       />
     </section>
+    </DragDropOverlay>
   );
 }

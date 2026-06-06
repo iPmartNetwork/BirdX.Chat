@@ -861,6 +861,20 @@ export const createStory = (payload) =>
     body: JSON.stringify(payload),
   });
 
+export const uploadStoryMedia = (mediaFile, { type, body, backgroundColor, fontStyle, durationSeconds } = {}) => {
+  const formData = new FormData();
+  formData.append("media", mediaFile);
+  if (type) formData.append("type", type);
+  if (body) formData.append("body", body);
+  if (backgroundColor) formData.append("backgroundColor", backgroundColor);
+  if (fontStyle) formData.append("fontStyle", fontStyle);
+  if (durationSeconds) formData.append("durationSeconds", String(durationSeconds));
+  return apiFetch(`${API_BASE}/api/stories/upload`, {
+    method: "POST",
+    body: formData,
+  });
+};
+
 export const viewStory = (storyId) =>
   apiFetch(`${API_BASE}/api/stories/${encodeURIComponent(storyId)}/view`, {
     method: "POST",

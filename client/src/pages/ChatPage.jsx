@@ -170,6 +170,7 @@ import {
   postThreadReply,
   fetchStories,
   createStory as createStoryApi,
+  uploadStoryMedia,
   viewStory as viewStoryApi,
   setChatMute,
   updateChatSettings,
@@ -8875,14 +8876,11 @@ useEffect(() => {
   async function handleSubmitStory(storyData) {
     try {
       if (storyData.mediaFile) {
-        // For media stories, upload first then create
-        // Simple: use a data URL or direct URL (depends on server upload support)
-        // For now, create as text with media URL placeholder
-        await createStoryApi({
+        // Upload media file to server
+        await uploadStoryMedia(storyData.mediaFile, {
           type: storyData.type,
           body: storyData.body || "",
           backgroundColor: storyData.backgroundColor || "",
-          mediaType: storyData.mediaType || "",
         });
       } else {
         await createStoryApi({
@@ -9689,6 +9687,13 @@ useEffect(() => {
         onStartVideoCallFromHistory={handleStartVideoCallFromHistory}
         onSelectChatsTab={() => setMobileTab("chats")}
         onSelectCallsTab={() => setMobileTab("calls")}
+        storyUsers={storyUsers}
+        currentUser={user}
+        onViewStory={(storyUser) => {
+          setStoryViewerUser(storyUser);
+          setStoryViewerStories(storyUser.stories || []);
+        }}
+        onCreateStory={() => setCreateStoryModalOpen(true)}
       />
 
       <ChatWindowPanel
@@ -9788,6 +9793,11 @@ useEffect(() => {
         canSendSticker={canSendInActiveChat}
         e2eeActive={shouldUseE2ee || groupE2eeActive}
         onViewThread={openThread}
+        onFilesDropped={(files) => {
+          if (files?.length) {
+            handleUploadFilesSelected(files, "media");
+          }
+        }}
         permissionsPrompt={{
           show: showPermissionsPrompt,
           mode: activePermissionPrompt,
