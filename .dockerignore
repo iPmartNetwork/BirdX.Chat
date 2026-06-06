@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+apps/
+
+# Build outputs (rebuilt in Docker)
+client/dist/
+dist/
+build/
+
+# Development
+.git/
+.github/
+.vscode/
+.idea/
+.kiro/
+
+# Data (runtime, not build)
+data/
+*.db
+*.sqlite
+
+# Secrets
+.env
+.env.local
+.env.*.local
+*service-account*.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Release artifacts
+release/

@@ -1776,6 +1776,83 @@ function registerMessageRoutes(app, deps) {
 
     return res.json({ ok: true });
   });
+  // --- Message Pinning ---
+
+  app.post("/api/messages/pin", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const { chatId, messageId } = req.body || {};
+    const numericChatId = Number(chatId || 0);
+    const numericMessageId = Number(messageId || 0);
+    if (!numericChatId || !numericMessageId) {
+      return res.status(400).json({ error: "chatId and messageId are required." });
+    }
+    if (!isMember(numericChatId, session.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+    // Only admins/owners can pin in groups/channels; anyone can pin in DMs
+    const chat = findChatById(numericChatId);
+    if (chat && (chat.type === "group" || chat.type === "channel")) {
+      const role = getChatMemberRole(numericChatId, session.id);
+      if (!["owner", "admin"].includes(String(role || "").toLowerCase())) {
+        return res.status(403).json({ error: "Only admins can pin messages." });
+      }
+    }
+    const { pinMessage } = deps;
+    pinMessage(numericMessageId, session.id);
+    emitChatEvent(numericChatId, {
+      type: "message_pinned",
+      chatId: numericChatId,
+      messageId: numericMessageId,
+      pinnedBy: session.id,
+    });
+    return res.json({ ok: true });
+  });
+
+  app.post("/api/messages/unpin", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const { chatId, messageId } = req.body || {};
+    const numericChatId = Number(chatId || 0);
+    const numericMessageId = Number(messageId || 0);
+    if (!numericChatId || !numericMessageId) {
+      return res.status(400).json({ error: "chatId and messageId are required." });
+    }
+    if (!isMember(numericChatId, session.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+    const chat = findChatById(numericChatId);
+    if (chat && (chat.type === "group" || chat.type === "channel")) {
+      const role = getChatMemberRole(numericChatId, session.id);
+      if (!["owner", "admin"].includes(String(role || "").toLowerCase())) {
+        return res.status(403).json({ error: "Only admins can unpin messages." });
+      }
+    }
+    const { unpinMessage } = deps;
+    unpinMessage(numericMessageId);
+    emitChatEvent(numericChatId, {
+      type: "message_unpinned",
+      chatId: numericChatId,
+      messageId: numericMessageId,
+    });
+    return res.json({ ok: true });
+  });
+
+  app.get("/api/messages/pinned/:chatId", (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const numericChatId = Number(req.params.chatId || 0);
+    if (!numericChatId) {
+      return res.status(400).json({ error: "chatId is required." });
+    }
+    if (!isMember(numericChatId, session.id)) {
+      return res.status(403).json({ error: "Not a member of this chat." });
+    }
+    const { listPinnedMessages, getPinnedMessageCount } = deps;
+    const messages = listPinnedMessages(numericChatId);
+    const count = getPinnedMessageCount(numericChatId);
+    return res.json({ ok: true, messages, count });
+  });
 }
 
 export { registerMessageRoutes };

@@ -2907,6 +2907,50 @@ export function listDeviceTokensByUserIds(userIds = []) {
   );
 }
 
+// --- Message Pinning ---
+
+export function pinMessage(messageId, userId) {
+  const msgId = Number(messageId || 0);
+  const uid = Number(userId || 0);
+  if (!msgId) return;
+  run(
+    "UPDATE chat_messages SET pinned_at = datetime('now'), pinned_by_user_id = ? WHERE id = ?",
+    [uid || null, msgId],
+  );
+}
+
+export function unpinMessage(messageId) {
+  const msgId = Number(messageId || 0);
+  if (!msgId) return;
+  run(
+    "UPDATE chat_messages SET pinned_at = NULL, pinned_by_user_id = NULL WHERE id = ?",
+    [msgId],
+  );
+}
+
+export function listPinnedMessages(chatId, limit = 50) {
+  const id = Number(chatId || 0);
+  if (!id) return [];
+  return getAll(
+    `SELECT id, chat_id, user_id, body, created_at, pinned_at, pinned_by_user_id
+     FROM chat_messages
+     WHERE chat_id = ? AND pinned_at IS NOT NULL AND hidden_everyone_at IS NULL
+     ORDER BY pinned_at DESC
+     LIMIT ?`,
+    [id, Math.min(Math.max(1, limit), 200)],
+  ).map(decryptMessageRow);
+}
+
+export function getPinnedMessageCount(chatId) {
+  const id = Number(chatId || 0);
+  if (!id) return 0;
+  const row = getRow(
+    "SELECT COUNT(*) AS count FROM chat_messages WHERE chat_id = ? AND pinned_at IS NOT NULL AND hidden_everyone_at IS NULL",
+    [id],
+  );
+  return Number(row?.count || 0);
+}
+
 export function listMutedUserIdsForChat(chatId) {
   const id = Number(chatId || 0);
   if (!id) return [];

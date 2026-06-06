@@ -1,0 +1,37 @@
+# ============================================
+# BirdX Chat — Docker Compose
+# ============================================
+# Quick start:
+#   cp .env.example .env   # edit with your settings
+#   docker compose up -d
+#
+# Data is persisted in a named volume (birdx-data).
+# To back up: docker compose exec birdx cat /app/data/birdx.db > backup.db
+# ============================================
+
+services:
+  birdx:
+    build: .
+    image: birdx:latest
+    container_name: birdx
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT:-5174}:5174"
+    volumes:
+      - birdx-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - APP_ENV=production
+      - SERVER_PORT=5174
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5174/api/health').then(r=>{if(!r.ok)throw 1}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  birdx-data:
+    driver: local
