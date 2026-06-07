@@ -18,6 +18,7 @@ import {
   Lock,
   Mic,
   Phone,
+  Upload,
   Video,
 } from "../../icons/lucide.js";
 import { getAvatarStyle } from "../../utils/avatarColor.js";
@@ -39,7 +40,6 @@ import ContactAddBanner from "./ContactAddBanner.jsx";
 import FormattingToolbar from "./FormattingToolbar.jsx";
 import TypingIndicatorBubble from "./TypingIndicatorBubble.jsx";
 import PinnedMessageBar from "./PinnedMessageBar.jsx";
-import DragDropOverlay from "./DragDropOverlay.jsx";
 import { CACHE_STORES } from "../../utils/cacheDb.js";
 import {
   MEDIA_POSTER_CACHE_KEY,
@@ -246,6 +246,8 @@ export default function ChatWindowPanel({
     () => new Set(),
   );
   const [composerFocused, setComposerFocused] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
   const touchDxRef = useRef(0);
@@ -987,6 +989,43 @@ export default function ChatWindowPanel({
     }
   };
 
+  // Drag & Drop handlers (inline, no wrapper div)
+  const handleDragEnterOverlay = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current += 1;
+    if (e.dataTransfer?.types?.includes("Files")) {
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeaveOverlay = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const handleDragOverOverlay = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDropOverlay = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    dragCounterRef.current = 0;
+    if (!activeChatId) return;
+    const files = Array.from(e.dataTransfer?.files || []);
+    if (files.length > 0) {
+      onFilesDropped?.(files);
+    }
+  }, [activeChatId, onFilesDropped]);
+
   const handleVideoThumbLoadedMetadata = useCallback(
     (event) => {
     const video = event.currentTarget;
@@ -1114,7 +1153,6 @@ export default function ChatWindowPanel({
   );
 
   return (
-    <DragDropOverlay onFilesDropped={activeChatId ? onFilesDropped : undefined}>
     <section
       ref={sectionRef}
       className={
@@ -1132,6 +1170,10 @@ export default function ChatWindowPanel({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onDragEnter={handleDragEnterOverlay}
+      onDragLeave={handleDragLeaveOverlay}
+      onDragOver={handleDragOverOverlay}
+      onDrop={handleDropOverlay}
     >
       {activeChatId ? (
         <>
@@ -1820,7 +1862,16 @@ export default function ChatWindowPanel({
         focusExpiryWarning={focusExpiryWarning}
         getFocusAspectRatio={getFocusAspectRatio}
       />
+      {isDragOver ? (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-emerald-500/10 backdrop-blur-sm border-2 border-dashed border-emerald-400 rounded-xl m-2 pointer-events-none">
+          <div className="flex flex-col items-center gap-2">
+            <Upload size={48} className="text-emerald-500" />
+            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+              Drop files to send
+            </p>
+          </div>
+        </div>
+      ) : null}
     </section>
-    </DragDropOverlay>
   );
 }
