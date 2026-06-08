@@ -112,9 +112,7 @@ export function createMeshCallManager({
     }
 
     if (entry.pc.signalingState === "have-local-offer") {
-      await entry.pc.setRemoteDescription(
-        new RTCSessionDescription(sessionDescription),
-      );
+      // Glare resolution: we both sent offers. Rollback local first, then apply remote.
       await entry.pc.setLocalDescription({ type: "rollback" });
       await entry.pc.setRemoteDescription(
         new RTCSessionDescription(sessionDescription),

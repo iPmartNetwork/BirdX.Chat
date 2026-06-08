@@ -1827,8 +1827,13 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
       return;
     }
     if (peer.signalingState !== "stable") {
-      pendingOfferRef.current = sessionDescription;
-      return;
+      // Glare: we both sent offers. Rollback our local offer and accept theirs.
+      if (peer.signalingState === "have-local-offer") {
+        await peer.setLocalDescription({ type: "rollback" });
+      } else {
+        pendingOfferRef.current = sessionDescription;
+        return;
+      }
     }
 
     await peer.setRemoteDescription(new RTCSessionDescription(sessionDescription));
@@ -1969,10 +1974,24 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     peer.onicecandidate = (event) => {
       const activeRoomId = callStateRef.current?.roomId || roomId;
       if (!event.candidate || !activeRoomId) return;
-      socketRef.current?.emit?.("ice-candidate", {
+      const socket = socketRef.current;
+      if (!socket?.connected) return;
+      socket.emit("ice-candidate", {
         roomId: activeRoomId,
         candidate: event.candidate,
       });
+    };
+
+    peer.onnegotiationneeded = async () => {
+      const activeRoomId = callStateRef.current?.roomId || roomId;
+      if (!activeRoomId) return;
+      if (!callStateRef.current?.isCaller) return;
+      if (peer.signalingState !== "stable") return;
+      try {
+        await createAndSendOffer(activeRoomId);
+      } catch (error) {
+        console.warn("Renegotiation failed:", error);
+      }
     };
 
     peer.ontrack = (event) => {
@@ -2034,6 +2053,22 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
         void restartCallIce(activeRoomId);
       }
     };
+
+    // ICE gathering timeout: if no connection after 15s, try ICE restart
+    const iceGatheringTimeout = window.setTimeout(() => {
+      if (!peer || peer.connectionState === "closed") return;
+      if (peer.iceConnectionState === "connected" || peer.iceConnectionState === "completed") return;
+      if (peer.iceConnectionState === "checking" || peer.iceConnectionState === "new") {
+        console.warn("[call] ICE gathering timeout — attempting ICE restart");
+        void restartCallIce(callStateRef.current?.roomId || roomId);
+      }
+    }, 15000);
+
+    peer.addEventListener("connectionstatechange", () => {
+      if (peer.connectionState === "connected" || peer.connectionState === "closed") {
+        window.clearTimeout(iceGatheringTimeout);
+      }
+    }, { once: false });
 
     await flushPendingOffer();
     await flushPendingAnswer();
