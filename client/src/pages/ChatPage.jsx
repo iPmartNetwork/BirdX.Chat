@@ -1957,9 +1957,11 @@ export default function ChatPage({ user, setUser, isDark, setIsDark, toggleTheme
     setMicrophonePermission("granted");
     syncLocalAudioMute(callMuted);
 
+    const hasTurn = iceServersHaveTurn(getCallIceServers());
     const peer = new RTCPeerConnection({
       iceServers: getCallIceServers(),
       iceCandidatePoolSize: 4,
+      iceTransportPolicy: hasTurn ? "relay" : "all",
     });
     peerRef.current = peer;
 

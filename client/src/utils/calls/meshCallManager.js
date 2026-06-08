@@ -26,6 +26,9 @@ export function createMeshCallManager({
     const pc = new RTCPeerConnection({
       iceServers: iceServers || [],
       iceCandidatePoolSize: 4,
+      iceTransportPolicy: (iceServers || []).some((s) =>
+        [].concat(s?.urls || []).join(" ").includes("turn:")
+      ) ? "relay" : "all",
     });
 
     const localStream = getLocalStream?.();
