@@ -10,6 +10,36 @@ Format: [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## v1.0.3 - 2026-06-09
+
+### Fixed
+
+- **Voice/video calls fail across networks**: Fixed WebRTC glare resolution (offer collision) in both 1-on-1 and mesh group calls — `setLocalDescription({type:"rollback"})` now runs before accepting the remote offer.
+- **Calls stuck on "Connecting"**: Added `iceTransportPolicy: "relay"` when TURN is configured, forcing all media through TURN to work on symmetric NAT / mobile networks.
+- **No renegotiation after track changes**: Added `onnegotiationneeded` handler for 1-on-1 calls so audio/video is properly renegotiated when tracks are added or removed mid-call.
+- **ICE gathering hangs forever**: Added 15-second ICE gathering timeout with automatic ICE restart fallback.
+- **ICE candidates lost on disconnect**: Socket connection check before emitting ICE candidates.
+- **Layout broken (line in middle of page)**: DragDropOverlay no longer wraps ChatWindowPanel with an extra div — drag/drop events are now inline on the section element.
+- **StoriesCarousel breaking layout**: Moved inside ChatSidebar component (above chat list) instead of root flex container.
+- **PinnedMessageBar breaking layout**: Moved inside ChatWindowPanel (below header) instead of root flex container.
+- **Mobile input vertical text**: Added `writing-mode: horizontal-tb !important` to fix RTL WebView text rendering.
+
+### Added
+
+- **Story media upload**: New `POST /api/stories/upload` endpoint with multer for image/video stories; client `uploadStoryMedia()` API function.
+- **Wallpaper settings on mobile**: WallpaperSettingsPanel now wired in MobileSettingsPanel (settings → wallpaper).
+- **Expanded sticker panel**: Grid increased from 12 to 36 emojis, 6-column scrollable layout.
+- **DragDropOverlay**: File drag-and-drop overlay working inside chat panel (inline events, no wrapper div).
+- **StoriesCarousel in sidebar**: Horizontal stories ring at top of chat list with create/view story actions.
+- **PinnedMessageBar in chat**: Shows pinned messages with navigation, positioned below chat header.
+
+### Changed
+
+- TURN configuration documentation updated — coturn setup guide with `lt-cred-mech`.
+- Sticker picker grid now 6 columns with max-height scroll instead of 4 columns flat.
+
+---
+
 ## v1.0.2 - 2026-06-04
 
 ### Fixed

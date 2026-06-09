@@ -8,6 +8,36 @@
 
 ---
 
+## v1.0.3 - 2026-06-09
+
+### رفع شده
+
+- **عدم اتصال تماس صوتی/تصویری از شبکه‌های مختلف**: رفع glare resolution (برخورد offer) در تماس‌های ۱ به ۱ و گروهی mesh — `rollback` حالا قبل از پذیرش offer ریموت اجرا می‌شود.
+- **ماندن تماس در "Connecting"**: اضافه شدن `iceTransportPolicy: "relay"` وقتی TURN تنظیم شده، برای عبور مطمئن از NAT symmetric.
+- **صدا/تصویر نمیرفت بعد از تغییر track**: اضافه شدن `onnegotiationneeded` برای renegotiation خودکار.
+- **هنگ ICE بدون timeout**: تایمر ۱۵ ثانیه‌ای ICE gathering با ICE restart خودکار.
+- **گم شدن ICE candidate**: بررسی اتصال سوکت قبل از ارسال.
+- **خط وسط صفحه (layout شکسته)**: DragDropOverlay دیگر div اضافی دور ChatWindowPanel نمی‌گذارد.
+- **StoriesCarousel**: به داخل ChatSidebar منتقل شد (بالای لیست چت).
+- **PinnedMessageBar**: به داخل ChatWindowPanel منتقل شد (زیر هدر).
+- **نوشتن عمودی حروف input موبایل**: رفع با `writing-mode: horizontal-tb` در CSS.
+
+### افزوده شده
+
+- **آپلود عکس/ویدیو استوری**: endpoint جدید `POST /api/stories/upload` با multer؛ تابع `uploadStoryMedia()` در کلاینت.
+- **تنظیمات والپیپر موبایل**: WallpaperSettingsPanel در MobileSettingsPanel wire شد.
+- **پنل استیکر گسترش‌یافته**: از ۱۲ به ۳۶ ایموجی، grid ۶ ستونه با scroll.
+- **DragDropOverlay**: اورلی drag-and-drop فایل داخل پنل چت (بدون div اضافی).
+- **StoriesCarousel در سایدبار**: حلقه استوری افقی بالای لیست چت.
+- **PinnedMessageBar در چت**: نمایش پیام‌های pin شده با ناوبری.
+
+### تغییر یافته
+
+- مستندات تنظیم TURN آپدیت شد — راهنمای coturn با `lt-cred-mech`.
+- grid استیکر ۶ ستونه با حداکثر ارتفاع scroll.
+
+---
+
 ## v1.0.2 - 2026-06-04
 
 ### رفع شده
