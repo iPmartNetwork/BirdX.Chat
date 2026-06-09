@@ -162,11 +162,33 @@ export default function ChatWindowPanel({
       ? window.matchMedia("(max-width: 767px) and (pointer: coarse)").matches
       : false,
   );
-  const [chatWallpaper] = useState(() =>
+  const [chatWallpaper, setChatWallpaper] = useState(() =>
     typeof window !== "undefined"
       ? window.localStorage.getItem("birdx-chat-wallpaper") || ""
       : "",
   );
+
+  // Listen for wallpaper changes from settings
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === "birdx-chat-wallpaper") {
+        setChatWallpaper(e.newValue || "");
+      }
+    };
+    const handleCustom = () => {
+      setChatWallpaper(
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("birdx-chat-wallpaper") || ""
+          : "",
+      );
+    };
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("birdx:wallpaper-changed", handleCustom);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("birdx:wallpaper-changed", handleCustom);
+    };
+  }, []);
   const activePeerColor =
     activeHeaderPeer?.color ||
     headerAvatarColor ||

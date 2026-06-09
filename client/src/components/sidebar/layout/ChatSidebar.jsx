@@ -254,7 +254,7 @@ export default function ChatSidebar({
         className="flex min-h-0 flex-1 flex-col overflow-hidden py-4"
         style={{ overscrollBehavior: "contain" }}
       >
-        {mobileTab !== "settings" && mobileTab !== "calls" && storyUsers.length > 0 ? (
+        {mobileTab !== "settings" && mobileTab !== "calls" ? (
           <StoriesCarousel
             users={storyUsers}
             currentUser={currentUser}

@@ -26,6 +26,7 @@ export default function WallpaperSettingsPanel({ currentWallpaper, onSelect }) {
     // Save to localStorage
     if (typeof window !== "undefined") {
       window.localStorage.setItem("birdx-chat-wallpaper", wallpaper.value);
+      window.dispatchEvent(new CustomEvent("birdx:wallpaper-changed"));
     }
   };
 

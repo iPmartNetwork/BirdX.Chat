@@ -12,7 +12,6 @@ import {
 import MobileTabMenu from "../components/navigation/MobileTabMenu.jsx";
 import { useLanguage } from "../i18n/LanguageContext.jsx";
 import ChatWindowPanel from "../components/chat/ChatWindowPanel.jsx";
-import DragDropOverlay from "../components/chat/DragDropOverlay.jsx";
 import ImageEditor from "../components/chat/ImageEditor.jsx";
 import TypingIndicatorBubble from "../components/chat/TypingIndicatorBubble.jsx";
 import { ChatSidebar } from "../components/sidebar/index.js";
